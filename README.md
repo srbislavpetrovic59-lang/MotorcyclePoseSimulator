@@ -1,58 +1,58 @@
-\# Motorcycle Pose Simulator
+# Motorcycle Pose Simulator
 
+Real-time motorcycle riding posture simulator using computer vision, MediaPipe, WebSocket communication and Unreal Engine 5.
 
+## Goal
 
-Computer vision based motorcycle riding posture simulator.
+The goal of this project is to track rider body posture using a camera, analyze riding-related body movements, and visualize the rider on a motorcycle in Unreal Engine.
 
+The project is intended both as a technical portfolio project and as a foundation for a future motorcycle riding coach.
 
+## Current status
 
-The goal of this project is to track rider body posture using a camera,
+- [x] IP Webcam camera stream works
+- [x] OpenCV receives video stream
+- [x] MediaPipe Pose detects body landmarks
+- [x] Basic skeleton visualization works
+- [x] Initial GitHub repository created
 
-process pose landmarks with MediaPipe, and later send the data to Unreal Engine
+## Planned features
 
-for real-time visualization of motorcycle riding position.
+- [ ] Modular Python tracker
+- [ ] Arm angle detection
+- [ ] Body lean detection
+- [ ] Foot position detection for gear shifting and rear brake
+- [ ] RiderState data model
+- [ ] WebSocket data publishing
+- [ ] Unreal Engine rider visualization
+- [ ] Riding coach feedback
 
-
-
-\## Current status
-
-
-
-\- IP Webcam camera stream works
-
-\- OpenCV receives video stream
-
-\- MediaPipe Pose detects body landmarks
-
-\- Basic skeleton visualization works
-
-
-
-\## Planned features
-
-
-
-\- Calculate arm, shoulder and body angles
-
-\- Detect throttle, clutch and brake-like movements
-
-\- Send pose data to Unreal Engine via WebSocket
-
-\- Animate a rider avatar on a motorcycle
-
-\- Provide posture feedback for beginner motorcycle training
-
-
-
-\## Project structure
-
-
+## Architecture
 
 ```text
-
-python\_tracker/   Python + OpenCV + MediaPipe tracking
-
-unreal/           Unreal Engine project placeholder
-
-docs/             Architecture and design notes
-
+Camera / IP Webcam
+        |
+        v
+Camera Module
+        |
+        v
+Pose Detector
+        |
+        v
+Pose Analyzer
+        |
+        +--> Hand Analyzer
+        +--> Body Analyzer
+        +--> Foot Analyzer
+        |
+        v
+RiderState
+        |
+        v
+JSON / WebSocket
+        |
+        v
+Unreal Engine 5
+        |
+        v
+Motorcycle Rider Avatar
