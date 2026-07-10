@@ -2,21 +2,23 @@ import cv2
 
 
 class Camera:
-    def __init__(self, source="http://192.168.1.6:8080/video"):
-        self.source = source
-        self.cap = cv2.VideoCapture(source)
 
-        if not self.cap.isOpened():
+    def __init__(self, source):
+
+        self._source = source
+        self._capture = cv2.VideoCapture(source)
+
+        if not self._capture.isOpened():
             raise RuntimeError(f"Cannot open camera: {source}")
 
     def read(self):
-        ok, frame = self.cap.read()
+
+        ok, frame = self._capture.read()
 
         if not ok:
             return None
 
-        frame = cv2.flip(frame, 1)
-        return frame
+        return cv2.flip(frame, 1)
 
     def release(self):
-        self.cap.release()
+        self._capture.release()

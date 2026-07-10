@@ -4,7 +4,7 @@ import mediapipe as mp
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
-cap = cv2.VideoCapture("http://192.168.1.6:8080/video")
+cap = cv2.VideoCapture("http://192.168.0.2:8080/video")
 if not cap.isOpened():
     print("Kamera nije otvorena.")
     exit()

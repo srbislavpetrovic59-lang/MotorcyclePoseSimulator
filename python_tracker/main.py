@@ -1,11 +1,13 @@
 import cv2
 
+import config
+
 from camera import Camera
 
 
 def main():
 
-    camera = Camera()
+    camera = Camera(config.CAMERA_URL)
 
     while True:
 
@@ -14,7 +16,7 @@ def main():
         if frame is None:
             break
 
-        cv2.imshow("Motorcycle Pose Simulator", frame)
+        cv2.imshow(config.WINDOW_TITLE, frame)
 
         key = cv2.waitKey(1)
 
@@ -22,6 +24,7 @@ def main():
             break
 
     camera.release()
+
     cv2.destroyAllWindows()
 
 
