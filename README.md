@@ -8,6 +8,8 @@ The goal of this project is to track rider body posture using a camera, analyze 
 
 The project is intended both as a technical portfolio project and as a foundation for a future motorcycle riding coach.
 
+Before running the application, update CAMERA_URL in config.py
+to match your local IP Webcam address.
 ## Current status
 
 - [x] IP Webcam camera stream works
