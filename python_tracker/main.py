@@ -48,13 +48,35 @@ def main():
 
         cv2.putText(
             frame,
-            f"Pose confidence: {state['pose_confidence']:.2f}",
+            f"Left knee: {state['left_knee_angle']:.1f} deg",
             (20, 100),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (255, 255, 255),
             2,
         )
+
+        cv2.putText(
+            frame,
+            f"Right knee: {state['right_knee_angle']:.1f} deg",
+            (20, 130),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
+
+
+        cv2.putText(
+            frame,
+            f"Pose confidence: {state['pose_confidence']:.2f}",
+            (20, 160),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+        )
+
 
         cv2.imshow(
             config.WINDOW_TITLE,
