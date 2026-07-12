@@ -1,6 +1,12 @@
 # geometry.py
 from mediapipe.tasks.python.components.containers import NormalizedLandmark
 import math
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: float
+    y: float
 
 
 class Geometry:
@@ -33,9 +39,9 @@ class Geometry:
 
     @staticmethod
     def midpoint(p1, p2):
-        return (
-            (p1.x + p2.x) / 2,
-            (p1.y + p2.y) / 2
+        return Point(
+            x=(p1.x + p2.x) / 2,
+            y=(p1.y + p2.y) / 2,
         )
 
     @staticmethod
@@ -48,3 +54,23 @@ class Geometry:
     @staticmethod
     def length(v):
         return math.hypot(v[0], v[1])
+    
+    @staticmethod
+    def line_angle(p1, p2):
+
+        return math.degrees(
+            math.atan2(
+                p2.y - p1.y,
+                p2.x - p1.x,
+            )
+        )
+
+    @staticmethod
+    def angle_between_points(p1, p2):
+
+        return math.degrees(
+            math.atan2(
+                p2[1] - p1[1],
+                p2[0] - p1[0],
+            )
+        )

@@ -1,14 +1,5 @@
 from pose.geometry import Geometry
-
-LEFT_SHOULDER = 11
-RIGHT_SHOULDER = 12
-
-LEFT_ELBOW = 13
-RIGHT_ELBOW = 14
-
-LEFT_WRIST = 15
-RIGHT_WRIST = 16
-
+from pose.landmarks import PoseLandmark
 
 class ArmAnalyzer:
 
@@ -25,15 +16,15 @@ class ArmAnalyzer:
     def _left_elbow_angle(self, landmarks):
 
         return Geometry.angle(
-            landmarks[LEFT_SHOULDER],
-            landmarks[LEFT_ELBOW],
-            landmarks[LEFT_WRIST],
+            landmarks[PoseLandmark.LEFT_SHOULDER],
+            landmarks[PoseLandmark.LEFT_ELBOW],
+            landmarks[PoseLandmark.LEFT_WRIST],
         )
 
     def _right_elbow_angle(self, landmarks):
 
         return Geometry.angle(
-            landmarks[RIGHT_SHOULDER],
-            landmarks[RIGHT_ELBOW],
-            landmarks[RIGHT_WRIST],
-        )
+            landmarks[PoseLandmark.RIGHT_SHOULDER],
+            landmarks[PoseLandmark.RIGHT_ELBOW],
+            landmarks[PoseLandmark.RIGHT_WRIST],
+       )

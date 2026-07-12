@@ -3,12 +3,15 @@
 import mediapipe as mp
 
 from pose.analyzers.arm_analyzer import ArmAnalyzer
+from pose.analyzers.body_analyzer import BodyAnalyzer
 
 
 class PoseAnalyzer:
 
     def __init__(self):
         self.arm_analyzer = ArmAnalyzer()
+        self.body_analyzer = BodyAnalyzer()
+
 
     def analyze(self, landmarks):
         landmark_list = (
@@ -21,6 +24,9 @@ class PoseAnalyzer:
 
         arm_result = self.arm_analyzer.analyze(landmark_list)
         result.update(arm_result)
+
+        body_result = self.body_analyzer.analyze(landmark_list)
+        result.update(body_result)
 
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list
