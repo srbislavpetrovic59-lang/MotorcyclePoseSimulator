@@ -2,17 +2,29 @@
 import math
 
 import mediapipe as mp
-
+from python_tracker.pose.analyzers.arm_analyzer import ArmAnalyzer
 from rider_state import RiderState
 
 
-class PoseAnalyzer:
-    def __init__(self):
-        self._pose_landmark = mp.solutions.pose.PoseLandmark
+from python_tracker.pose.analyzers.arm_analyzer import ArmAnalyzer
 
-    def analyze(self, landmarks) -> RiderState:
-        if landmarks is None:
-            return RiderState()
+
+class PoseAnalyzer:
+
+    def __init__(self):
+        self.arm_analyzer = ArmAnalyzer()
+
+    def analyze(self, landmarks):
+        result = {}
+
+        arm_result = self.arm_analyzer.analyze(landmarks)
+        result.update(arm_result)
+
+        return result
+   
+        result["rider_state"] = self._determine_rider_state(result)
+
+        return result
 
         left_elbow_angle = self._calculate_joint_angle(
             landmarks.landmark[self._pose_landmark.LEFT_SHOULDER],
