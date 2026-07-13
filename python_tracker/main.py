@@ -76,7 +76,11 @@ def main():
             (255, 255, 255),
             2,
         )
-
+        print(
+            f"Left arm extended : {state['left_arm_extended']}"
+            f"Right arm extended: {state['right_arm_extended']}"  
+            f"Arm symmetry      : {state['arm_symmetry']:.1f}%"
+        )
 
         cv2.imshow(
             config.WINDOW_TITLE,

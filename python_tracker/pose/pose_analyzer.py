@@ -62,3 +62,5 @@ class PoseAnalyzer:
     @staticmethod
     def _determine_rider_state(result):
         return "UNKNOWN"
+
+    
