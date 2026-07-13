@@ -23,6 +23,25 @@ def main():
             break
 
         landmarks = detector.detect(frame)
+
+        if landmarks is None:
+            cv2.putText(
+            frame,
+            "Pose not detected",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 0, 255),
+            2,
+            )
+
+            cv2.imshow("Motorcycle Pose Simulator", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+            continue
+
         state = analyzer.analyze(landmarks)
 
         renderer.draw(frame, landmarks)
@@ -77,11 +96,14 @@ def main():
             2,
         )
         print(
-            f"Left arm extended : {state['left_arm_extended']}"
-            f"Right arm extended: {state['right_arm_extended']}"  
+            f"Left arm extended : {state['left_arm_extended']}  |  "
+            f"Right arm extended: {state['right_arm_extended']}  |  "  
             f"Arm symmetry      : {state['arm_symmetry']:.1f}%"
+        
+            f"Left leg extended : {str(state['left_leg_extended']):<5} | "
+            f"Right leg extended: {str(state['right_leg_extended']):<5} | "
+            f"Leg symmetry      : {state['leg_symmetry']:5.1f}%"
         )
-
         cv2.imshow(
             config.WINDOW_TITLE,
             frame

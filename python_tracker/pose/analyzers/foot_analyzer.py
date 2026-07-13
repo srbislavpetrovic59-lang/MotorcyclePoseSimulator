@@ -5,9 +5,20 @@ from pose.landmarks import PoseLandmark
 class FootAnalyzer:
 
     def analyze(self, landmarks):
+        left_angle = self._left_knee_angle(landmarks)
+        right_angle = self._right_knee_angle(landmarks)
+
         return {
-            "left_knee_angle": self._left_knee_angle(landmarks),
-            "right_knee_angle": self._right_knee_angle(landmarks),
+            "left_knee_angle": left_angle,
+            "right_knee_angle": right_angle,
+
+            "left_leg_extended": left_angle > 165,
+            "right_leg_extended": right_angle > 165,
+
+            "leg_symmetry": round(
+                max(0.0, 100.0 - abs(left_angle - right_angle)),
+                1,
+            ),
         }
 
     def _left_knee_angle(self, landmarks):
