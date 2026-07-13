@@ -12,53 +12,52 @@ The system is divided into independent modules.
 
 ```text
 
-&#x20;                Camera
+               Camera
 
-&#x20;                   │
+                  │
 
-&#x20;                   ▼
+                  ▼
 
-&#x20;            Camera Module
+            Camera Module
 
-&#x20;                   │
+                  │
 
-&#x20;                   ▼
+                  ▼
 
-&#x20;            Pose Detector
+           Pose Detector
 
-&#x20;                   │
+                  │
+                  ▼
 
-&#x20;                   ▼
+            Pose Analyzer
 
-&#x20;            Pose Analyzer
+                   │
 
-&#x20;                   │
+     ┌─────────────┼─────────────┐
 
-&#x20;     ┌─────────────┼─────────────┐
+     ▼             ▼             ▼
 
-&#x20;     ▼             ▼             ▼
+Hand Analyzer  Body Analyzer  Foot Analyzer
 
-&#x20;Hand Analyzer  Body Analyzer  Foot Analyzer
+     │             │             │
 
-&#x20;     │             │             │
+     └─────────────┼─────────────┘
 
-&#x20;     └─────────────┼─────────────┘
+                   ▼
 
-&#x20;                   ▼
+             RiderState
 
-&#x20;              RiderState
+                   │
 
-&#x20;                   │
+                   ▼
 
-&#x20;                   ▼
+            WebSocket Client
 
-&#x20;            WebSocket Client
+                   │
 
-&#x20;                   │
+                   ▼
 
-&#x20;                   ▼
-
-&#x20;            Unreal Engine 5
+            Unreal Engine 5
 
 ```
 
@@ -190,3 +189,20 @@ Responsibilities:
 
 \- riding feedback
 
+
+```text
+PoseAnalyzer
+    │
+    ├── ArmAnalyzer
+    ├── BodyAnalyzer
+    ├── FootAnalyzer
+    └── Geometry
+
+    PoseAnalyzer
+      │
+      ▼
+PoseMetrics
+      │
+      ▼
+PoseEvaluator
+```
