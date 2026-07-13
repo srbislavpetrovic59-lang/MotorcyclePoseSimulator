@@ -96,14 +96,20 @@ def main():
             2,
         )
         print(
-            f"Left arm extended : {state['left_arm_extended']}  |  "
-            f"Right arm extended: {state['right_arm_extended']}  |  "  
-            f"Arm symmetry      : {state['arm_symmetry']:.1f}%"
-        
-            f"Left leg extended : {str(state['left_leg_extended']):<5} | "
-            f"Right leg extended: {str(state['right_leg_extended']):<5} | "
-            f"Leg symmetry      : {state['leg_symmetry']:5.1f}%"
+            f"Torso upright: {state['torso_upright']} | "
+            f"Forward lean: {state['torso_leaning_forward']} | "
+            f"Shoulders level: {state['shoulders_level']}"
+     
         )
+        # print(
+        #    f"Left arm extended : {state['left_arm_extended']}  |  "
+        #    f"Right arm extended: {state['right_arm_extended']}  |  "  
+        #    f"Arm symmetry      : {state['arm_symmetry']:.1f}%"
+        
+        #    f"Left leg extended : {str(state['left_leg_extended']):<5} | "
+        #    f"Right leg extended: {str(state['right_leg_extended']):<5} | "
+        #    f"Leg symmetry      : {state['leg_symmetry']:5.1f}%"
+       # )
         cv2.imshow(
             config.WINDOW_TITLE,
             frame
