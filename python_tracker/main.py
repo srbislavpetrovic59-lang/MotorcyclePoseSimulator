@@ -6,6 +6,7 @@ from camera import Camera
 from pose_detector import PoseDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
+from pose.evaluators.pose_evaluator import PoseEvaluator
 
 
 
@@ -14,6 +15,7 @@ def main():
     detector = PoseDetector()
     renderer = PoseRenderer()
     analyzer = PoseAnalyzer()
+    evaluator = PoseEvaluator()
     
     while True:
 
@@ -43,6 +45,7 @@ def main():
             continue
 
         state = analyzer.analyze(landmarks)
+        evaluation = evaluator.evaluate(state)
 
         renderer.draw(frame, landmarks)
         cv2.putText(
@@ -96,11 +99,16 @@ def main():
             2,
         )
         print(
-            f"Torso upright: {state['torso_upright']} | "
-            f"Forward lean: {state['torso_leaning_forward']} | "
-            f"Shoulders level: {state['shoulders_level']}"
-     
+           f"Score: {evaluation.score} | "
+           f"State: {evaluation.rider_state} | "
+           f"Feedback: {evaluation.feedback}"
         )
+        #print(
+        #    f"Torso upright: {state['torso_upright']} | "
+        #    f"Forward lean: {state['torso_leaning_forward']} | "
+        #    f"Shoulders level: {state['shoulders_level']}"
+     
+     #   )
         # print(
         #    f"Left arm extended : {state['left_arm_extended']}  |  "
         #    f"Right arm extended: {state['right_arm_extended']}  |  "  
