@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pose.models.feedback_item import FeedbackItem
 
 
 @dataclass
@@ -8,4 +9,4 @@ class PoseEvaluation:
 
     rider_state: str
 
-    feedback: list[str]
+    feedback: list[FeedbackItem]

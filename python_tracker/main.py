@@ -7,6 +7,7 @@ from pose_detector import PoseDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
+from pose.feedback.feedback_selector import FeedbackSelector
 
 
 
@@ -118,42 +119,28 @@ def main():
             (255, 255, 255),
             2,
         )
-        message = (
-            evaluation.feedback[0]
-            if evaluation.feedback
+      
+
+        selected_feedback = FeedbackSelector.select(
+           evaluation.feedback
+        )
+
+        feedback_text = (
+            selected_feedback.message
+            if selected_feedback is not None
             else "Good posture"
         )
 
         cv2.putText(
             frame,
-            message,
+            feedback_text,
             (20, 250),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
             (0, 255, 0),
             2,
         )
-
-        print(
-           f"Score: {evaluation.score} | "
-           f"State: {evaluation.rider_state} | "
-           f"Feedback: {evaluation.feedback}"
-        )
-        #print(
-        #    f"Torso upright: {state['torso_upright']} | "
-        #    f"Forward lean: {state['torso_leaning_forward']} | "
-        #    f"Shoulders level: {state['shoulders_level']}"
      
-     #   )
-        # print(
-        #    f"Left arm extended : {state['left_arm_extended']}  |  "
-        #    f"Right arm extended: {state['right_arm_extended']}  |  "  
-        #    f"Arm symmetry      : {state['arm_symmetry']:.1f}%"
-        
-        #    f"Left leg extended : {str(state['left_leg_extended']):<5} | "
-        #    f"Right leg extended: {str(state['right_leg_extended']):<5} | "
-        #    f"Leg symmetry      : {state['leg_symmetry']:5.1f}%"
-       # )
         cv2.imshow(
             config.WINDOW_TITLE,
             frame
