@@ -1,18 +1,17 @@
-from ..models.feedback_item import FeedbackItem
+from pose.models.feedback_item import FeedbackItem
 
 
 class FeedbackSelector:
 
-
+    @staticmethod
     def select(
-        self,
-        feedback_items: list[FeedbackItem],
+        feedback: list[FeedbackItem],
     ) -> FeedbackItem | None:
 
-        if not feedback_items:
+        if not feedback:
             return None
 
         return max(
-            feedback_items,
+            feedback,
             key=lambda item: item.priority,
         )

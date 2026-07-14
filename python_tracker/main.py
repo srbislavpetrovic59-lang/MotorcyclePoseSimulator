@@ -7,7 +7,7 @@ from pose_detector import PoseDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
-from pose.feedback.feedback_selector import FeedbackSelector
+from pose.feedback.feedback_manager import FeedbackManager
 
 
 
@@ -17,6 +17,10 @@ def main():
     renderer = PoseRenderer()
     analyzer = PoseAnalyzer()
     evaluator = PoseEvaluator()
+
+    feedback_manager = FeedbackManager(
+    cooldown_seconds=5.0
+)
     
     while True:
 
@@ -26,7 +30,18 @@ def main():
             break
 
         landmarks = detector.detect(frame)
-      #  evaluation = evaluator.evaluate(metrics)
+        if landmarks is None:
+            continue
+
+        state = analyzer.analyze(landmarks)
+        
+        evaluation = evaluator.evaluate(state)
+      
+        #  evaluation = evaluator.evaluate(metrics)
+        
+        active_feedback = feedback_manager.process(
+            evaluation.feedback
+        )
 
         if landmarks is None:
             cv2.putText(
@@ -46,8 +61,7 @@ def main():
 
             continue
 
-        state = analyzer.analyze(landmarks)
-        evaluation = evaluator.evaluate(state)
+        
 
         renderer.draw(frame, landmarks)
         cv2.putText(
@@ -121,13 +135,9 @@ def main():
         )
       
 
-        selected_feedback = FeedbackSelector.select(
-           evaluation.feedback
-        )
-
         feedback_text = (
-            selected_feedback.message
-            if selected_feedback is not None
+            active_feedback.message
+            if active_feedback is not None
             else "Good posture"
         )
 
@@ -140,7 +150,12 @@ def main():
             (0, 255, 0),
             2,
         )
-     
+
+        if active_feedback is not None:
+            print(
+                f"Feedback: {active_feedback.message}"
+            )
+
         cv2.imshow(
             config.WINDOW_TITLE,
             frame
