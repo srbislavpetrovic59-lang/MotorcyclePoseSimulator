@@ -8,6 +8,7 @@ from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
 from pose.feedback.feedback_manager import FeedbackManager
+from pose.overlay.overlay_renderer import OverlayRenderer
 
 
 
@@ -17,6 +18,7 @@ def main():
     renderer = PoseRenderer()
     analyzer = PoseAnalyzer()
     evaluator = PoseEvaluator()
+    overlay = OverlayRenderer()
 
     feedback_manager = FeedbackManager(
     cooldown_seconds=5.0
@@ -33,127 +35,22 @@ def main():
         if landmarks is None:
             continue
 
-        state = analyzer.analyze(landmarks)
+        metrics = analyzer.analyze(landmarks)
         
-        evaluation = evaluator.evaluate(state)
+        evaluation = evaluator.evaluate(metrics)
       
-        #  evaluation = evaluator.evaluate(metrics)
-        
         active_feedback = feedback_manager.process(
             evaluation.feedback
         )
 
-        if landmarks is None:
-            cv2.putText(
-            frame,
-            "Pose not detected",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 0, 255),
-            2,
-            )
-
-            cv2.imshow("Motorcycle Pose Simulator", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-            continue
-
         
-
         renderer.draw(frame, landmarks)
-        cv2.putText(
-            frame,
-            f"Left elbow: {state['left_elbow_angle']:.1f} deg",
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-
-        cv2.putText(
-            frame,
-            f"Right elbow: {state['right_elbow_angle']:.1f} deg",
-            (20, 70),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-
-        cv2.putText(
-            frame,
-            f"Left knee: {state['left_knee_angle']:.1f} deg",
-            (20, 100),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-
-        cv2.putText(
-            frame,
-            f"Right knee: {state['right_knee_angle']:.1f} deg",
-            (20, 130),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-
-
-        cv2.putText(
-            frame,
-            f"Pose confidence: {state['pose_confidence']:.2f}",
-            (20, 160),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-
-        cv2.putText(
-            frame,
-            f"Score: {evaluation.score}",
-            (20, 190),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-        cv2.putText(
-            frame,
-            f"State: {evaluation.rider_state}",
-            (20, 220),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-        )
-      
-
-        feedback_text = (
-            active_feedback.message
-            if active_feedback is not None
-            else "Good posture"
-        )
-
-        cv2.putText(
-            frame,
-            feedback_text,
-            (20, 250),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2,
-        )
-
-        if active_feedback is not None:
-            print(
-                f"Feedback: {active_feedback.message}"
+        
+        overlay.draw(
+                frame,
+                metrics,
+                evaluation,
+                active_feedback,
             )
 
         cv2.imshow(

@@ -38,3 +38,19 @@ class FeedbackManager:
         elapsed = time.monotonic() - self._last_message_time
 
         return elapsed >= self.cooldown_seconds
+    def display_text(
+        self,
+        item: FeedbackItem | None,
+    ) -> str:
+
+        if item is None:
+            return "Good posture"
+
+        return item.message
+
+    def speak(
+    self,
+    item: FeedbackItem | None,
+    ):
+
+        pass
