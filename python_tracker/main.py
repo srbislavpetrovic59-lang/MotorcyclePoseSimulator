@@ -9,7 +9,7 @@ from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
 from pose.feedback.feedback_manager import FeedbackManager
 from pose.overlay.overlay_renderer import OverlayRenderer
-
+from pose.feedback.pose_coach import PoseCoach
 
 
 def main():
@@ -19,10 +19,9 @@ def main():
     analyzer = PoseAnalyzer()
     evaluator = PoseEvaluator()
     overlay = OverlayRenderer()
+    coach = PoseCoach(cooldown_seconds=3.0)
 
-    feedback_manager = FeedbackManager(
-    cooldown_seconds=5.0
-)
+    feedback_manager = FeedbackManager()
     
     while True:
 
@@ -42,6 +41,8 @@ def main():
         active_feedback = feedback_manager.process(
             evaluation.feedback
         )
+        coach.update(active_feedback)
+
 
         
         renderer.draw(frame, landmarks)
