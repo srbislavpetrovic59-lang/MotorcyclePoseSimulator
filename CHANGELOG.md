@@ -1,4 +1,18 @@
-\## v0.1.0
+\# Changelog
+
+
+
+All notable changes to this project will be documented in this file.
+
+
+
+The format is based on Keep a Changelog,
+
+and this project follows Semantic Versioning.
+
+
+
+\## \[v0.1.0]
 
 
 
@@ -6,26 +20,63 @@
 
 
 
-\- Initial project structure
+\- Geometry utility module
 
-\- Camera module
+\- ArmAnalyzer
 
-\- Project architecture
+\- BodyAnalyzer
 
-\- MediaPipe pose prototype
+\- FootAnalyzer
 
-# Changelog
+\- FeedbackItem model
 
-## [Unreleased]
+\- FeedbackSelector
 
-### Added
-- Geometry module
-- ArmAnalyzer
-- BodyAnalyzer
-- FootAnalyzer
-- PoseEvaluator skeleton
+\- FeedbackManager
 
-### Changed
-- Refactored PoseAnalyzer into orchestrator.
-- Moved joint angle calculations into Geometry.
-- Added posture metrics for arms and legs.
+\- OverlayRenderer
+
+\- PoseEvaluation model
+
+\- Project roadmap
+
+\- Mermaid architecture diagram
+
+\- OpenCV HUD overlay
+
+\- Documentation links in README
+
+
+
+\### Changed
+
+
+
+\- Refactored PoseAnalyzer into an orchestration component
+
+\- Moved joint angle calculations into Geometry
+
+\- Introduced PoseEvaluator as a dedicated evaluation stage
+
+\- Replaced RiderState workflow with Pose Metrics and Pose Evaluation pipeline
+
+\- Separated pose rendering from HUD rendering
+
+\- Improved project documentation and architecture
+
+
+
+\### Improved
+
+
+
+\- Cleaner project structure
+
+\- Better module separation
+
+\- Simplified main application loop
+
+\- More maintainable rendering pipeline
+
+\- Modular feedback system
+
