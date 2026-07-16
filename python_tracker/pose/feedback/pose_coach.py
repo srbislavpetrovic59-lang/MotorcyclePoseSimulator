@@ -19,13 +19,13 @@ class PoseCoach:
 
         now = time.monotonic()
 
-       if (
-           feedback.message == self._last_feedback_message
-           and now - self._last_spoken_time < self.cooldown_seconds
-       ):
-           return
+        if (
+            feedback.message == self._last_feedback_message
+            and now - self._last_spoken_time < self.cooldown_seconds
+        ):
+            return
 
-       print(f"[Coach] {feedback.message}")
+        print(f"[Coach] {feedback.message}")
 
-       self._last_feedback_message = feedback.message
-       self._last_spoken_time = now
+        self._last_feedback_message = feedback.message
+        self._last_spoken_time = now
