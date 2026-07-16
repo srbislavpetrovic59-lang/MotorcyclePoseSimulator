@@ -1,5 +1,7 @@
 # Motorcycle Pose Simulator
 
+The application detects the rider’s pose, calculates body metrics, evaluates riding posture and provides prioritized visual feedback.
+
 Real-time motorcycle riding posture simulator using computer vision, MediaPipe, WebSocket communication and Unreal Engine 5.
 
 ## Goal
@@ -10,51 +12,65 @@ The project is intended both as a technical portfolio project and as a foundatio
 
 Before running the application, update CAMERA_URL in config.py
 to match your local IP Webcam address.
-## Current status
+## Current Features
 
-- [x] IP Webcam camera stream works
-- [x] OpenCV receives video stream
-- [x] MediaPipe Pose detects body landmarks
-- [x] Basic skeleton visualization works
-- [x] Initial GitHub repository created
+- Real-time pose detection using MediaPipe
+- Rider skeleton rendering
+- Elbow and knee angle measurement
+- Torso angle and shoulder tilt analysis
+- Arm and leg symmetry calculation
+- Rider posture scoring
+- Prioritized feedback selection
+- Feedback cooldown management
+- OpenCV HUD overlay
+- Modular analysis and evaluation pipeline
 
-## Planned features
+## Project Status
 
-- [ ] Modular Python tracker
-- [ ] Arm angle detection
-- [ ] Body lean detection
-- [ ] Foot position detection for gear shifting and rear brake
-- [ ] RiderState data model
-- [ ] WebSocket data publishing
-- [ ] Unreal Engine rider visualization
-- [ ] Riding coach feedback
+The project is under active development.
+
+The current Python prototype supports real-time pose analysis, posture evaluation and visual coaching feedback. Voice coaching, calibration, session statistics and Unreal Engine integration are planned.
 
 ## Architecture
 
 ```text
 Camera / IP Webcam
-        |
-        v
-Camera Module
-        |
-        v
+        │
+        ▼
 Pose Detector
-        |
-        v
+        │
+        ▼
 Pose Analyzer
-        |
-        +--> Hand Analyzer
-        +--> Body Analyzer
-        +--> Foot Analyzer
-        |
-        v
-RiderState
-        |
-        v
-JSON / WebSocket
-        |
-        v
-Unreal Engine 5
-        |
-        v
-Motorcycle Rider Avatar
+        │
+        ├── ArmAnalyzer
+        ├── BodyAnalyzer
+        ├── FootAnalyzer
+        │
+        ▼
+Pose Metrics
+        │
+        ▼
+Pose Evaluator
+        │
+        ▼
+Feedback Manager
+        │
+        ├── Feedback Selector
+        ├── Overlay Renderer
+        └── (Voice Coach - planned)
+        │
+        ▼
+OpenCV HUD
+        │
+        ▼
+(Unreal Engine integration - planned)
+```
+
+## Planned Features
+
+- Voice coaching
+- Rider calibration
+- Session recording and statistics
+- Unreal Engine integration
+- WebSocket telemetry
+- Configurable coaching profiles
