@@ -4,6 +4,12 @@ The application detects the rider’s pose, calculates body metrics, evaluates r
 
 Real-time motorcycle riding posture simulator using computer vision, MediaPipe, WebSocket communication and Unreal Engine 5.
 
+## Project Information
+
+- [Architecture](docs/architecture.md)
+- [Roadmap](ROADMAP.md)
+- [Changelog](CHANGELOG.md)
+
 ## Goal
 
 The goal of this project is to track rider body posture using a camera, analyze riding-related body movements, and visualize the rider on a motorcycle in Unreal Engine.
