@@ -17,29 +17,67 @@ class PoseCoach:
 
 
     def update(self, feedback: FeedbackItem | None) -> None:
-        if feedback is None:
-            self._current_message = None
-            self._current_message_since = 0.0
-            return
-
+        
         now = time.monotonic()
 
-        if feedback.message != self._current_message:
-            self._current_message = feedback.message
-            self._current_message_since = now
+        if feedback is None:
+            self._reset()
             return
 
-        if now - self._current_message_since < self.activation_delay:
+        if self._is_new_feedback(feedback, now):
+            return
+        
+        if not self._activation_delay_elapsed(now):
+            return
+        
+       
+        if self._is_on_cooldown(feedback, now):
             return
 
+        self._speak(feedback, now)
+        
+      
+    def _reset(self) -> None:
+        self._current_message = None
+        self._current_message_since = 0.0
+
+
+    def _is_new_feedback(
+        self,
+        feedback: FeedbackItem,
+        now: float,
+    ) -> bool:
+        if feedback.message == self._current_message:
+            return False
+
+        self._current_message = feedback.message
+        self._current_message_since = now
+
+        return True
+    
+    def _activation_delay_elapsed(self, now: float) -> bool:
+        elapsed = now - self._current_message_since
+        return elapsed >= self.activation_delay
+    
+    def _speak(
+        self,
+        feedback: FeedbackItem,
+        now: float,
+    ) -> None:
+        print(f"[Coach] {feedback.message}")
+
+        self._last_spoken_by_message[
+            feedback.message
+        ] = now
+
+    def _is_on_cooldown(
+        self,
+        feedback: FeedbackItem,
+        now: float,
+    ) -> bool:
         last_spoken = self._last_spoken_by_message.get(
             feedback.message,
             0.0,
         )
 
-        if now - last_spoken < self.cooldown_seconds:
-            return
-
-        print(f"[Coach] {feedback.message}")
-
-        self._last_spoken_by_message[feedback.message] = now
+        return now - last_spoken < self.cooldown_seconds
