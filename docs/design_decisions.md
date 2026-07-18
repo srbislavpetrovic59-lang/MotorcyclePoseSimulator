@@ -30,3 +30,13 @@ As the project grew, a single analyzer became difficult to maintain. Splitting r
 * Clear responsibilities
 * Simpler future extensions
 
+
+
+DD-002
+
+Separate coaching strategy from feedback generation.
+
+DD-003
+
+PoseCoach communicates only persistent feedback.
+

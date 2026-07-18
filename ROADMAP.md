@@ -29,6 +29,8 @@ v0.3
 ✅ OverlayRender
 
 
+⬜ Coaching Strategy – intelligent feedback rotation and coaching policy
+
 
 ⬜ Voice Feedback
 
