@@ -4,7 +4,14 @@ from pose.models.feedback_item import FeedbackItem
 
 
 class PoseCoach:
+    """
+        Communicates posture feedback in a calm, human-friendly way.
 
+        The coach waits until a posture issue persists, avoids repeating
+        the same message too often, and keeps communication timing separate
+        from feedback selection.
+        """
+    
     def __init__(
         self,
         cooldown_seconds: float = 3.0,
@@ -13,8 +20,8 @@ class PoseCoach:
         self.cooldown_seconds = cooldown_seconds
         self.activation_delay = activation_delay
 
-        self._current_message: str | None = None
-        self._current_message_since = 0.0
+        self._current_feedback_message: str | None = None
+        self._current_feedback_since = 0.0
 
         self._last_spoken_by_message: dict[str, float] = {}
 
@@ -23,7 +30,7 @@ class PoseCoach:
         feedback: FeedbackItem | None,
     ) -> None:
         if feedback is None:
-            self._reset()
+            self._reset_current_feedback()
             return
 
         now = time.monotonic()
@@ -40,7 +47,7 @@ class PoseCoach:
 
         self._speak(feedback, now)
 
-    def _reset(self) -> None:
+    def _reset_current_feedback(self) -> None:
         self._current_message = None
         self._current_message_since = 0.0
 
@@ -49,11 +56,11 @@ class PoseCoach:
         feedback: FeedbackItem,
         now: float,
     ) -> bool:
-        if feedback.message == self._current_message:
+        if feedback.message == self._current_feedback_message:
             return False
 
-        self._current_message = feedback.message
-        self._current_message_since = now
+        self._current_feedback_message = feedback.message
+        self._current_feedback_since = now
 
         return True
 
@@ -61,7 +68,7 @@ class PoseCoach:
         self,
         now: float,
     ) -> bool:
-        elapsed = now - self._current_message_since
+        elapsed = now - self._current_feedback_since
         return elapsed >= self.activation_delay
 
     def _is_on_cooldown(
