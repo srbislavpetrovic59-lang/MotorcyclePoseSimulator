@@ -1,4 +1,6 @@
 from threading import activeCount
+from pose.session.session_recorder import SessionRecorder
+
 import cv2
 
 import config
@@ -21,51 +23,62 @@ def main():
     evaluator = PoseEvaluator()
     overlay = OverlayRenderer()
     coach = PoseCoach(cooldown_seconds=3.0)
+    recorder = SessionRecorder()
+   
 
     feedback_manager = FeedbackManager()
-    
-    while True:
 
-        frame = camera.read()
+    try:
+        while True:
 
-        if frame is None:
-            break
+            frame = camera.read()
 
-        landmarks = detector.detect(frame)
-        if landmarks is None:
-            continue
+            if frame is None:
+                break
 
-        metrics = analyzer.analyze(landmarks)
+            landmarks = detector.detect(frame)
+            if landmarks is None:
+                continue
+
+            metrics = analyzer.analyze(landmarks)
         
-        evaluation = evaluator.evaluate(metrics)
+            evaluation = evaluator.evaluate(metrics)
       
-        active_feedback = feedback_manager.process(
-            evaluation.feedback
-        )
-        coach.update(active_feedback)
+            active_feedback = feedback_manager.process(
+                evaluation.feedback
+            )
+            coach.update(active_feedback)
+            recorder.update(active_feedback)
 
 
         
-        renderer.draw(frame, landmarks)
+            renderer.draw(frame, landmarks)
         
-        overlay.draw(
-                frame,
-                metrics,
-                evaluation,
-                active_feedback,
+            overlay.draw(
+                    frame,
+                    metrics,
+                    evaluation,
+                    active_feedback,
+                )
+
+            cv2.imshow(
+                config.WINDOW_TITLE,
+                frame
             )
 
-        cv2.imshow(
-            config.WINDOW_TITLE,
-            frame
-        )
+            if cv2.waitKey(1) == 27:
+                break
 
-        if cv2.waitKey(1) == 27:
-            break
 
-    detector.release()
-    camera.release()
-    cv2.destroyAllWindows()
+    finally:
+        print("\nSession events:")
+
+        for event in recorder.events:
+            print(event)
+    
+        detector.release()
+        camera.release()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
