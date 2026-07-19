@@ -1,3 +1,3 @@
-CAMERA_URL = "http://192.168.0.4:8080/video"
+CAMERA_URL = "http://192.168.0.3:8080/video"
 
 WINDOW_TITLE = "Motorcycle Pose Simulator"

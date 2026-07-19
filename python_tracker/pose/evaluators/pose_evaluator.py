@@ -86,7 +86,7 @@ class PoseEvaluator:
             current_score -= BODY_ALIGNMENT_PENALTY
             feedback.append( 
                 FeedbackItem(
-                    message="Keepyour back upright.",
+                    message="Keep your back upright.",
                     priority=60,
                 )
             )

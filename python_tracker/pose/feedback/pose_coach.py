@@ -5,13 +5,13 @@ from pose.models.feedback_item import FeedbackItem
 
 class PoseCoach:
     """
-        Communicates posture feedback in a calm, human-friendly way.
+    Communicates posture feedback in a calm, human-friendly way.
 
-        The coach waits until a posture issue persists, avoids repeating
-        the same message too often, and keeps communication timing separate
-        from feedback selection.
-        """
-    
+    The coach waits until a posture issue persists, avoids repeating
+    the same message too often, and keeps communication timing separate
+    from feedback selection.
+    """
+
     def __init__(
         self,
         cooldown_seconds: float = 3.0,
@@ -48,8 +48,8 @@ class PoseCoach:
         self._speak(feedback, now)
 
     def _reset_current_feedback(self) -> None:
-        self._current_message = None
-        self._current_message_since = 0.0
+        self._current_feedback_message = None
+        self._current_feedback_since = 0.0
 
     def _detect_feedback_change(
         self,
