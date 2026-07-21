@@ -40,28 +40,37 @@ class SessionSummary:
         return issue_counts.most_common(1)[0][0]
 
     def _longest_clear_period_seconds(
-    self,
-    events: list[SessionEvent],
-    session_duration: float,
+        self,
+        events: list[SessionEvent],
+        session_duration: float,
     ) -> float:
         longest_clear_period_seconds = 0.0
         clear_period_start = 0.0
+        issue_is_active = False
 
         for event in events:
             if event.event_type is SessionEventType.ISSUE_STARTED:
-                clear_period = event.timestamp - clear_period_start
+                if not issue_is_active:
+                    clear_period = event.timestamp - clear_period_start
 
-                longest_clear_period_seconds = max(
-                    longest_clear_period_seconds,
-                    clear_period,
-                )
+                    longest_clear_period_seconds = max(
+                        longest_clear_period_seconds,
+                        clear_period,
+                    )
+
+                    issue_is_active = True
 
             elif event.event_type is SessionEventType.ISSUE_RESOLVED:
-                clear_period_start = event.timestamp
+                if issue_is_active:
+                    clear_period_start = event.timestamp
+                    issue_is_active = False
 
-        final_clear_period = session_duration - clear_period_start
+        if not issue_is_active:
+            final_clear_period = session_duration - clear_period_start
 
-        return max(
-            longest_clear_period_seconds,
-            final_clear_period,
-        )
+            longest_clear_period_seconds = max(
+                longest_clear_period_seconds,
+                final_clear_period,
+            )
+
+        return longest_clear_period_seconds
