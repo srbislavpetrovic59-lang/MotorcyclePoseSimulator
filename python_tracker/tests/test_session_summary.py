@@ -92,6 +92,62 @@ def test_issue_until_session_end():
     assert report.most_common_issue == "Relax your shoulders"
     assert report.longest_clear_period_seconds == 10.0
 
+def test_multiple_issues_same_frequency():
+    """
+    Two issues occur twice each.
+
+    The first issue encountered wins the tie.
+    """
+
+    events = [
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_STARTED,
+            timestamp=5.0,
+            message="Relax your shoulders",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_RESOLVED,
+            timestamp=10.0,
+            message="Relax your shoulders",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_STARTED,
+            timestamp=20.0,
+            message="Straighten your back",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_RESOLVED,
+            timestamp=25.0,
+            message="Straighten your back",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_STARTED,
+            timestamp=35.0,
+            message="Relax your shoulders",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_RESOLVED,
+            timestamp=40.0,
+            message="Relax your shoulders",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_STARTED,
+            timestamp=50.0,
+            message="Straighten your back",
+        ),
+        SessionEvent(
+            event_type=SessionEventType.ISSUE_RESOLVED,
+            timestamp=55.0,
+            message="Straighten your back",
+        ),
+    ]
+
+    report = generate_report(events)
+
+    assert report.duration == 60.0
+    assert report.most_common_issue == "Relax your shoulders"
+    assert report.longest_clear_period_seconds == 10.0
+
 def generate_report(events, duration=60.0):
     summary = SessionSummary()
 

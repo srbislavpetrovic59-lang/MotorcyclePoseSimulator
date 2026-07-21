@@ -74,3 +74,5 @@ class SessionSummary:
             )
 
         return longest_clear_period_seconds
+
+
