@@ -10,19 +10,21 @@ class SessionNarrator:
             raise ValueError("report must not be None")
 
         sentences: list[str] = []
-
+        
+        message = self._narrate_most_frequent_message(report)
+        
+        if message:
+            sentences.append(message)
+        
         duration_text = self._format_duration(report.duration)
+        
+        
         if duration_text is not None:
             sentences.append(
                 f"You completed a riding session lasting {duration_text}."
             )
 
-        if report.most_frequent_message:
-            sentences.append(
-                f"Your most common posture issue was "
-                f"{self._normalize_message(report.most_frequent_message)}."
-            )
-
+       
         clear_period_text = self._format_duration(
             report.longest_clear_period_seconds
         )
@@ -61,6 +63,20 @@ class SessionNarrator:
         return (
             f"{minutes} {minute_unit} and "
             f"{remaining_seconds} {second_unit}"
+        )
+
+    def _narrate_most_frequent_message(
+        self,
+        report: SessionReport,
+    ) ->  str | None:
+        if not report.most_frequent_message:
+                return None
+
+        message = self._normalize_message(report.most_frequent_message)
+
+        return (
+            f'Your most frequent coaching message was '
+            f'"{message}".'
         )
 
     @staticmethod
