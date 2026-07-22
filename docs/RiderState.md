@@ -1,3 +1,11 @@
+The original RiderState concept was replaced during the architecture refactoring.
+Explicit measurements and specialized analyzers provide a simpler
+and more maintainable design than a centralized mutable RiderState object.
+
+
+
+
+
 struct RiderState
 
 {
