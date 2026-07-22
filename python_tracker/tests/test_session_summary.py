@@ -46,7 +46,7 @@ def test_generate_session_summary():
     report = generate_report(events)
 
     assert report.duration == 60.0
-    assert report.most_common_issue == "Relax your shoulders"
+    assert report.most_frequent_message == "Relax your shoulders"
     assert report.longest_clear_period_seconds == 25.0
 
 
@@ -64,7 +64,7 @@ def test_empty_session():
     report = generate_report(events)
 
     assert report.duration == 60.0
-    assert report.most_common_issue is None
+    assert report.most_frequent_message is None
     assert report.longest_clear_period_seconds == 60.0
 
 
@@ -89,7 +89,7 @@ def test_issue_until_session_end():
     report = generate_report(events)
 
     assert report.duration == 60.0
-    assert report.most_common_issue == "Relax your shoulders"
+    assert report.most_frequent_message == "Relax your shoulders"
     assert report.longest_clear_period_seconds == 10.0
 
 def test_multiple_issues_same_frequency():
@@ -145,7 +145,7 @@ def test_multiple_issues_same_frequency():
     report = generate_report(events)
 
     assert report.duration == 60.0
-    assert report.most_common_issue == "Relax your shoulders"
+    assert report.most_frequent_message == "Relax your shoulders"
     assert report.longest_clear_period_seconds == 10.0
 
 def generate_report(events, duration=60.0):
