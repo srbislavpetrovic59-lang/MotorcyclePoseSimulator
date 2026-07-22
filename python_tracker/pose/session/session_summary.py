@@ -11,7 +11,7 @@ class SessionSummary:
         events: list[SessionEvent],
         session_duration: float,
     ) -> SessionReport:
-        most_common_issue = self._most_common_issue(events)
+        most_frequent_message = self._most_frequent_message(events)
 
         longest_clear_period_seconds = self._longest_clear_period_seconds(
             events,
@@ -20,11 +20,11 @@ class SessionSummary:
 
         return SessionReport(
             duration=session_duration,
-            most_common_issue=most_common_issue,
+            most_frequent_message=most_frequent_message,
             longest_clear_period_seconds=longest_clear_period_seconds,
         )
 
-    def _most_common_issue(
+    def _most_frequent_message(
         self,
         events: list[SessionEvent],
     ) -> str | None:
