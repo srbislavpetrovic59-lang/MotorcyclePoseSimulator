@@ -11,8 +11,11 @@ from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
 from pose.feedback.feedback_manager import FeedbackManager
 from pose.feedback.pose_coach import PoseCoach
+from pose.output.output_dispatcher import OutputDispatcher
 from pose.overlay.overlay_renderer import OverlayRenderer
+from pose.session.session_narrator import SessionNarrator
 from pose.session.session_recorder import SessionRecorder
+from pose.session.session_summary import SessionSummary
 
 
 class PosePipeline:
@@ -29,6 +32,9 @@ class PosePipeline:
         coach: PoseCoach,
         recorder: SessionRecorder,
         overlay: OverlayRenderer,
+        session_summary: SessionSummary,
+        narrator: SessionNarrator,
+        output_dispatcher: OutputDispatcher,
     ) -> None:
         self._camera = camera
         self._detector = detector
@@ -39,6 +45,9 @@ class PosePipeline:
         self._coach = coach
         self._recorder = recorder
         self._overlay = overlay
+        self._session_summary = session_summary
+        self._narrator = narrator
+        self._output_dispatcher = output_dispatcher
 
     def run(self) -> None:
         try:
@@ -46,7 +55,10 @@ class PosePipeline:
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received. Exiting...")
         finally:
-            self._release_resources()
+            try:
+                self._complete_session()
+            finally:
+                self._release_resources()
 
     def _run_loop(self) -> None:
         while True:
@@ -84,6 +96,17 @@ class PosePipeline:
             evaluation,
             active_feedback,
         )
+
+    def _complete_session(self) -> None:
+        session_duration = self._recorder.finish()
+
+        report = self._session_summary.generate(
+            events=self._recorder.events,
+            session_duration=session_duration,
+        )
+
+        narration = self._narrator.narrate(report)
+        self._output_dispatcher.dispatch(narration)
 
     def _release_resources(self) -> None:
         self._detector.release()

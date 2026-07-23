@@ -10,6 +10,10 @@ from pose.feedback.feedback_manager import FeedbackManager
 from pose.feedback.pose_coach import PoseCoach
 from pose.overlay.overlay_renderer import OverlayRenderer
 from pose.session.session_recorder import SessionRecorder
+from pose.session.session_summary import SessionSummary
+from pose.session.session_narrator import SessionNarrator
+from pose.output.output_dispatcher import OutputDispatcher
+from pose.output.console_output import ConsoleOutput
 
 
 def main() -> None:
@@ -23,6 +27,9 @@ def main() -> None:
         coach=PoseCoach(cooldown_seconds=3.0),
         recorder=SessionRecorder(),
         overlay=OverlayRenderer(),
+        session_summary=SessionSummary(),
+        narrator=SessionNarrator(),
+        output_dispatcher = OutputDispatcher([ConsoleOutput(),])
     )
 
     pipeline.run()

@@ -13,18 +13,19 @@ class SessionRecorder:
     """
 
     def __init__(self) -> None:
+        self._started_at = time.monotonic()
         self._current_feedback_message: str | None = None
         self._events: list[SessionEvent] = []
 
     @property
     def events(self) -> list[SessionEvent]:
-        return self._events
+        return self._events.copy()
 
     def update(
         self,
         feedback: FeedbackItem | None,
     ) -> None:
-        now = time.monotonic()
+        now = self._elapsed_time()
 
         if feedback is None:
             self._resolve_issue(now)
@@ -39,6 +40,19 @@ class SessionRecorder:
 
         self._resolve_issue(now)
         self._start_issue(feedback, now)
+
+    def finish(self) -> float:
+        """
+        Closes the active issue and returns total session duration.
+        """
+        session_duration = self._elapsed_time()
+
+        self._resolve_issue(session_duration)
+
+        return session_duration
+
+    def _elapsed_time(self) -> float:
+        return time.monotonic() - self._started_at
 
     def _start_issue(
         self,
@@ -71,10 +85,3 @@ class SessionRecorder:
         )
 
         self._current_feedback_message = None
-
-    """
-        print("\nSession events:")
-
-        for event in recorder.events:
-            print(event)
-            """
