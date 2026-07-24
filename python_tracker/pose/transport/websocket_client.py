@@ -1,3 +1,6 @@
+from websockets.sync.client import ClientConnection, connect
+
+
 class WebSocketClient:
     """Handles WebSocket transport."""
 
@@ -6,21 +9,25 @@ class WebSocketClient:
         host: str,
         port: int,
     ) -> None:
-        """Initializes the client."""
-        self._host = host
-        self._port = port
+        self._uri = f"ws://{host}:{port}"
+        self._connection: ClientConnection | None = None
 
     def connect(self) -> None:
-        """Opens the connection."""
-        raise NotImplementedError
+        """Opens the WebSocket connection."""
+        self._connection = connect(self._uri)
 
     def disconnect(self) -> None:
-        """Closes the connection."""
-        raise NotImplementedError
+        """Closes the WebSocket connection."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
 
     def send(
         self,
         message: str,
     ) -> None:
         """Sends a serialized message."""
-        raise NotImplementedError
+        if self._connection is None:
+            raise RuntimeError("WebSocket client is not connected.")
+
+        self._connection.send(message)
