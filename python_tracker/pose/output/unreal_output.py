@@ -10,3 +10,9 @@ class UnrealOutput(Output):
 
     def present(self, narration: str) -> None:
         raise NotImplementedError
+
+    def _build_message(
+        self,
+        narration: str,
+    ) -> str:
+        ...
