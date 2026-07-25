@@ -1,4 +1,4 @@
-from pose.transport.websocket_server import WebSocketServer
+'''from pose.transport.websocket_server import WebSocketServer
 
 
 def main() -> None:
@@ -22,3 +22,17 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    '''
+import asyncio
+import websockets
+
+
+async def send_hello():
+    uri = "ws://127.0.0.1:8765"
+
+    async with websockets.connect(uri) as websocket:
+        await websocket.send("hello")
+        print("Sent: hello")
+
+
+asyncio.run(send_hello())

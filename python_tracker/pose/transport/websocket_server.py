@@ -99,7 +99,9 @@ class WebSocketServer:
             self._client_connected.set()
 
         print("WebSocket client connected.")
-
+        connection.send("hello")
+        print("Sent to client: hello")
+        
         try:
             for message in connection:
                 print(f"Received from client: {message}")
@@ -117,3 +119,13 @@ class WebSocketServer:
             if self._connection is connection:
                 self._connection = None
                 self._client_connected.clear()
+if __name__ == "__main__":
+    server = WebSocketServer()
+    server.start()
+
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print("\nStopping WebSocket server...")
+        server.stop()
