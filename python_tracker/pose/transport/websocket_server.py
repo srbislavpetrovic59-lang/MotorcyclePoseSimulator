@@ -30,7 +30,7 @@ class WebSocketServer:
         self._thread = Thread(
             target=self._run_server,
             name="WebSocketServer",
-            daemon=True,
+            daemon=False,
         )
         self._thread.start()
 
@@ -47,7 +47,11 @@ class WebSocketServer:
         self._client_connected.clear()
 
         if self._thread is not None:
-            self._thread.join(timeout=2.0)
+            self._thread.join(timeout=5.0)
+
+            if self._thread.is_alive():
+                print("Warning: WebSocket server thread did not stop.")
+
             self._thread = None
 
     def send(self, message: str) -> None:
@@ -99,8 +103,7 @@ class WebSocketServer:
             self._client_connected.set()
 
         print("WebSocket client connected.")
-        connection.send("hello")
-        print("Sent to client: hello")
+       
         
         try:
             for message in connection:

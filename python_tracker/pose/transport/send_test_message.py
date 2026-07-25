@@ -1,38 +1,15 @@
-'''from pose.transport.websocket_server import WebSocketServer
+import json
+from pose.transport.websocket_server import WebSocketServer
 
+message = {
+    "left_elbow": 90.0,
+    "right_elbow": 95.0,
+    "left_knee": 108.0,
+    "right_knee": 110.0,
+    "torso_angle": 88.5,
+    "pose_confidence": 0.98,
+}
 
-def main() -> None:
-    server = WebSocketServer()
-
-    server.start()
-
-    print("Waiting for Unreal...")
-
-    if server.wait_for_client(timeout=30):
-        print("Client connected.")
-        server.send(
-            '{"type":"pose_feedback","message":"Hello Unreal!"}'
-        )
-        input("Press Enter to stop server...")
-    else:
-        print("No client connected.")
-
-    server.stop()
-
-
-if __name__ == "__main__":
-    main()
-    '''
-import asyncio
-import websockets
-
-
-async def send_hello():
-    uri = "ws://127.0.0.1:8765"
-
-    async with websockets.connect(uri) as websocket:
-        await websocket.send("hello")
-        print("Sent: hello")
-
-
-asyncio.run(send_hello())
+server = WebSocketServer()
+server.start()
+server.send(json.dumps(message))
