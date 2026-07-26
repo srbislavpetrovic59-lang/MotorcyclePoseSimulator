@@ -4,6 +4,7 @@ from pose.models.rider_state import RiderState
 from pose.transport.websocket_server import WebSocketServer
 
 
+
 def main() -> None:
     server = WebSocketServer()
     server.start()

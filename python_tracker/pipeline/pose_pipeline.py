@@ -1,4 +1,6 @@
 from __future__ import annotations
+from pose.mapping.rider_state_mapper import RiderStateMapper
+from pose.transport.websocket_server import WebSocketServer
 
 import cv2
 
@@ -35,6 +37,8 @@ class PosePipeline:
         session_summary: SessionSummary,
         narrator: SessionNarrator,
         output_dispatcher: OutputDispatcher,
+        rider_state_mapper: RiderStateMapper,
+        websocket_server: WebSocketServer,
     ) -> None:
         self._camera = camera
         self._detector = detector
@@ -48,8 +52,12 @@ class PosePipeline:
         self._session_summary = session_summary
         self._narrator = narrator
         self._output_dispatcher = output_dispatcher
+        self._rider_state_mapper = rider_state_mapper
+        self._websocket_server = websocket_server
 
     def run(self) -> None:
+        self._websocket_server.start()
+
         try:
             self._run_loop()
         except KeyboardInterrupt:
@@ -79,6 +87,14 @@ class PosePipeline:
 
     def _process_pose(self, frame, landmarks) -> None:
         metrics = self._analyzer.analyze(landmarks)
+
+        rider_state = self._rider_state_mapper.from_analysis(metrics)
+
+        try:
+            self._websocket_server.send(rider_state.to_json())
+        except RuntimeError:
+            pass
+
         evaluation = self._evaluator.evaluate(metrics)
 
         active_feedback = self._feedback_manager.process(
@@ -109,6 +125,7 @@ class PosePipeline:
         self._output_dispatcher.dispatch(narration)
 
     def _release_resources(self) -> None:
+        self._websocket_server.stop()
         self._detector.release()
         self._camera.release()
         cv2.destroyAllWindows()

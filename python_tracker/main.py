@@ -1,4 +1,6 @@
 import config
+from pose.mapping.rider_state_mapper import RiderStateMapper
+from pose.transport.websocket_server import WebSocketServer
 
 from camera import Camera
 from pipeline.pose_pipeline import PosePipeline
@@ -29,7 +31,9 @@ def main() -> None:
         overlay=OverlayRenderer(),
         session_summary=SessionSummary(),
         narrator=SessionNarrator(),
-        output_dispatcher = OutputDispatcher([ConsoleOutput(),])
+        output_dispatcher = OutputDispatcher([ConsoleOutput(),]),
+        rider_state_mapper=RiderStateMapper(),
+        websocket_server=WebSocketServer(),
     )
 
     pipeline.run()

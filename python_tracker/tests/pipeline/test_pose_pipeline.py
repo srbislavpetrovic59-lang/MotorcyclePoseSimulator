@@ -17,6 +17,8 @@ def test_complete_session_generates_and_dispatches_narration() -> None:
     session_summary = MagicMock()
     narrator = MagicMock()
     output_dispatcher = MagicMock()
+    rider_state_mapper = MagicMock()
+    websocket_server = MagicMock()
 
     events = ["event-1", "event-2"]
     session_duration = 16.0
@@ -47,6 +49,8 @@ def test_complete_session_generates_and_dispatches_narration() -> None:
         session_summary=session_summary,
         narrator=narrator,
         output_dispatcher=output_dispatcher,
+        rider_state_mapper=rider_state_mapper,
+        websocket_server=websocket_server,
     )
 
     pipeline._complete_session()
