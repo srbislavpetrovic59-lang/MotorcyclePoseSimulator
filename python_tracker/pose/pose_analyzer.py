@@ -5,6 +5,7 @@ import mediapipe as mp
 from pose.analyzers.arm_analyzer import ArmAnalyzer
 from pose.analyzers.body_analyzer import BodyAnalyzer
 from pose.analyzers.foot_analyzer import FootAnalyzer
+from pose.models.rider_state import RiderState
 
 class PoseAnalyzer:
 
@@ -38,6 +39,11 @@ class PoseAnalyzer:
 
         result["rider_state"] = self._determine_rider_state(result)
 
+        result["rider_state_model"] = RiderState(
+        left_elbow_angle=result.get("left_elbow_angle", 0.0),
+        right_elbow_angle=result.get("right_elbow_angle", 0.0),
+        pose_confidence=result["pose_confidence"],
+        )
         return result
 
     @staticmethod
