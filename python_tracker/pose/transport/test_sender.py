@@ -1,8 +1,6 @@
-from __future__ import annotations
+import time
 
-import json
-from time import sleep
-
+from pose.models.rider_state import RiderState
 from pose.transport.websocket_server import WebSocketServer
 
 
@@ -10,28 +8,25 @@ def main() -> None:
     server = WebSocketServer()
     server.start()
 
-    print("Waiting for Unreal...")
+    try:
+        print("Waiting for Unreal client...")
+        time.sleep(3.0)
 
-    if not server.wait_for_client(timeout=10.0):
-        print("No Unreal client connected.")
+        rider_state = RiderState(
+            left_elbow_angle=90.0,
+            right_elbow_angle=95.0,
+            pose_confidence=0.98,
+        )
+
+        message = rider_state.to_json()
+
+        server.send(message)
+        print(f"Sent RiderState: {message}")
+
+        time.sleep(1.0)
+
+    finally:
         server.stop()
-        return
-
-    message = {
-        "left_elbow": 90.0,
-        "right_elbow": 95.0,
-        "left_knee": 108.0,
-        "right_knee": 110.0,
-        "torso_angle": 88.5,
-        "pose_confidence": 0.98,
-    }
-
-    server.send(json.dumps(message))
-    print("Test JSON sent.")
-
-    sleep(2)
-
-    server.stop()
 
 
 if __name__ == "__main__":
