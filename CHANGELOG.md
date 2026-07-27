@@ -80,3 +80,7 @@ and this project follows Semantic Versioning.
 
 \- Modular feedback system
 
+### Added
+- Unreal Engine now receives RiderState over WebSocket and parses all pose metrics
+  (elbows, knees, feet, torso angle and pose confidence).
+
