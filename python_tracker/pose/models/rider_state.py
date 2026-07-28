@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 @dataclass(slots=True)
 class RiderState:
     head_roll: float = 0.0
+    head_yaw_ratio: float = 0.0
 
     left_elbow_angle: float = 0.0
     right_elbow_angle: float = 0.0

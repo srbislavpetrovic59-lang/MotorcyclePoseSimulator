@@ -14,6 +14,7 @@ class RiderStateMapper:
 
         return RiderState(
             head_roll=result["head_roll"],
+            head_yaw_ratio = result["head_yaw_ratio"],
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],
             left_knee_angle=result["left_knee_angle"],
