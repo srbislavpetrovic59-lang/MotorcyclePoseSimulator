@@ -6,6 +6,7 @@ from pose.analyzers.arm_analyzer import ArmAnalyzer
 from pose.analyzers.body_analyzer import BodyAnalyzer
 from pose.analyzers.foot_analyzer import FootAnalyzer
 from pose.analyzers.head_analyzer import HeadAnalyzer
+from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
 
 class PoseAnalyzer:
 
@@ -14,6 +15,7 @@ class PoseAnalyzer:
         self.body_analyzer = BodyAnalyzer()
         self.foot_analyzer = FootAnalyzer()
         self._head_analyzer = HeadAnalyzer()
+        self._hand_control_analyzer = HandControlAnalyzer()
 
 
     def analyze(self, landmarks):
@@ -36,6 +38,11 @@ class PoseAnalyzer:
         
         head_result = self._head_analyzer.analyze(landmark_list)
         result.update(head_result)
+        
+        hand_control_result = self._hand_control_analyzer.analyze(
+            landmark_list
+        )
+        result.update(hand_control_result)
         
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list
