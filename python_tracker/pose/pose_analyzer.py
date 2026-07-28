@@ -5,7 +5,7 @@ import mediapipe as mp
 from pose.analyzers.arm_analyzer import ArmAnalyzer
 from pose.analyzers.body_analyzer import BodyAnalyzer
 from pose.analyzers.foot_analyzer import FootAnalyzer
-from pose.models.rider_state import RiderState
+from pose.analyzers.head_analyzer import HeadAnalyzer
 
 class PoseAnalyzer:
 
@@ -13,6 +13,7 @@ class PoseAnalyzer:
         self.arm_analyzer = ArmAnalyzer()
         self.body_analyzer = BodyAnalyzer()
         self.foot_analyzer = FootAnalyzer()
+        self._head_analyzer = HeadAnalyzer()
 
 
     def analyze(self, landmarks):
@@ -33,17 +34,17 @@ class PoseAnalyzer:
         foot_result = self.foot_analyzer.analyze(landmark_list)
         result.update(foot_result)
         
+        head_result = self._head_analyzer.analyze(landmark_list)
+        result.update(head_result)
+        
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list
         )
 
+        
+
         result["rider_state"] = self._determine_rider_state(result)
 
-        result["rider_state_model"] = RiderState(
-        left_elbow_angle=result.get("left_elbow_angle", 0.0),
-        right_elbow_angle=result.get("right_elbow_angle", 0.0),
-        pose_confidence=result["pose_confidence"],
-        )
         return result
 
     @staticmethod

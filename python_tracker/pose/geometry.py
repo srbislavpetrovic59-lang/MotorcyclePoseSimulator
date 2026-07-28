@@ -1,5 +1,5 @@
 # geometry.py
-from mediapipe.tasks.python.components.containers import NormalizedLandmark
+
 import math
 from dataclasses import dataclass
 

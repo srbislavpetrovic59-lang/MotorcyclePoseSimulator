@@ -13,6 +13,7 @@ class RiderStateMapper:
         """Creates a RiderState from pose analysis output."""
 
         return RiderState(
+            head_roll=result["head_roll"],
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],
             left_knee_angle=result["left_knee_angle"],
