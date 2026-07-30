@@ -98,7 +98,7 @@ class PosePipeline:
 
     def _process_pose(self, frame, frame_analysis:FrameAnalysis,) -> None:
         metrics = self._analyzer.analyze(
-            frame_analysis.pose_landmarks
+            frame_analysis
         )
 
         rider_state = self._rider_state_mapper.from_analysis(metrics)

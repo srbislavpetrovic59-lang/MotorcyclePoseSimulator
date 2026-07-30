@@ -7,6 +7,9 @@ from pose.analyzers.body_analyzer import BodyAnalyzer
 from pose.analyzers.foot_analyzer import FootAnalyzer
 from pose.analyzers.head_analyzer import HeadAnalyzer
 from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
+from pose.models.frame_analysis import FrameAnalysis
+
+
 
 class PoseAnalyzer:
 
@@ -18,7 +21,9 @@ class PoseAnalyzer:
         self._hand_control_analyzer = HandControlAnalyzer()
 
 
-    def analyze(self, landmarks):
+    def analyze(self, frame_analysis: FrameAnalysis):
+        landmarks = frame_analysis.pose_landmarks
+
         landmark_list = (
             landmarks.landmark
             if hasattr(landmarks, "landmark")
