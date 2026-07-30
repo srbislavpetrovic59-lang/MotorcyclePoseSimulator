@@ -7,6 +7,7 @@ from pose.session.session_report import SessionReport
 def test_complete_session_generates_and_dispatches_narration() -> None:
     camera = MagicMock()
     detector = MagicMock()
+    hand_detector = MagicMock()
     renderer = MagicMock()
     analyzer = MagicMock()
     evaluator = MagicMock()
@@ -39,6 +40,7 @@ def test_complete_session_generates_and_dispatches_narration() -> None:
     pipeline = PosePipeline(
         camera=camera,
         detector=detector,
+        hand_detector=hand_detector,
         renderer=renderer,
         analyzer=analyzer,
         evaluator=evaluator,

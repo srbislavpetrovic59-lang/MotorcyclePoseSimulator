@@ -8,6 +8,7 @@ import config
 
 from camera import Camera
 from pose.pose_detector import PoseDetector
+from pose.hand_detector import HandDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
@@ -27,6 +28,7 @@ class PosePipeline:
         self,
         camera: Camera,
         detector: PoseDetector,
+        hand_detector: HandDetector,
         renderer: PoseRenderer,
         analyzer: PoseAnalyzer,
         evaluator: PoseEvaluator,
@@ -42,6 +44,7 @@ class PosePipeline:
     ) -> None:
         self._camera = camera
         self._detector = detector
+        self._hand_detector = hand_detector
         self._renderer = renderer
         self._analyzer = analyzer
         self._evaluator = evaluator
@@ -76,6 +79,7 @@ class PosePipeline:
                 break
 
             landmarks = self._detector.detect(frame)
+            hand_landmarks = self._hand_detector.detect(frame)
 
             if landmarks is not None:
                 self._process_pose(frame, landmarks)
@@ -127,5 +131,6 @@ class PosePipeline:
     def _release_resources(self) -> None:
         self._websocket_server.stop()
         self._detector.release()
+        self._hand_detector.close()
         self._camera.release()
         cv2.destroyAllWindows()
