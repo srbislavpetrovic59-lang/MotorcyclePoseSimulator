@@ -16,7 +16,12 @@ class HandDetector:
         pass
 
     def detect(self, frame):
+        """
+        Detects hands and returns MediaPipe hand landmarks.
 
+        Returns:
+            list | None
+        """
         rgb_frame = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2RGB
