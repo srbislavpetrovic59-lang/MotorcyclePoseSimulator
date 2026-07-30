@@ -4,7 +4,7 @@ from pose.transport.websocket_server import WebSocketServer
 
 from camera import Camera
 from pipeline.pose_pipeline import PosePipeline
-from pose_detector import PoseDetector
+from pose.pose_detector import PoseDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator

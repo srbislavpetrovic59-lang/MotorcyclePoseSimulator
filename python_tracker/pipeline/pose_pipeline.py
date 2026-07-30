@@ -7,7 +7,7 @@ import cv2
 import config
 
 from camera import Camera
-from pose_detector import PoseDetector
+from pose.pose_detector import PoseDetector
 from pose_renderer import PoseRenderer
 from pose.pose_analyzer import PoseAnalyzer
 from pose.evaluators.pose_evaluator import PoseEvaluator
