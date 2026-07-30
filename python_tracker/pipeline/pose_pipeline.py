@@ -87,21 +87,16 @@ class PosePipeline:
                 hand_landmarks=hand_landmarks,
             )
 
+            
             if frame_analysis.pose_landmarks is not None:
-                self._process_pose(
-                    frame,
-                    frame_analysis.pose_landmarks,
-                )
-
-            if landmarks is not None:
-                self._process_pose(frame, landmarks)
+                self._process_pose(frame, frame_analysis)
 
             cv2.imshow(config.WINDOW_TITLE, frame)
 
             if cv2.waitKey(1) == 27:
                 break
 
-    def _process_pose(self, frame, frame_analysis) -> None:
+    def _process_pose(self, frame, frame_analysis:FrameAnalysis,) -> None:
         metrics = self._analyzer.analyze(
             frame_analysis.pose_landmarks
         )
@@ -122,7 +117,7 @@ class PosePipeline:
         self._coach.update(active_feedback)
         self._recorder.update(active_feedback)
 
-        self._renderer.draw(frame, landmarks)
+        self._renderer.draw(frame, frame_analysis.pose_landmarks)
 
         self._overlay.draw(
             frame,

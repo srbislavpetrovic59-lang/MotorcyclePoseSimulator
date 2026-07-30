@@ -16,12 +16,14 @@ from pose.session.session_summary import SessionSummary
 from pose.session.session_narrator import SessionNarrator
 from pose.output.output_dispatcher import OutputDispatcher
 from pose.output.console_output import ConsoleOutput
+from pose.hand_detector import HandDetector
 
 
 def main() -> None:
     pipeline = PosePipeline(
         camera=Camera(config.CAMERA_URL),
         detector=PoseDetector(),
+        hand_detector = HandDetector(),
         renderer=PoseRenderer(),
         analyzer=PoseAnalyzer(),
         evaluator=PoseEvaluator(),
