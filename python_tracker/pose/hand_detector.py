@@ -15,8 +15,17 @@ class HandDetector:
     )
         pass
 
-    def process(self, frame):
-        return None
+    def detect(self, frame):
+
+        rgb_frame = cv2.cvtColor(
+            frame,
+            cv2.COLOR_BGR2RGB
+        )
+
+        results = self._hands.process(rgb_frame)
+
+        return results.multi_hand_landmarks
 
     def close(self):
-        pass
+        self._hands.close()
+       
