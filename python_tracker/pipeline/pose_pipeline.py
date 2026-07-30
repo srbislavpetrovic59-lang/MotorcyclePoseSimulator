@@ -19,6 +19,7 @@ from pose.overlay.overlay_renderer import OverlayRenderer
 from pose.session.session_narrator import SessionNarrator
 from pose.session.session_recorder import SessionRecorder
 from pose.session.session_summary import SessionSummary
+from pose.models.frame_analysis import FrameAnalysis
 
 
 class PosePipeline:
@@ -81,6 +82,17 @@ class PosePipeline:
             landmarks = self._detector.detect(frame)
             hand_landmarks = self._hand_detector.detect(frame)
 
+            frame_analysis = FrameAnalysis(
+                pose_landmarks=landmarks,
+                hand_landmarks=hand_landmarks,
+            )
+
+            if frame_analysis.pose_landmarks is not None:
+                self._process_pose(
+                    frame,
+                    frame_analysis.pose_landmarks,
+                )
+
             if landmarks is not None:
                 self._process_pose(frame, landmarks)
 
@@ -89,8 +101,10 @@ class PosePipeline:
             if cv2.waitKey(1) == 27:
                 break
 
-    def _process_pose(self, frame, landmarks) -> None:
-        metrics = self._analyzer.analyze(landmarks)
+    def _process_pose(self, frame, frame_analysis) -> None:
+        metrics = self._analyzer.analyze(
+            frame_analysis.pose_landmarks
+        )
 
         rider_state = self._rider_state_mapper.from_analysis(metrics)
 
