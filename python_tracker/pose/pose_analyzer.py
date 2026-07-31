@@ -48,6 +48,7 @@ class PoseAnalyzer:
             frame_analysis
         )
         result.update(hand_control_result)
+       
         
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list

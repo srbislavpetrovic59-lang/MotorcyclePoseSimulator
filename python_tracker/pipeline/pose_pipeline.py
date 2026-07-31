@@ -88,7 +88,15 @@ class PosePipeline:
                 hand_landmarks=hand_landmarks,
                 hand_handedness=hand_handedness,
             )
-           
+            # Process hand landmarks and handedness
+            if (
+                frame_analysis.hand_landmarks is not None
+                and frame_analysis.hand_handedness is not None
+            ):
+                for handedness in frame_analysis.hand_handedness:
+                    label = handedness.classification[0].label
+                    print(label)
+
             if frame_analysis.pose_landmarks is not None:
                 self._process_pose(frame, frame_analysis)
 
