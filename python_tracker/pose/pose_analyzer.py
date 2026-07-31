@@ -45,7 +45,7 @@ class PoseAnalyzer:
         result.update(head_result)
         
         hand_control_result = self._hand_control_analyzer.analyze(
-            landmark_list
+            frame_analysis
         )
         result.update(hand_control_result)
         
