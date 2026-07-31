@@ -1,5 +1,5 @@
-# hand_control_analyzer.py
-
+# han#d_control_analyzer.py
+from pose.landmarks import PoseLandmark
 from pose.models.frame_analysis import FrameAnalysis
 
 
@@ -15,9 +15,28 @@ class HandControlAnalyzer:
         left_hand = hands.get("Left")
         right_hand = hands.get("Right")
 
+        left_wrist_y = (
+            left_hand.landmark[0].y
+            if left_hand is not None
+            else None
+        )
+        left_shoulder_y = (
+            frame_analysis.pose_landmarks.landmark[
+            PoseLandmark.LEFT_SHOULDER
+            ].y
+        )
+
+        left_wrist_to_shoulder_y = (
+            left_wrist_y - left_shoulder_y
+            if left_wrist_y is not None
+            else None
+        )
+       
         return {
             "left_hand_detected": left_hand is not None,
             "right_hand_detected": right_hand is not None,
+            "left_hand_wrist_y": left_wrist_y,
+            "left_wrist_to_shoulder_y": left_wrist_to_shoulder_y,
         }
     
     
