@@ -29,7 +29,10 @@ class HandDetector:
 
         results = self._hands.process(rgb_frame)
 
-        return results.multi_hand_landmarks
+        return (
+            results.multi_hand_landmarks,
+            results.multi_handedness,
+        )
 
     def close(self):
         self._hands.close()

@@ -1,4 +1,4 @@
-1. Repeated feedback should evolve instead of becoming increasingly delayed.
+﻿1. Repeated feedback should evolve instead of becoming increasingly delayed.
 
 2. ## Personalized Ride Goals
 
@@ -39,7 +39,30 @@ Only the wording and communication style should differ.
 This design keeps riding analysis independent from rider communication.
 Choose your coach:
 
-(�) Calm Coach
+(•) Calm Coach
 ( ) Professional Instructor
 ( ) Sport Coach
 ( ) Friendly Riding Buddy
+
+/******************
+*	Ali zapisujem jedan budući refaktor
+***************/
+
+Kasnije možemo ujednačiti API svih komponenti.
+
+Na primer:
+
+PoseDetector.release()
+HandDetector.release()
+Camera.release()
+
+ili:
+
+PoseDetector.close()
+HandDetector.close()
+Camera.close()
+
+Bitno je da svi koriste isti naziv.
+
+To nije funkcionalna promena, već API cleanup, i ja bih ga ostavio za
+poseban commit kada budemo sređivali celu infrastrukturu.

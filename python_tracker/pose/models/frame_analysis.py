@@ -6,3 +6,4 @@ from typing import Any
 class FrameAnalysis:
     pose_landmarks: Any
     hand_landmarks: Any
+    hand_handedness: Any

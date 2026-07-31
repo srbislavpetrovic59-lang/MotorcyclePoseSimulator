@@ -24,7 +24,10 @@ def test_detect_returns_none_for_empty_frame():
     result = detector.detect(frame)
 
     try: 
-        assert result is None
+        hand_landmarks, hand_handedness = detector.detect(frame)
+
+        assert hand_landmarks is None
+        assert hand_handedness is None
 
     finally:
         

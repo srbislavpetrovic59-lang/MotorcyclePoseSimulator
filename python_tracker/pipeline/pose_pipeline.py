@@ -80,14 +80,15 @@ class PosePipeline:
                 break
 
             landmarks = self._detector.detect(frame)
-            hand_landmarks = self._hand_detector.detect(frame)
-
+            hand_landmarks, hand_handedness = (
+                self._hand_detector.detect(frame)
+            )
             frame_analysis = FrameAnalysis(
                 pose_landmarks=landmarks,
                 hand_landmarks=hand_landmarks,
+                hand_handedness=hand_handedness,
             )
-
-            
+           
             if frame_analysis.pose_landmarks is not None:
                 self._process_pose(frame, frame_analysis)
 
