@@ -15,29 +15,45 @@ class HandControlAnalyzer:
         hands = self._extract_hands(frame_analysis)
 
         left_hand = hands.get("Left")
+        right_hand = hands.get("Right")
+
         thumb_index_distance = None
 
         if left_hand is not None:
-            thumb_tip = left_hand.landmark[
-                HandLandmark.THUMB_TIP
-            ]
-
-            index_tip = left_hand.landmark[
-                HandLandmark.INDEX_FINGER_TIP
-            ]
-
-            thumb_index_distance = self._distance(
-                thumb_tip,
-                index_tip,
+            thumb_tip = self._get_landmark(
+               left_hand,
+               HandLandmark.THUMB_TIP,
             )
 
-        right_hand = hands.get("Right")
+            index_tip = self._get_landmark(
+                left_hand,
+                HandLandmark.INDEX_FINGER_TIP,
+            )
+
+           
+
+            if (
+                thumb_tip is not None
+                and index_tip is not None
+            ):
+                thumb_index_distance = self._distance(
+                    thumb_tip,
+                    index_tip,
+                )
+
+        
+
+        left_wrist = self._get_landmark(
+            left_hand,
+            HandLandmark.WRIST,
+        )
 
         left_wrist_y = (
-            left_hand.landmark[ HandLandmark.WRIST ].y
-            if left_hand is not None
+            left_wrist.y
+            if left_wrist is not None
             else None
         )
+
         left_shoulder_y = (
             frame_analysis.pose_landmarks.landmark[
             PoseLandmark.LEFT_SHOULDER
@@ -49,10 +65,7 @@ class HandControlAnalyzer:
             if left_wrist_y is not None
             else None
         )
-        print(
-            f"Left thumb-index distance: "
-            f"{thumb_index_distance}"
-        )
+       
         return {
             "left_hand_detected": left_hand is not None,
             "right_hand_detected": right_hand is not None,
@@ -93,3 +106,14 @@ class HandControlAnalyzer:
             point2.x - point1.x,
             point2.y - point1.y,
         )
+
+
+    def _get_landmark(
+        self,
+        hand,
+        landmark,
+    ):
+        if hand is None:
+            return None
+
+        return hand.landmark[landmark]
