@@ -16,7 +16,7 @@ class HandControlAnalyzer:
         right_hand = hands.get("Right")
 
         left_wrist_y = (
-            left_hand.landmark[0].y
+            left_hand.landmark[ HandLandmark.WRIST ].y
             if left_hand is not None
             else None
         )
