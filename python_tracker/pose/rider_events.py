@@ -3,9 +3,12 @@ from enum import Enum, auto
 
 
 class RiderEventType(Enum):
+    POSE_ACQUIRED = auto()
+    POSE_LOST = auto()
+    
     RIDE_STARTED = auto()
     RIDE_STOPPED = auto()
-
+    
 
 @dataclass(frozen=True)
 class RiderEvent:

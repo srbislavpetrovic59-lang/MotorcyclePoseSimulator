@@ -32,3 +32,17 @@ RiderEventDetector does NOT:
 - generate natural language.
 
 Those responsibilities belong to other components.
+
+
+I sada mi se rodila još jedna ideja...
+
+Možda RiderEventDetector uopšte neće biti samo jedan detector.
+
+Možda će jednog dana izgledati ovako:
+
+RiderEventDetector
+│
+├── PerceptionEventDetector
+└── RidingEventDetector
+
+Ali... ne sada.

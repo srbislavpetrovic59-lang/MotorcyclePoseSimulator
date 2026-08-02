@@ -48,3 +48,7 @@ GearShiftCompleted
 CornerEntry
 
 CornerExit
+
+
+POSE_ACQUIRED is emitted when the system transitions from 
+"pose unavailable" to "pose available".
