@@ -35,6 +35,19 @@ class RiderEventDetector:
                     timestamp=rider_state.timestamp,
                 )
             )
+        
+        if (
+            previous_valid
+            and not current_valid
+        ):
+            events.append(
+                RiderEvent(
+                    type=RiderEventType.POSE_LOST,
+                    timestamp=rider_state.timestamp,
+                )
+            )
+
+
 
         self._update_previous_state(rider_state)
 
