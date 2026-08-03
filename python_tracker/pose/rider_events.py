@@ -8,6 +8,9 @@ class RiderEventType(Enum):
     
     RIDE_STARTED = auto()
     RIDE_STOPPED = auto()
+
+    LEFT_HAND_DETECTED = auto()
+    LEFT_HAND_LOST = auto()
     
 
 @dataclass(frozen=True)

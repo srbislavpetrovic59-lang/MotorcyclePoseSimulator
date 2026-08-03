@@ -46,8 +46,31 @@ class RiderEventDetector:
                     timestamp=rider_state.timestamp,
                 )
             )
+        # Detect left hand detected event
+        previous_left = previous_state.left_hand_detected
+        current_left = rider_state.left_hand_detected
 
-
+        if (
+            not previous_left
+            and current_left
+        ):
+            events.append(
+                RiderEvent(
+                    type=RiderEventType.LEFT_HAND_DETECTED,
+                    timestamp=rider_state.timestamp,
+                )
+            )
+         # Detect left hand lost event
+        if (
+            previous_left
+            and not current_left
+        ):
+            events.append(
+                RiderEvent(
+                    type=RiderEventType.LEFT_HAND_LOST,
+                    timestamp=rider_state.timestamp,
+                )
+            )
 
         self._update_previous_state(rider_state)
 

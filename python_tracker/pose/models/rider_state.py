@@ -12,7 +12,10 @@ class RiderState:
     head_yaw_ratio: float = 0.0
 
     left_elbow_angle: float = 0.0
-    right_elbow_angle: float = 0.0
+    right_elbow_angle: float = 0.
+
+    left_hand_detected: bool = False
+    right_hand_detected: bool = False
     
     left_knee_angle: float = 0.0
     right_knee_angle: float = 0.0
