@@ -66,3 +66,32 @@ Bitno je da svi koriste isti naziv.
 
 To nije funkcionalna promena, već API cleanup, i ja bih ga ostavio za
 poseban commit kada budemo sređivali celu infrastrukturu.
+
+
+
+Mislim da nam sada nedostaje još jedan sloj:
+
+Measurements
+        ↓
+Primitive Events
+        ↓
+Derived Events
+        ↓
+Evaluation
+
+Na primer:
+
+Primitive:
+
+Clutch Released
+Throttle Opened
+Left Hand Lost
+
+Derived:
+
+Ready To Start
+Ride Started
+Emergency Braking
+Slow Speed Maneuver
+
+To mi deluje mnogo prirodnije.
