@@ -1,5 +1,6 @@
 from pose.rider_events import RiderEvent
 from pose.rider_events import RiderEventType
+from pose.models.rider_state import RiderState
 
 POSE_CONFIDENCE_THRESHOLD = 0.8
 
@@ -29,22 +30,20 @@ class RiderEventDetector:
             not previous_valid
             and current_valid
         ):
-            events.append(
-                RiderEvent(
-                    type=RiderEventType.POSE_ACQUIRED,
-                    timestamp=rider_state.timestamp,
-                )
+            self._emit(
+                events,
+                RiderEventType.POSE_ACQUIRED,
+                rider_state,
             )
         
         if (
             previous_valid
             and not current_valid
         ):
-            events.append(
-                RiderEvent(
-                    type=RiderEventType.POSE_LOST,
-                    timestamp=rider_state.timestamp,
-                )
+            self._emit(
+                events,
+                RiderEventType.POSE_LOST,
+                rider_state,
             )
         # Detect left hand detected event
         previous_left = previous_state.left_hand_detected
@@ -54,22 +53,20 @@ class RiderEventDetector:
             not previous_left
             and current_left
         ):
-            events.append(
-                RiderEvent(
-                    type=RiderEventType.LEFT_HAND_DETECTED,
-                    timestamp=rider_state.timestamp,
-                )
+            self._emit(
+                events,
+                RiderEventType.LEFT_HAND_DETECTED,
+                rider_state,
             )
          # Detect left hand lost event
         if (
             previous_left
             and not current_left
         ):
-            events.append(
-                RiderEvent(
-                    type=RiderEventType.LEFT_HAND_LOST,
-                    timestamp=rider_state.timestamp,
-                )
+            self._emit(
+                events,
+                RiderEventType.LEFT_HAND_LOST,
+                rider_state,
             )
 
         self._update_previous_state(rider_state)
@@ -93,4 +90,17 @@ class RiderEventDetector:
         return (
             rider_state.pose_confidence
             >= POSE_CONFIDENCE_THRESHOLD
+        )
+
+    def _emit(
+        self,
+        events: list[RiderEvent],
+        event_type: RiderEventType,
+        rider_state: RiderState,
+    ) -> None:
+        events.append(
+            RiderEvent(
+                type=event_type,
+                timestamp=rider_state.timestamp,
+            )
         )
