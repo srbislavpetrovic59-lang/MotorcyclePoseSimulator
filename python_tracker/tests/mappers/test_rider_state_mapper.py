@@ -16,7 +16,8 @@ def test_from_analysis():
     }
 
     state = RiderStateMapper.from_analysis(analysis)
-
+    
+    assert state.timestamp > 0.0
     assert state.head_roll == 10.0
     assert state.head_yaw_ratio == 0.25
     assert state.left_elbow_angle == 90.0

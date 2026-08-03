@@ -46,3 +46,48 @@ RiderEventDetector
 └── RidingEventDetector
 
 Ali... ne sada.
+
+## Event Emission Rule
+
+An event is emitted only when a state changes.
+
+If a state remains unchanged,
+no new event is emitted.
+
+## Scenario: Pose Acquired
+
+Given
+
+The previous RiderState has no valid pose.
+
+When
+
+The current RiderState contains a valid pose.
+
+Then
+
+Emit a single POSE_ACQUIRED event.
+
+## Scenario: Pose Remains Available
+
+Given
+
+The previous RiderState contains a valid pose.
+
+When
+
+The current RiderState also contains a valid pose.
+
+Then
+
+Emit no event.
+
+              confidence
+
+      < threshold        ≥ threshold
+
+           OFF ─────────────► ON
+               POSE_ACQUIRED
+
+           ON ─────────────► OFF
+                 POSE_LOST

@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 
 @dataclass(slots=True)
 class RiderState:
+    timestamp: float = 0.0
+
     head_roll: float = 0.0
     head_yaw_ratio: float = 0.0
 
