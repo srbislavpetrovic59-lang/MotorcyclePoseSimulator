@@ -52,3 +52,15 @@ CornerExit
 
 POSE_ACQUIRED is emitted when the system transitions from 
 "pose unavailable" to "pose available".
+
+## Derived Event: Ready To Start
+
+READY_TO_START is recognized when:
+
+- the rider is looking ahead,
+- the clutch is in the friction zone,
+- the throttle is slightly open,
+- the rear brake has been released.
+
+This event indicates that the rider has prepared the motorcycle
+for movement. It does not by itself prove that movement has begun.
