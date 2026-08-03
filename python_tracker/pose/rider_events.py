@@ -10,7 +10,10 @@ class RiderEventType(Enum):
     RIDE_STOPPED = auto()
 
     LEFT_HAND_DETECTED = auto()
-    LEFT_HAND_LOST = auto()
+    LEFT_HAND_LOST = auto
+
+    RIGHT_HAND_DETECTED = auto()
+    RIGHT_HAND_LOST = auto()
     
 
 @dataclass(frozen=True)

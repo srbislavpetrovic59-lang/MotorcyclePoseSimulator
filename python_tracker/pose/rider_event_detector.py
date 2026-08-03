@@ -68,7 +68,29 @@ class RiderEventDetector:
                 RiderEventType.LEFT_HAND_LOST,
                 rider_state,
             )
+         # Detect right hand detected event
+        previous_right = previous_state.right_hand_detected
+        current_right = rider_state.right_hand_detected
 
+        if (
+            not previous_right
+            and current_right
+        ):
+            self._emit(
+                events,
+                RiderEventType.RIGHT_HAND_DETECTED,
+                rider_state,
+            )
+         # Detect right hand lost event
+        if (
+            previous_right
+            and not current_right
+        ):
+            self._emit(
+                events,
+                RiderEventType.RIGHT_HAND_LOST,
+                rider_state,
+            )
         self._update_previous_state(rider_state)
 
         return events

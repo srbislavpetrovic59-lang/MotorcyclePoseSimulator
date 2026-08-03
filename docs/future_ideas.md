@@ -95,3 +95,22 @@ Emergency Braking
 Slow Speed Maneuver
 
 To mi deluje mnogo prirodnije.
+
+
+Što se upozorenja tiče
+
+Ovo:
+
+DeprecationWarning: auto()
+
+nije greška u tvom kodu.
+
+To je promena ponašanja u Python 3.13 koja upozorava kako će Enum.auto() raditi u budućnosti.
+
+Pošto koristiš običan Enum sa auto(), a sve vrednosti su i dalje iste vrste, ne bih sada ništa dirao.
+
+To bih zapisao kao mali tehnički dug za kasnije, kada budemo radili širi prolaz kroz kod ili pre prelaska na novu verziju Pythona.
+
+Drugim rečima:
+
+Nije hitno.
