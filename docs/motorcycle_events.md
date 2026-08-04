@@ -72,3 +72,14 @@ events that caused it.
 4. REAR_BRAKE_RELEASED
 5. READY_TO_START
 6. RIDE_STARTED
+
+### LOOKING_AHEAD
+
+The rider is considered to be looking ahead when:
+
+- the shoulders are approximately level,
+- the torso is not significantly rotated,
+- the nose is positioned near the midpoint between the shoulders.
+
+This event estimates forward head and upper-body orientation.
+It does not directly track eye gaze.

@@ -1,3 +1,4 @@
+from pickle import TRUE
 from pose.geometry import Geometry
 from pose.landmarks import PoseLandmark
 
@@ -43,3 +44,13 @@ class HeadAnalyzer:
         return (
             left_distance - right_distance
         ) / total_distance
+
+    def is_head_forward(
+        self,
+        head_roll: float,
+        head_yaw_ratio: float,
+    ) -> bool:
+        return (
+            head_roll <= 0.2
+            and abs(head_yaw_ratio) <= 0.01
+        )

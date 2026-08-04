@@ -158,3 +158,14 @@ Trust matters more.
 A rider should finish every session feeling more confident than when it started.
 
 "If a future feature makes PoseCoach feel more like a machine than a mentor, we should redesign the feature—not the philosophy."
+
+
+# Mislim da smo upravo pronašli još jedan princip projekta.
+
+
+Every event starts with the simplest reliable implementation.
+
+
+
+Accuracy is improved incrementally as new measurements become available.
+
