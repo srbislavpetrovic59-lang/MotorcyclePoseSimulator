@@ -20,6 +20,8 @@ class RiderStateMapper:
 
             left_hand_detected=result["left_hand_detected"],
             right_hand_detected=result["right_hand_detected"],
+
+            head_forward=result["head_forward"],
             
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],
@@ -32,4 +34,6 @@ class RiderStateMapper:
             
             torso_angle=result["torso_angle"],
             pose_confidence=result["pose_confidence"],
+
+           
         )

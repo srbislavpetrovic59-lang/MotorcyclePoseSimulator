@@ -91,8 +91,21 @@ class RiderEventDetector:
                 RiderEventType.RIGHT_HAND_LOST,
                 rider_state,
             )
-        self._update_previous_state(rider_state)
 
+        previous_head_forward = previous_state.head_forward
+        current_head_forward = rider_state.head_forward
+
+        if (
+            not previous_head_forward
+            and current_head_forward
+        ):
+            self._emit(
+                events,
+                RiderEventType.LOOKING_AHEAD,
+                rider_state,
+            )
+
+        self._update_previous_state(rider_state)
         return events
 
     def _is_first_frame(self) -> bool:

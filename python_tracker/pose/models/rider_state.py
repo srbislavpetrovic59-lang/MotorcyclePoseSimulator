@@ -26,6 +26,9 @@ class RiderState:
     torso_angle: float = 0.0
     pose_confidence: float = 0.0
 
+    head_forward: bool = False
+
+
     def to_dict(self) -> dict:
         return asdict(self)
 

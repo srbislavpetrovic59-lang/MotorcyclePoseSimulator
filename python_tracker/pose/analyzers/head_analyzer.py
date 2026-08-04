@@ -1,4 +1,3 @@
-from pickle import TRUE
 from pose.geometry import Geometry
 from pose.landmarks import PoseLandmark
 
@@ -13,6 +12,11 @@ class HeadAnalyzer:
         return {
             "head_roll": head_roll,
             "head_yaw_ratio": head_yaw,
+            "head_forward": self.is_head_forward(
+                head_roll,
+                head_yaw,
+                ),
+
         }
 
     def _head_roll(self, landmarks):
