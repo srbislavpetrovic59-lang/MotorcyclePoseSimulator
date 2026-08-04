@@ -16,6 +16,7 @@ class RiderEventType(Enum):
     RIGHT_HAND_LOST = auto()
 
     LOOKING_AHEAD = auto()
+    LOOKING_AWAY = auto()
     
 
 @dataclass(frozen=True)

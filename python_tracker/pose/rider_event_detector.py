@@ -105,6 +105,16 @@ class RiderEventDetector:
                 rider_state,
             )
 
+        if (
+            previous_head_forward
+            and not current_head_forward
+        ):
+            self._emit(
+                events,
+                RiderEventType.LOOKING_AWAY,
+                rider_state,
+            )
+
         self._update_previous_state(rider_state)
         return events
 
