@@ -117,3 +117,32 @@ class HandControlAnalyzer:
             return None
 
         return hand.landmark[landmark]
+
+
+    def _hand_rotation(
+        self,
+        hand,
+    ) -> float | None:
+        wrist = self._get_landmark(
+            hand,
+            HandLandmark.WRIST,
+        )
+
+        index_mcp = self._get_landmark(
+            hand,
+            HandLandmark.INDEX_FINGER_MCP,
+        )
+
+        pinky_mcp = self._get_landmark(
+            hand,
+            HandLandmark.PINKY_MCP,
+        )
+
+        if (
+            wrist is None
+            or index_mcp is None
+            or pinky_mcp is None
+        ):
+            return None
+
+        return 0.0
