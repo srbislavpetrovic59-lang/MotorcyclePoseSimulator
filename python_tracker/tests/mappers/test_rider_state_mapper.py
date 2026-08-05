@@ -8,6 +8,7 @@ def test_from_analysis():
         "left_hand_detected": True,
         "right_hand_detected": False,
         "right_hand_rotation": 215.0,
+        "left_hand_rotation": 180.0,
         "head_forward": True,
         "left_elbow_angle": 90.0,
         "right_elbow_angle": 95.0,
@@ -27,6 +28,7 @@ def test_from_analysis():
     assert state.left_hand_detected is True
     assert state.right_hand_detected is False
     assert state.right_hand_rotation == 215.0
+    assert state.left_hand_rotation == 180.0    
     assert state.head_forward is True
     assert state.left_elbow_angle == 90.0
     assert state.right_elbow_angle == 95.0

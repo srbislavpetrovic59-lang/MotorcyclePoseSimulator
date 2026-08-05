@@ -172,3 +172,25 @@ class HandControlAnalyzer:
 
         return rotation
 
+    @staticmethod
+    def _rotation_delta(
+        neutral_rotation: float | None,
+        current_rotation: float | None,
+    ) -> float | None:
+        if (
+            neutral_rotation is None
+            or current_rotation is None
+        ):
+            return None
+
+        return neutral_rotation - current_rotation
+
+    @staticmethod
+    def _is_rotation_open(
+        rotation_delta: float | None,
+    ) -> bool:
+        return (
+            rotation_delta is not None
+            and rotation_delta >= 20.0
+        )
+
