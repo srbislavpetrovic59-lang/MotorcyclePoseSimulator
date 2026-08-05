@@ -16,6 +16,7 @@ class RiderState:
 
     left_hand_detected: bool = False
     right_hand_detected: bool = False
+    right_hand_rotation: float = 0.0
     
     left_knee_angle: float = 0.0
     right_knee_angle: float = 0.0

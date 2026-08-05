@@ -77,7 +77,16 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
          )
-
+         '''
+         cv2.putText(
+            frame,
+            f"Right hand rotation: {rotation:.1f}",
+            (20, 310),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
+            2,
+         )'''
     def _draw_evaluation(
         self,
         frame,

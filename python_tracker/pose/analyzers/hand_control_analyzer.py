@@ -2,6 +2,7 @@
 import math
 from pose.landmarks import PoseLandmark
 from pose.models.frame_analysis import FrameAnalysis
+from pose.geometry import Geometry
 from pose.hand_landmarks import HandLandmark
 
 
@@ -65,13 +66,20 @@ class HandControlAnalyzer:
             if left_wrist_y is not None
             else None
         )
-       
+        right_hand = hands.get("Right")
+
+        right_hand_rotation = self._hand_rotation(
+            right_hand
+        )
+
+                      
         return {
             "left_hand_detected": left_hand is not None,
             "right_hand_detected": right_hand is not None,
             "left_hand_wrist_y": left_wrist_y,
             "left_wrist_to_shoulder_y": left_wrist_to_shoulder_y,
             "thumb_index_distance": thumb_index_distance,
+            "right_hand_rotation": right_hand_rotation,
         }
     
     
@@ -145,4 +153,12 @@ class HandControlAnalyzer:
         ):
             return None
 
-        return 0.0
+        rotation = Geometry.line_angle(
+            pinky_mcp,
+            index_mcp,
+        )
+        if rotation < 0:
+            rotation += 360
+
+        return rotation
+
