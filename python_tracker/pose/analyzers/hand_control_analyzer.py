@@ -17,6 +17,14 @@ class HandControlAnalyzer:
 
         left_hand = hands.get("Left")
         right_hand = hands.get("Right")
+        
+        left_hand_rotation = self._hand_rotation(
+            left_hand,
+        )
+        
+        right_hand_rotation = self._hand_rotation(
+            right_hand
+        )
 
         thumb_index_distance = None
 
@@ -66,11 +74,12 @@ class HandControlAnalyzer:
             if left_wrist_y is not None
             else None
         )
-        right_hand = hands.get("Right")
-
-        right_hand_rotation = self._hand_rotation(
-            right_hand
+        print(
+            f"Left hand rotation: "
+            f"{left_hand_rotation}"
         )
+
+       
 
                       
         return {
@@ -80,6 +89,7 @@ class HandControlAnalyzer:
             "left_wrist_to_shoulder_y": left_wrist_to_shoulder_y,
             "thumb_index_distance": thumb_index_distance,
             "right_hand_rotation": right_hand_rotation,
+            "left_hand_rotation": left_hand_rotation,
         }
     
     

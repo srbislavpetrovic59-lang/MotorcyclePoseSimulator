@@ -20,7 +20,9 @@ class RiderStateMapper:
 
             left_hand_detected=result["left_hand_detected"],
             right_hand_detected=result["right_hand_detected"],
+            
             right_hand_rotation=result["right_hand_rotation"],
+            left_hand_rotation=result["left_hand_rotation"],
 
             head_forward=result["head_forward"],
             
