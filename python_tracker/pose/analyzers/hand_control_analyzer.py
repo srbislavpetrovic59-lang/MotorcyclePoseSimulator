@@ -229,3 +229,12 @@ class HandControlAnalyzer:
             and rotation_delta < 20.0
         )
 
+    @staticmethod
+    def _is_left_rotation_active(
+        rotation_delta: float | None,
+    ) -> bool:
+        return (
+            rotation_delta is not None
+            and rotation_delta >= 20.0
+        )
+
