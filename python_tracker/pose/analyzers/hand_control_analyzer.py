@@ -26,6 +26,13 @@ class HandControlAnalyzer:
             right_hand
         )
 
+        throttle_open = self._is_rotation_open(
+            self._rotation_delta(
+                neutral_rotation=...,
+                current_rotation=right_hand_rotation,
+                )
+            ),
+
         thumb_index_distance = None
 
         if left_hand is not None:
@@ -90,6 +97,7 @@ class HandControlAnalyzer:
             "thumb_index_distance": thumb_index_distance,
             "right_hand_rotation": right_hand_rotation,
             "left_hand_rotation": left_hand_rotation,
+            "throttle_open": throttle_open,
         }
     
     

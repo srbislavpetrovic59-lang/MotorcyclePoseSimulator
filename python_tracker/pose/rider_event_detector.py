@@ -115,6 +115,16 @@ class RiderEventDetector:
                 rider_state,
             )
 
+        if (
+            not previous_state.throttle_open
+            and rider_state.throttle_open
+        ):
+            self._emit(
+                events,
+                RiderEventType.THROTTLE_OPENED,
+                rider_state,
+            )
+
         self._update_previous_state(rider_state)
         return events
 

@@ -17,6 +17,8 @@ class RiderEventType(Enum):
 
     LOOKING_AHEAD = auto()
     LOOKING_AWAY = auto()
+
+    THROTTLE_OPENED = auto()
     
 
 @dataclass(frozen=True)

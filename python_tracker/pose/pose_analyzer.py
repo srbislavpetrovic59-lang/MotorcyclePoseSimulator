@@ -48,6 +48,11 @@ class PoseAnalyzer:
             frame_analysis
         )
         result.update(hand_control_result)
+
+        throttle_open = self._hand_control_analyzer.analyze(
+            throttle_open
+            )
+        result.update(hand_control_result)
        
         
         result["pose_confidence"] = self._calculate_pose_confidence(
