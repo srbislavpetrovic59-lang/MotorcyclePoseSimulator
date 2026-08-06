@@ -28,14 +28,14 @@ class HandControlAnalyzer:
 
         throttle_open = self._is_rotation_open(
             self._rotation_delta(
-                neutral_rotation=...,
+                neutral_rotation=260,
                 current_rotation=right_hand_rotation,
                 )
             ),
 
         throttle_close = self._is_rotation_open(
             self._rotation_delta(
-                neutral_rotation=...,
+                neutral_rotation=180,
                 current_rotation=right_hand_rotation,
                 )
             ),
@@ -88,9 +88,15 @@ class HandControlAnalyzer:
             if left_wrist_y is not None
             else None
         )
+
+        left_rotation_delta = self._rotation_delta(
+            neutral_rotation=325.0,
+            current_rotation=left_hand_rotation,
+        )
+ 
         print(
-            f"Left hand rotation: "
-            f"{left_hand_rotation}"
+            f"Left hand rotation delta: "
+            f"{left_rotation_delta}"
         )
 
        
@@ -199,7 +205,11 @@ class HandControlAnalyzer:
         ):
             return None
 
-        return neutral_rotation - current_rotation
+        return (
+            neutral_rotation
+            - current_rotation
+            + 180.0
+        ) % 360.0 - 180.0
 
     @staticmethod
     def _is_rotation_open(

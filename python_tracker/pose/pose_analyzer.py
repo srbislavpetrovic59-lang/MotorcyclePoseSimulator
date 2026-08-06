@@ -31,7 +31,10 @@ class PoseAnalyzer:
         )
 
         result = {}
-
+        
+        throttle_open = False
+        throttle_close = False
+        
         arm_result = self.arm_analyzer.analyze(landmark_list)
         result.update(arm_result)
 
@@ -49,9 +52,10 @@ class PoseAnalyzer:
         )
         result.update(hand_control_result)
 
-        throttle_open = self._hand_control_analyzer.analyze(
-            throttle_open
-            )
+        throttle_open = hand_control_result["throttle_open"]
+        result.update(hand_control_result)
+
+        throttle_close = hand_control_result["throttle_close"]
         result.update(hand_control_result)
        
         

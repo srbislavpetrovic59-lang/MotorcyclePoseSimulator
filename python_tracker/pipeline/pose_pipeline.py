@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pose.mapping.rider_state_mapper import RiderStateMapper
 from pose.transport.websocket_server import WebSocketServer
-
+import time
 import cv2
 
 import config
@@ -20,7 +20,6 @@ from pose.session.session_narrator import SessionNarrator
 from pose.session.session_recorder import SessionRecorder
 from pose.session.session_summary import SessionSummary
 from pose.models.frame_analysis import FrameAnalysis
-
 
 class PosePipeline:
     """Coordinates the real-time motorcycle pose coaching workflow."""
@@ -58,6 +57,8 @@ class PosePipeline:
         self._output_dispatcher = output_dispatcher
         self._rider_state_mapper = rider_state_mapper
         self._websocket_server = websocket_server
+    
+    
 
     def run(self) -> None:
         self._websocket_server.start()
@@ -74,6 +75,7 @@ class PosePipeline:
 
     def _run_loop(self) -> None:
         while True:
+            start = time.perf_counter()
             frame = self._camera.read()
 
             if frame is None:
@@ -101,7 +103,7 @@ class PosePipeline:
                 self._process_pose(frame, frame_analysis)
 
             cv2.imshow(config.WINDOW_TITLE, frame)
-
+            print(f"Frame: {(time.perf_counter() - start) * 1000:.1f} ms")
             if cv2.waitKey(1) == 27:
                 break
 
@@ -152,3 +154,5 @@ class PosePipeline:
         self._hand_detector.close()
         self._camera.release()
         cv2.destroyAllWindows()
+
+    
