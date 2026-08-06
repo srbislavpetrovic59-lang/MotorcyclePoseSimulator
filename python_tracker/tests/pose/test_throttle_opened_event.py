@@ -8,6 +8,7 @@ detector = RiderEventDetector()
 previous = RiderState(
     right_hand_rotation=260.0,
     throttle_open=False,
+    throttle_close=True,
     timestamp=1.0,
 )
 
@@ -23,4 +24,5 @@ events = detector.detect(current)
 
 assert len(events) == 1
 assert events[0].type == RiderEventType.THROTTLE_OPENED
+assert events[0].type == RiderEventType.THROTTLE_CLOSED
 assert events[0].timestamp == 2.0

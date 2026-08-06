@@ -25,6 +25,7 @@ class RiderStateMapper:
             left_hand_rotation=result["left_hand_rotation"],
 
             throttle_open=result["throttle_open"],
+            throttle_close=result["throttle_close"],
 
             head_forward=result["head_forward"],
             

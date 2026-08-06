@@ -21,6 +21,8 @@ class RiderState:
     left_hand_rotation: float = 0.0
 
     throttle_open: bool = False
+    throttle_close: bool = False
+
     
     left_knee_angle: float = 0.0
     right_knee_angle: float = 0.0

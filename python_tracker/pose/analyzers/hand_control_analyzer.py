@@ -33,6 +33,13 @@ class HandControlAnalyzer:
                 )
             ),
 
+        throttle_close = self._is_rotation_open(
+            self._rotation_delta(
+                neutral_rotation=...,
+                current_rotation=right_hand_rotation,
+                )
+            ),
+        
         thumb_index_distance = None
 
         if left_hand is not None:
@@ -98,6 +105,7 @@ class HandControlAnalyzer:
             "right_hand_rotation": right_hand_rotation,
             "left_hand_rotation": left_hand_rotation,
             "throttle_open": throttle_open,
+            "throttle_close": throttle_close,
         }
     
     
@@ -200,5 +208,14 @@ class HandControlAnalyzer:
         return (
             rotation_delta is not None
             and rotation_delta >= 20.0
+        )
+
+    @staticmethod
+    def _is_rotation_close(
+        rotation_delta: float | None,
+    ) -> bool:
+        return (
+            rotation_delta is not None
+            and rotation_delta < 20.0
         )
 
