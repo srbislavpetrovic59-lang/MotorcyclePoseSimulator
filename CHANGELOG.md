@@ -84,6 +84,13 @@ and this project follows Semantic Versioning.
 - Unreal Engine now receives RiderState over WebSocket and parses all pose metrics
   (elbows, knees, feet, torso angle and pose confidence).
 
+
+### Added
+
+- THROTTLE_CLOSED primitive event.
+- Left hand rotation activity predicate.
+
+
 ### Documentation
 
 - Added predicates.md describing the role of
