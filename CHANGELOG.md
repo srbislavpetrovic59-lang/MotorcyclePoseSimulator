@@ -84,3 +84,8 @@ and this project follows Semantic Versioning.
 - Unreal Engine now receives RiderState over WebSocket and parses all pose metrics
   (elbows, knees, feet, torso angle and pose confidence).
 
+### Documentation
+
+- Added predicates.md describing the role of
+  measurements, predicates, primitive events
+  and derived events.
