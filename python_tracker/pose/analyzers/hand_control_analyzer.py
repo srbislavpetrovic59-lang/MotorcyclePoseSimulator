@@ -4,14 +4,19 @@ from pose.landmarks import PoseLandmark
 from pose.models.frame_analysis import FrameAnalysis
 from pose.geometry import Geometry
 from pose.hand_landmarks import HandLandmark
+from pose.models.clutch_calibration import ClutchCalibration
 
 
 
 class HandControlAnalyzer:
 
+    def __init__(self):
+        self.clutch_calibration = ClutchCalibration()
+
     def analyze(
         self,
         frame_analysis: FrameAnalysis,
+        left_index_finger_bend: float | None = None,
     ):
         hands = self._extract_hands(frame_analysis)
 
@@ -31,17 +36,31 @@ class HandControlAnalyzer:
                 neutral_rotation=260,
                 current_rotation=right_hand_rotation,
                 )
-            ),
+            )
 
         throttle_close = self._is_rotation_open(
             self._rotation_delta(
                 neutral_rotation=180,
                 current_rotation=right_hand_rotation,
                 )
-            ),
+            )
         
         thumb_index_distance = None
-
+        
+        clutch_progress = self._current_clutch_progress(
+            current_angle=left_index_finger_bend
+        )
+        clutch_in_friction_zone = (
+            self._is_clutch_in_friction_zone(
+                clutch_progress
+            )
+        )
+        print(
+             f"Clutch: "
+            f"progress={clutch_progress}, "
+            f"friction={clutch_in_friction_zone}"
+        )
+              
         if left_hand is not None:
             thumb_tip = self._get_landmark(
                left_hand,
@@ -83,6 +102,8 @@ class HandControlAnalyzer:
             ].y
         )
 
+        
+
         left_wrist_to_shoulder_y = (
             left_wrist_y - left_shoulder_y
             if left_wrist_y is not None
@@ -112,6 +133,8 @@ class HandControlAnalyzer:
             "left_hand_rotation": left_hand_rotation,
             "throttle_open": throttle_open,
             "throttle_close": throttle_close,
+            "clutch_progress": clutch_progress,
+            "clutch_in_friction_zone": clutch_in_friction_zone,
         }
     
     
@@ -238,3 +261,63 @@ class HandControlAnalyzer:
             and rotation_delta >= 20.0
         )
 
+    @staticmethod
+    def _clutch_progress(
+        released_angle: float,
+        pulled_angle: float,
+        current_angle: float,
+    ) -> float:
+        total_range = released_angle - pulled_angle
+
+        if total_range == 0:
+            return 0.0
+
+        progress = (
+            released_angle - current_angle
+        ) / total_range
+
+        return max(
+            0.0,
+            min(1.0, progress),
+        )
+
+    def _current_clutch_progress(
+        self,
+        current_angle: float | None,
+    ) -> float | None:
+        if current_angle is None:
+            return None
+
+        if not self.clutch_calibration.is_complete():
+            return None
+
+        return self._clutch_progress(
+            released_angle=self.clutch_calibration.released_angle,
+            pulled_angle=self.clutch_calibration.pulled_angle,
+            current_angle=current_angle,
+        )
+
+    def calibrate_clutch_released(
+        self,
+        current_angle: float,
+    ) -> None:
+        self.clutch_calibration.set_released(
+            current_angle
+        )
+
+    def calibrate_clutch_pulled(
+        self,
+        current_angle: float,
+    ) -> None:
+        self.clutch_calibration.set_pulled(
+            current_angle
+        )
+
+    @staticmethod
+    def _is_clutch_in_friction_zone(
+        clutch_progress: float | None,
+    ) -> bool:
+        if clutch_progress is None:
+            return False
+
+        return 0.55 <= clutch_progress <= 0.70

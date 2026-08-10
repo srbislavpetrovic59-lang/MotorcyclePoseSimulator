@@ -8,6 +8,7 @@ from pose.analyzers.foot_analyzer import FootAnalyzer
 from pose.analyzers.head_analyzer import HeadAnalyzer
 from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
 from pose.models.frame_analysis import FrameAnalysis
+from pose.analyzers.hand_analyzer import HandAnalyzer
 
 
 
@@ -19,6 +20,13 @@ class PoseAnalyzer:
         self.foot_analyzer = FootAnalyzer()
         self._head_analyzer = HeadAnalyzer()
         self._hand_control_analyzer = HandControlAnalyzer()
+        self._hand_analyzer = HandAnalyzer()
+        self._hand_control_analyzer.calibrate_clutch_released(
+            176.0
+        )
+        self._hand_control_analyzer.calibrate_clutch_pulled(
+            131.0
+        )
 
 
     def analyze(self, frame_analysis: FrameAnalysis):
@@ -47,8 +55,19 @@ class PoseAnalyzer:
         head_result = self._head_analyzer.analyze(landmark_list)
         result.update(head_result)
         
-        hand_control_result = self._hand_control_analyzer.analyze(
+        hands = self._hand_control_analyzer._extract_hands(
             frame_analysis
+        )
+
+        hand_result = self._hand_analyzer.analyze(
+            hands
+        )
+        result.update(hand_result)
+       
+        hand_control_result = self._hand_control_analyzer.analyze(
+            frame_analysis,
+            left_index_finger_bend=
+                hand_result["left_index_finger_bend"],
         )
         result.update(hand_control_result)
 

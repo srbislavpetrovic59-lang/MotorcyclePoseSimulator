@@ -58,3 +58,5 @@ class HeadAnalyzer:
             head_roll <= 0.2
             and abs(head_yaw_ratio) <= 0.01
         )
+
+   

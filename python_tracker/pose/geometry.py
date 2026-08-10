@@ -74,3 +74,49 @@ class Geometry:
                 p2[0] - p1[0],
             )
         )
+
+    @staticmethod
+    def angle_3d(a, b, c):
+        ab = (
+            a.x - b.x,
+            a.y - b.y,
+            a.z - b.z,
+        )
+
+        cb = (
+            c.x - b.x,
+            c.y - b.y,
+            c.z - b.z,
+        )
+
+        dot = (
+            ab[0] * cb[0]
+            + ab[1] * cb[1]
+            + ab[2] * cb[2]
+        )
+
+        mag1 = math.sqrt(
+            ab[0] ** 2
+            + ab[1] ** 2
+            + ab[2] ** 2
+        )
+
+        mag2 = math.sqrt(
+            cb[0] ** 2
+            + cb[1] ** 2
+            + cb[2] ** 2
+        )
+
+        if mag1 == 0 or mag2 == 0:
+            return 0
+
+        cos_angle = dot / (mag1 * mag2)
+
+        cos_angle = max(
+            -1,
+            min(1, cos_angle),
+        )
+
+        return math.degrees(
+            math.acos(cos_angle)
+        )
