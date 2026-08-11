@@ -45,6 +45,49 @@ class RiderEventDetector:
                 RiderEventType.POSE_LOST,
                 rider_state,
             )
+
+        # Detect clutch friction zone reached event
+        previous_clutch_friction = (
+            previous_state.clutch_in_friction_zone
+        )
+
+        current_clutch_friction = (
+            rider_state.clutch_in_friction_zone
+        )
+
+        if (
+            not previous_clutch_friction
+            and current_clutch_friction
+        ):
+            self._emit(
+                events,
+                RiderEventType.CLUTCH_FRICTION_ZONE_REACHED,
+                rider_state,
+            )
+
+        if (
+            previous_state.clutch_in_friction_zone
+            and not rider_state.clutch_in_friction_zone
+            and rider_state.clutch_progress is not None
+            and rider_state.clutch_progress < 0.55
+        ):
+            self._emit(
+                events,
+                RiderEventType.CLUTCH_RELEASED_FROM_FRICTION_ZONE,
+                rider_state,
+            )
+        if (
+            previous_state.clutch_in_friction_zone
+            and not rider_state.clutch_in_friction_zone
+            and rider_state.clutch_progress is not None
+            and rider_state.clutch_progress > 0.70
+        ):
+            self._emit(
+                events,
+                RiderEventType.CLUTCH_PULLED_FROM_FRICTION_ZONE,
+                rider_state,
+            )
+
         # Detect left hand detected event
         previous_left = previous_state.left_hand_detected
         current_left = rider_state.left_hand_detected

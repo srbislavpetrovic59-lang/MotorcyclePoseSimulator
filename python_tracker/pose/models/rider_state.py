@@ -23,6 +23,9 @@ class RiderState:
     throttle_open: bool = False
     throttle_close: bool = False
 
+    clutch_in_friction_zone: bool = False
+    clutch_progress: float | None = None
+
     
     left_knee_angle: float = 0.0
     right_knee_angle: float = 0.0

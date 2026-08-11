@@ -28,6 +28,8 @@ class RiderStateMapper:
             throttle_close=result["throttle_close"],
 
             head_forward=result["head_forward"],
+
+            clutch_in_friction_zone=result["clutch_in_friction_zone"],
             
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],

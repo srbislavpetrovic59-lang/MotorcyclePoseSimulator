@@ -11,6 +11,7 @@ def test_from_analysis():
         "left_hand_rotation": 180.0,
         "throttle_open": True,
         "throttle_close":True,
+        "clutch_in_friction_zone": True,
         "head_forward": True,
         "left_elbow_angle": 90.0,
         "right_elbow_angle": 95.0,
@@ -33,6 +34,7 @@ def test_from_analysis():
     assert state.left_hand_rotation == 180.0  
     assert state.throttle_open is True
     assert state.throttle_close is True
+    assert state.clutch_in_friction_zone is True
     assert state.head_forward is True
     assert state.left_elbow_angle == 90.0
     assert state.right_elbow_angle == 95.0

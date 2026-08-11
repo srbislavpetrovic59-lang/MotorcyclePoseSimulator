@@ -20,6 +20,10 @@ class RiderEventType(Enum):
 
     THROTTLE_OPENED = auto()
     THROTTLE_CLOSED = auto()
+
+    CLUTCH_FRICTION_ZONE_REACHED = auto()
+    CLUTCH_RELEASED_FROM_FRICTION_ZONE = auto()
+    CLUTCH_PULLED_FROM_FRICTION_ZONE = auto()
     
 
 @dataclass(frozen=True)
