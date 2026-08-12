@@ -116,3 +116,24 @@ def test_clutch_staying_in_friction_zone_emits_no_event():
     events = detector.detect(current)
   
     assert events == []
+
+def test_lost_hand_does_not_emit_clutch_exit_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        clutch_in_friction_zone=True,
+        clutch_progress=0.61,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        clutch_in_friction_zone=False,
+        clutch_progress=None,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert events == []

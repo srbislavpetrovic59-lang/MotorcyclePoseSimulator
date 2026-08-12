@@ -50,6 +50,17 @@ class HandControlAnalyzer:
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
         )
+        if left_index_finger_bend is None:
+            print(
+                "CLUTCH LOST: "
+                f"hands={frame_analysis.hand_landmarks}"
+            )
+            '''
+        print(
+            f"CLUTCH DEBUG: "
+            f"bend={left_index_finger_bend}, "
+            f"progress={clutch_progress}"
+        )'''
         clutch_in_friction_zone = (
             self._is_clutch_in_friction_zone(
                 clutch_progress
