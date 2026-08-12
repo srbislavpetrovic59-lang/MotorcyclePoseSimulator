@@ -94,6 +94,7 @@ def test_clutch_pulled_from_friction_zone():
         events[0].type
         == RiderEventType.CLUTCH_PULLED_FROM_FRICTION_ZONE
     )
+    
 
 def test_clutch_staying_in_friction_zone_emits_no_event():
     detector = RiderEventDetector()
@@ -113,5 +114,5 @@ def test_clutch_staying_in_friction_zone_emits_no_event():
     detector.detect(previous)
 
     events = detector.detect(current)
-
+  
     assert events == []

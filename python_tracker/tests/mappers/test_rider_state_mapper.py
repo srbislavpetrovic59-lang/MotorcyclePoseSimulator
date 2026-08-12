@@ -1,4 +1,5 @@
 from pose.mapping.rider_state_mapper import RiderStateMapper
+from pose.models.rider_state import RiderState
 
 
 def test_from_analysis():
@@ -20,10 +21,13 @@ def test_from_analysis():
         "right_knee_angle": 125.0,
         "left_foot_angle": 92.0,
         "right_foot_angle": 94.0,
-        "torso_angle": 45.0
+        "torso_angle": 45.0,
+        "clutch_progress": 0.61,
+        "clutch_progress": 0.61
     }
-
+    
     state = RiderStateMapper.from_analysis(analysis)
+   
     
     assert state.timestamp > 0.0
     assert state.head_roll == 10.0
@@ -44,3 +48,4 @@ def test_from_analysis():
     assert state.left_foot_angle == 92.0
     assert state.right_foot_angle == 94.0
     assert state.torso_angle == 45.0
+    assert state.clutch_progress == 0.61

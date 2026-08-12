@@ -30,6 +30,7 @@ class RiderStateMapper:
             head_forward=result["head_forward"],
 
             clutch_in_friction_zone=result["clutch_in_friction_zone"],
+            clutch_progress=result["clutch_progress"],
             
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],
