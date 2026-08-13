@@ -20,6 +20,13 @@ class PoseAnalyzer:
         self.foot_analyzer = FootAnalyzer()
         self._head_analyzer = HeadAnalyzer()
         self._hand_control_analyzer = HandControlAnalyzer()
+        self._hand_control_analyzer.calibrate_front_brake_released(
+            150.0
+        )
+
+        self._hand_control_analyzer.calibrate_front_brake_pulled(
+            106.0
+        )
         self._hand_analyzer = HandAnalyzer()
         self._hand_control_analyzer.calibrate_clutch_released(
             176.0
@@ -66,8 +73,12 @@ class PoseAnalyzer:
        
         hand_control_result = self._hand_control_analyzer.analyze(
             frame_analysis,
-            left_index_finger_bend=
-                hand_result["left_index_finger_bend"],
+            left_index_finger_bend=hand_result[
+                "left_index_finger_bend"
+            ],
+            right_index_finger_bend=hand_result[
+                "right_index_finger_bend"
+            ],
         )
         result.update(hand_control_result)
 
@@ -85,7 +96,8 @@ class PoseAnalyzer:
         
 
         result["rider_state"] = self._determine_rider_state(result)
-
+       
+        
         return result
 
     @staticmethod

@@ -16,13 +16,24 @@ class HandAnalyzer:
             self._index_tip_to_mcp_ratio(
                 left_hand,
             )
-)
-
+        )
+        right_hand = hands.get("Right")
+        right_index_finger_bend = self._index_finger_bend(
+            right_hand
+        )
+        '''
         print(
             f"Index ratio: "
             #f"2D={bend_2d}, "
             #f"3D={bend_3d}, "
             f"ratio={index_tip_to_mcp_ratio}"
+        )
+        '''
+        print(
+            f"Right index bend: "
+            f"2D={bend_2d}, "
+            f"3D={bend_3d}, "
+            f"{right_index_finger_bend}"
         )
 
         return {
@@ -30,6 +41,8 @@ class HandAnalyzer:
             "left_index_finger_bend_3d": bend_3d,
             "left_index_tip_to_mcp_ratio":
                 index_tip_to_mcp_ratio,
+            "right_index_finger_bend":
+                right_index_finger_bend,
         }
        
 
@@ -153,4 +166,12 @@ class HandAnalyzer:
             return None
 
         return finger_distance / hand_scale
+
+    def _right_index_finger_bend(
+        self,
+        hand,
+    ) -> float | None:
+        return self._index_finger_bend(
+            hand
+        )
    

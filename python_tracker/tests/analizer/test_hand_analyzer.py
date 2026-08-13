@@ -6,6 +6,7 @@ from mediapipe.python.solutions.hands import HandLandmark
 
 from pose.analyzers.hand_analyzer import HandAnalyzer
 from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
+from pose.models.front_brake_calibration import FrontBrakeCalibration
 
 
 def test_hand_analyzer_returns_index_finger_bend():
@@ -149,5 +150,43 @@ def test_clutch_progress_is_consistent_at_ninety_degree_camera_angle():
     assert progress == pytest.approx(
         0.64,
         abs=0.02,
+    )
+
+def test_hand_analyzer_returns_none_for_right_index_without_hand():
+    analyzer = HandAnalyzer()
+
+    result = analyzer.analyze({})
+
+    assert result["right_index_finger_bend"] is None
+
+def test_front_brake_calibration_starts_incomplete():
+    calibration = FrontBrakeCalibration()
+
+    assert calibration.released_angle is None
+    assert calibration.pulled_angle is None
+    assert calibration.is_complete() is False
+
+def test_capture_front_brake_released_calibration():
+    analyzer = HandControlAnalyzer()
+
+    analyzer.capture_front_brake_released(
+        current_angle=134.0
+    )
+
+    assert (
+        analyzer._front_brake_calibration.released_angle
+        == 134.0
+    )
+
+def test_capture_front_brake_pulled_calibration():
+    analyzer = HandControlAnalyzer()
+
+    analyzer.capture_front_brake_pulled(
+        current_angle=80.0
+    )
+
+    assert (
+        analyzer._front_brake_calibration.pulled_angle
+        == 80.0
     )
 

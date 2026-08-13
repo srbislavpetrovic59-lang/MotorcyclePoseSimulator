@@ -5,6 +5,7 @@ from pose.models.frame_analysis import FrameAnalysis
 from pose.geometry import Geometry
 from pose.hand_landmarks import HandLandmark
 from pose.models.clutch_calibration import ClutchCalibration
+from pose.models.front_brake_calibration import FrontBrakeCalibration
 
 
 
@@ -12,11 +13,13 @@ class HandControlAnalyzer:
 
     def __init__(self):
         self.clutch_calibration = ClutchCalibration()
+        self._front_brake_calibration = FrontBrakeCalibration()
 
     def analyze(
         self,
         frame_analysis: FrameAnalysis,
         left_index_finger_bend: float | None = None,
+        right_index_finger_bend: float | None = None,
     ):
         hands = self._extract_hands(frame_analysis)
 
@@ -46,7 +49,19 @@ class HandControlAnalyzer:
             )
         
         thumb_index_distance = None
-        
+
+        front_brake_progress = (
+            self._current_front_brake_progress(
+                current_angle=right_index_finger_bend,
+            )
+        )
+        # privremeno
+        print(
+            f"Front brake: "
+            f"bend={right_index_finger_bend}, "
+            f"progress={front_brake_progress}"
+        )
+
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
         )
@@ -146,6 +161,7 @@ class HandControlAnalyzer:
             "throttle_close": throttle_close,
             "clutch_progress": clutch_progress,
             "clutch_in_friction_zone": clutch_in_friction_zone,
+            "front_brake_progress": front_brake_progress,
         }
     
     
@@ -332,3 +348,67 @@ class HandControlAnalyzer:
             return False
 
         return 0.55 <= clutch_progress <= 0.70
+
+    @staticmethod
+    def _front_brake_progress(
+        released_angle: float,
+        pulled_angle: float,
+        current_angle: float,
+    ) -> float:
+        total_range = released_angle - pulled_angle
+
+        if total_range == 0:
+            return 0.0
+
+        progress = (
+            released_angle - current_angle
+        ) / total_range
+
+        return max(
+            0.0,
+            min(1.0, progress),
+        )
+
+    def _current_front_brake_progress(
+        self,
+        current_angle: float | None,
+    ) -> float | None:
+        if (
+            current_angle is None
+            or not self._front_brake_calibration.is_complete()
+        ):
+            return None
+
+        return self._front_brake_progress(
+            released_angle=self._front_brake_calibration.released_angle,
+            pulled_angle=self._front_brake_calibration.pulled_angle,
+            current_angle=current_angle,
+        )
+
+    def calibrate_front_brake_released(
+        self,
+        angle: float,
+    ) -> None:
+        self._front_brake_calibration.set_released(angle)
+
+    def calibrate_front_brake_pulled(
+        self,
+        angle: float,
+    ) -> None:
+        self._front_brake_calibration.set_pulled(angle)
+
+    def capture_front_brake_released(
+        self,
+        current_angle: float,
+    ) -> None:
+        self.calibrate_front_brake_released(
+            current_angle
+        )
+
+    def capture_front_brake_pulled(
+        self,
+        current_angle: float,
+    ) -> None:
+        self.calibrate_front_brake_pulled(
+            current_angle
+        )
