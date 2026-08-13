@@ -56,7 +56,8 @@ class RiderEventDetector:
         )
 
         if (
-            not previous_clutch_friction
+            previous_state.clutch_progress is not None
+            and not previous_clutch_friction
             and current_clutch_friction
         ):
             self._emit(

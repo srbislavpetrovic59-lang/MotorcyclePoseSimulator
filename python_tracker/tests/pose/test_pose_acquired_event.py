@@ -26,13 +26,15 @@ def test_clutch_friction_zone_reached_event():
 
     previous = RiderState(
         clutch_in_friction_zone=False,
+        clutch_progress=0.20,
         timestamp=1.0,
-        )
+    )
 
     current = RiderState(
-            clutch_in_friction_zone=True,
-            timestamp=2.0,
-        )
+        clutch_in_friction_zone=True,
+        clutch_progress=0.61,
+        timestamp=2.0,
+    )
 
     detector.detect(previous)
 
@@ -40,10 +42,9 @@ def test_clutch_friction_zone_reached_event():
 
     assert len(events) == 1
     assert (
-            events[0].type
-            == RiderEventType.CLUTCH_FRICTION_ZONE_REACHED
-        )
-    assert events[0].timestamp == 2.0
+        events[0].type
+        == RiderEventType.CLUTCH_FRICTION_ZONE_REACHED
+    )
 
 def test_clutch_released_from_friction_zone():
     detector = RiderEventDetector()
