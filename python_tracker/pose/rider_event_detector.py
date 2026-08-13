@@ -203,3 +203,4 @@ class RiderEventDetector:
                 timestamp=rider_state.timestamp,
             )
         )
+
