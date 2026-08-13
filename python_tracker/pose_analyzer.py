@@ -84,3 +84,19 @@ class PoseAnalyzer:
 
         confidence = sum(visibility_values) / len(visibility_values)
         return round(confidence, 3)
+
+    def calibrate_front_brake_released(
+        self,
+        angle: float,
+    ) -> None:
+        self._hand_control_analyzer.calibrate_front_brake_released(
+            angle
+        )
+
+    def calibrate_front_brake_pulled(   
+        self,
+        angle: float,
+    ) -> None:  
+        self._hand_control_analyzer.calibrate_front_brake_pulled(
+            angle
+        )

@@ -57,6 +57,7 @@ class PosePipeline:
         self._output_dispatcher = output_dispatcher
         self._rider_state_mapper = rider_state_mapper
         self._websocket_server = websocket_server
+        self._last_analysis_result = None
     
     
 
@@ -76,21 +77,24 @@ class PosePipeline:
     def _run_loop(self) -> None:
         while True:
             start = time.perf_counter()
+
             frame = self._camera.read()
 
             if frame is None:
                 break
 
             landmarks = self._detector.detect(frame)
+
             hand_landmarks, hand_handedness = (
                 self._hand_detector.detect(frame)
             )
+
             frame_analysis = FrameAnalysis(
                 pose_landmarks=landmarks,
                 hand_landmarks=hand_landmarks,
                 hand_handedness=hand_handedness,
             )
-            # Process hand landmarks and handedness
+
             if (
                 frame_analysis.hand_landmarks is not None
                 and frame_analysis.hand_handedness is not None
@@ -100,22 +104,79 @@ class PosePipeline:
                     print(label)
 
             if frame_analysis.pose_landmarks is not None:
-                self._process_pose(frame, frame_analysis)
+                self._process_pose(
+                    frame,
+                    frame_analysis,
+                )
 
-            cv2.imshow(config.WINDOW_TITLE, frame)
-            print(f"Frame: {(time.perf_counter() - start) * 1000:.1f} ms")
-            if cv2.waitKey(1) == 27:
+            cv2.imshow(
+                config.WINDOW_TITLE,
+                frame,
+            )
+
+            print(
+                f"Frame: "
+                f"{(time.perf_counter() - start) * 1000:.1f} ms"
+            )
+
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == 27:
                 break
 
-    def _process_pose(self, frame, frame_analysis:FrameAnalysis,) -> None:
+            if self._last_analysis_result is not None:
+                right_index_finger_bend = (
+                    self._last_analysis_result.get(
+                        "right_index_finger_bend"
+                    )
+                )
+
+                if (
+                    key == ord("r")
+                    and right_index_finger_bend is not None
+                ):
+                    self._analyzer.calibrate_front_brake_released(
+                        right_index_finger_bend
+                    )
+
+                    print(
+                        f"Front brake RELEASED calibrated: "
+                        f"{right_index_finger_bend:.1f}"
+                    )
+
+                if (
+                    key == ord("p")
+                    and right_index_finger_bend is not None
+                ):
+                    self._analyzer.calibrate_front_brake_pulled(
+                        right_index_finger_bend
+                    )
+
+                    print(
+                        f"Front brake PULLED calibrated: "
+                        f"{right_index_finger_bend:.1f}"
+                    )
+
+
+    def _process_pose(
+        self,
+        frame,
+        frame_analysis: FrameAnalysis,
+    ) -> None:
         metrics = self._analyzer.analyze(
             frame_analysis
         )
 
-        rider_state = self._rider_state_mapper.from_analysis(metrics)
+        self._last_analysis_result = metrics
+
+        rider_state = self._rider_state_mapper.from_analysis(
+            metrics
+        )
 
         try:
-            self._websocket_server.send(rider_state.to_json())
+            self._websocket_server.send(
+                rider_state.to_json()
+            )
         except RuntimeError:
             pass
 
@@ -128,7 +189,10 @@ class PosePipeline:
         self._coach.update(active_feedback)
         self._recorder.update(active_feedback)
 
-        self._renderer.draw(frame, frame_analysis.pose_landmarks)
+        self._renderer.draw(
+            frame,
+            frame_analysis.pose_landmarks,
+        )
 
         self._overlay.draw(
             frame,
