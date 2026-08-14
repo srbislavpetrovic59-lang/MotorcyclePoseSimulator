@@ -26,6 +26,8 @@ class RiderState:
     clutch_in_friction_zone: bool = False
     clutch_progress: float | None = None
 
+    front_brake_active: bool = False
+    front_brake_progress: float | None = None
     
     left_knee_angle: float = 0.0
     right_knee_angle: float = 0.0

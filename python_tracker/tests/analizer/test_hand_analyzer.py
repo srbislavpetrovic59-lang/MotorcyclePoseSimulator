@@ -190,3 +190,42 @@ def test_capture_front_brake_pulled_calibration():
         == 80.0
     )
 
+def test_front_brake_is_active():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(
+            0.20
+        )
+        is True
+    )
+
+def test_front_brake_is_not_active_when_released():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(
+            0.0
+        )
+        is False
+    )
+
+def test_front_brake_is_not_active_when_progress_is_none():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(
+            None
+        )
+        is False
+    )
+
+def test_front_brake_is_not_active_when_released():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(0.0)
+        is False
+    )
+
+
+def test_front_brake_is_not_active_when_progress_is_none():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(None)
+        is False
+    )
+
+
+

@@ -85,3 +85,75 @@ def test_clutch_detection_recovery_does_not_emit_reached_event():
         == RiderEventType.CLUTCH_FRICTION_ZONE_REACHED
         for event in events
     )
+
+def test_front_brake_applied_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        front_brake_active=False,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        front_brake_active=True,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert len(events) == 1
+    assert (
+        events[0].type
+        == RiderEventType.FRONT_BRAKE_APPLIED
+    )
+
+def test_front_brake_released_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        front_brake_active=True,
+        front_brake_progress=0.70,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        front_brake_active=False,
+        front_brake_progress=0.0,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert len(events) == 1
+    assert (
+        events[0].type
+        == RiderEventType.FRONT_BRAKE_RELEASED
+    )
+
+def test_lost_right_hand_does_not_emit_front_brake_released():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        front_brake_active=True,
+        front_brake_progress=0.70,
+        timestamp=1.0,
+    )
+
+    lost = RiderState(
+        front_brake_active=False,
+        front_brake_progress=None,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(lost)
+
+    assert not any(
+        event.type == RiderEventType.FRONT_BRAKE_RELEASED
+        for event in events
+    )

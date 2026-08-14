@@ -25,6 +25,8 @@ class RiderEventType(Enum):
     CLUTCH_RELEASED_FROM_FRICTION_ZONE = auto()
     CLUTCH_PULLED_FROM_FRICTION_ZONE = auto()
     
+    FRONT_BRAKE_APPLIED = auto()
+    FRONT_BRAKE_RELEASED = auto()
 
 @dataclass(frozen=True)
 class RiderEvent:

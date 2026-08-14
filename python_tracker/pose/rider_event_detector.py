@@ -89,6 +89,30 @@ class RiderEventDetector:
                 rider_state,
             )
 
+        # Detect front brake applied event
+
+        if (
+            not previous_state.front_brake_active
+            and rider_state.front_brake_active
+        ):
+            self._emit(
+                events,
+                RiderEventType.FRONT_BRAKE_APPLIED,
+                rider_state,
+            )
+        # Detect front brake released event
+
+        if (
+            previous_state.front_brake_active
+            and not rider_state.front_brake_active
+            and rider_state.front_brake_progress is not None
+        ):
+            self._emit(
+                events,
+                RiderEventType.FRONT_BRAKE_RELEASED,
+                rider_state,
+            )
+
         # Detect left hand detected event
         previous_left = previous_state.left_hand_detected
         current_left = rider_state.left_hand_detected

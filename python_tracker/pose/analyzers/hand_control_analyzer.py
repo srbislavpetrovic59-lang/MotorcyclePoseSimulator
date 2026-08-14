@@ -33,7 +33,7 @@ class HandControlAnalyzer:
         right_hand_rotation = self._hand_rotation(
             right_hand
         )
-
+        
         throttle_open = self._is_rotation_open(
             self._rotation_delta(
                 neutral_rotation=260,
@@ -54,6 +54,10 @@ class HandControlAnalyzer:
             self._current_front_brake_progress(
                 current_angle=right_index_finger_bend,
             )
+        )
+        
+        front_brake_active = self._is_front_brake_active(
+            front_brake_progress
         )
         # privremeno
         print(
@@ -162,6 +166,7 @@ class HandControlAnalyzer:
             "clutch_progress": clutch_progress,
             "clutch_in_friction_zone": clutch_in_friction_zone,
             "front_brake_progress": front_brake_progress,
+            "front_brake_active": front_brake_active,
         }
     
     
@@ -412,3 +417,12 @@ class HandControlAnalyzer:
         self.calibrate_front_brake_pulled(
             current_angle
         )
+
+    @staticmethod
+    def _is_front_brake_active(
+        front_brake_progress: float | None,
+    ) -> bool:
+        if front_brake_progress is None:
+            return False
+
+        return front_brake_progress >= 0.10
