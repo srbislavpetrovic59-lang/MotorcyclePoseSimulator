@@ -33,6 +33,7 @@ class RiderStateMapper:
             clutch_progress=result["clutch_progress"],
 
             front_brake_active=result["front_brake_active"],
+            front_brake_progress=result["front_brake_progress"],
             
             left_elbow_angle=result["left_elbow_angle"],
             right_elbow_angle=result["right_elbow_angle"],

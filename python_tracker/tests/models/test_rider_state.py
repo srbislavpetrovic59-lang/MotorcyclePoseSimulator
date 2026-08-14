@@ -8,6 +8,7 @@ def test_rider_state_to_json():
         left_elbow_angle=90.0,
         right_elbow_angle=95.0,
         clutch_progress=0.61,
+        front_brake_progress=0.42,
         pose_confidence=0.98,
         left_knee_angle=120.0,
         left_foot_angle=92.0,
@@ -26,4 +27,7 @@ def test_rider_state_to_json():
     assert data["left_foot_angle"] == 92.0
     assert data["right_foot_angle"] == 94.0
     assert data["torso_angle"] == 45
-    assert data["pose_confidence"] == 0.98
+    assert data["pose_confidence"] == 0.98 
+    assert data["front_brake_progress"] == 0.42
+
+   
