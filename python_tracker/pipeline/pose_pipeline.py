@@ -156,6 +156,38 @@ class PosePipeline:
                         f"Front brake PULLED calibrated: "
                         f"{right_index_finger_bend:.1f}"
                     )
+                 # Throttle
+                right_hand_rotation = (
+                    self._last_analysis_result.get(
+                        "right_hand_rotation"
+                    )
+                )
+
+                if (
+                    key == ord("c")
+                    and right_hand_rotation is not None
+                ):
+                    self._analyzer.capture_throttle_closed(
+                        right_hand_rotation
+                    )
+
+                    print(
+                        f"Throttle CLOSED calibrated: "
+                        f"{right_hand_rotation:.1f}"
+                    )
+
+                if (
+                    key == ord("o")
+                    and right_hand_rotation is not None
+                ):
+                    self._analyzer.capture_throttle_open(
+                        right_hand_rotation
+                    )
+
+                    print(
+                        f"Throttle OPEN calibrated: "
+                        f"{right_hand_rotation:.1f}"
+                    )
 
 
     def _process_pose(

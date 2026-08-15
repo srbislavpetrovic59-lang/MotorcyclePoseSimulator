@@ -123,4 +123,21 @@ class PoseAnalyzer:
     def _determine_rider_state(result):
         return "UNKNOWN"
 
+    def capture_throttle_closed(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self._hand_control_analyzer.capture_throttle_closed(
+            current_rotation
+        )
+
+
+    def capture_throttle_open(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self._hand_control_analyzer.capture_throttle_open(
+            current_rotation
+        )
+
     

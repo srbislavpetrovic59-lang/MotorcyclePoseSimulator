@@ -1,4 +1,4 @@
-# han#d_control_analyzer.py
+﻿# han#d_control_analyzer.py
 import math
 from pose.landmarks import PoseLandmark
 from pose.models.frame_analysis import FrameAnalysis
@@ -6,6 +6,7 @@ from pose.geometry import Geometry
 from pose.hand_landmarks import HandLandmark
 from pose.models.clutch_calibration import ClutchCalibration
 from pose.models.front_brake_calibration import FrontBrakeCalibration
+from pose.models.throttle_calibration import ThrottleCalibration
 
 
 
@@ -15,6 +16,7 @@ class HandControlAnalyzer:
         self.clutch_calibration = ClutchCalibration()
         self._front_brake_calibration = FrontBrakeCalibration()
         self._front_brake_active = False
+        self._throttle_calibration = ThrottleCalibration()
         
 
     def analyze(
@@ -50,6 +52,16 @@ class HandControlAnalyzer:
                 )
             )
         
+        throttle_progress = self._current_throttle_progress(
+            current_rotation=right_hand_rotation,
+        )
+        
+        print(
+            f"Throttle: "
+            f"rotation={right_hand_rotation}, "
+            f"progress={throttle_progress}"
+        )    
+
         thumb_index_distance = None
 
         front_brake_progress = (
@@ -64,13 +76,7 @@ class HandControlAnalyzer:
         )
 
         self._front_brake_active = front_brake_active
-                # privremeno
-        print(
-            f"Front brake: "
-            f"bend={right_index_finger_bend}, "
-            f"progress={front_brake_progress}"
-        )
-
+            
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
         )
@@ -79,12 +85,7 @@ class HandControlAnalyzer:
                 "CLUTCH LOST: "
                 f"hands={frame_analysis.hand_landmarks}"
             )
-            '''
-        print(
-            f"CLUTCH DEBUG: "
-            f"bend={left_index_finger_bend}, "
-            f"progress={clutch_progress}"
-        )'''
+     
         clutch_in_friction_zone = (
             self._is_clutch_in_friction_zone(
                 clutch_progress
@@ -435,3 +436,89 @@ class HandControlAnalyzer:
             return front_brake_progress > 0.06
 
         return front_brake_progress >= 0.12
+
+    @staticmethod
+    def _throttle_progress(
+        closed_rotation: float,
+        open_rotation: float,
+        current_rotation: float,
+    ) -> float:
+        def signed_delta(
+            start: float,
+            end: float,
+        ) -> float:
+            delta = (
+                (end - start + 180.0)
+                % 360.0
+            ) - 180.0
+
+            # Tačno 180° je dvosmisleno.
+            # Za naš throttle tretiramo ga kao pozitivan smer.
+            if delta == -180.0:
+                delta = 180.0
+
+            return delta
+
+        total_range = signed_delta(
+            closed_rotation,
+            open_rotation,
+        )
+
+        if total_range == 0:
+            return 0.0
+
+        current_range = signed_delta(
+            closed_rotation,
+            current_rotation,
+        )
+
+        progress = current_range / total_range
+
+        return max(
+            0.0,
+            min(1.0, progress),
+        )
+
+    def _current_throttle_progress(
+        self,
+        current_rotation: float | None,
+    ) -> float | None:
+        if current_rotation is None:
+            return None
+
+        if not self._throttle_calibration.is_complete():
+            return None
+
+        return self._throttle_progress(
+            closed_rotation=self._throttle_calibration.closed_rotation,
+            open_rotation=self._throttle_calibration.open_rotation,
+            current_rotation=current_rotation,
+        )
+    def calibrate_throttle_closed(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self._throttle_calibration.set_closed(
+            current_rotation
+        )
+    def calibrate_throttle_open(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self._throttle_calibration.set_open(
+            current_rotation
+        )
+    def capture_throttle_closed(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self.calibrate_throttle_closed(
+            current_rotation
+        )
+    def capture_throttle_open(
+        self,
+        current_rotation: float,
+    ) -> None:
+        self.calibrate_throttle_open(
+            current_rotation
+        )
