@@ -91,11 +91,7 @@ class HandControlAnalyzer:
                 clutch_progress
             )
         )
-        print(
-             f"Clutch: "
-            f"progress={clutch_progress}, "
-            f"friction={clutch_in_friction_zone}"
-        )
+      
               
         if left_hand is not None:
             thumb_tip = self._get_landmark(
@@ -151,13 +147,6 @@ class HandControlAnalyzer:
             current_rotation=left_hand_rotation,
         )
  
-        print(
-            f"Left hand rotation delta: "
-            f"{left_rotation_delta}"
-        )
-
-       
-
                       
         return {
             "left_hand_detected": left_hand is not None,
