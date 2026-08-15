@@ -14,6 +14,8 @@ class HandControlAnalyzer:
     def __init__(self):
         self.clutch_calibration = ClutchCalibration()
         self._front_brake_calibration = FrontBrakeCalibration()
+        self._front_brake_active = False
+        
 
     def analyze(
         self,
@@ -57,9 +59,12 @@ class HandControlAnalyzer:
         )
         
         front_brake_active = self._is_front_brake_active(
-            front_brake_progress
+            front_brake_progress,
+            was_active=self._front_brake_active,
         )
-        # privremeno
+
+        self._front_brake_active = front_brake_active
+                # privremeno
         print(
             f"Front brake: "
             f"bend={right_index_finger_bend}, "
@@ -421,8 +426,12 @@ class HandControlAnalyzer:
     @staticmethod
     def _is_front_brake_active(
         front_brake_progress: float | None,
+        was_active: bool = False,
     ) -> bool:
         if front_brake_progress is None:
             return False
 
-        return front_brake_progress >= 0.10
+        if was_active:
+            return front_brake_progress > 0.06
+
+        return front_brake_progress >= 0.12

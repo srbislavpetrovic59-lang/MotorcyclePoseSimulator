@@ -228,4 +228,51 @@ def test_front_brake_is_not_active_when_progress_is_none():
     )
 
 
+def test_front_brake_hysteresis_keeps_active_state():
+    assert (
+        HandControlAnalyzer._is_front_brake_active(
+            front_brake_progress=0.09,
+            was_active=True,
+        )
+        is True
+    )
 
+def test_front_brake_hysteresis_keeps_state_between_calls():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._front_brake_active = True
+
+    front_brake_active = analyzer._is_front_brake_active(
+        front_brake_progress=0.09,
+        was_active=analyzer._front_brake_active,
+    )
+
+    analyzer._front_brake_active = front_brake_active
+
+    assert analyzer._front_brake_active is True
+
+def test_front_brake_active_starts_false():
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._front_brake_active is False
+
+def test_front_brake_hysteresis_sequence():
+    analyzer = HandControlAnalyzer()
+
+    active = analyzer._is_front_brake_active(
+        0.13,
+        was_active=False,
+    )
+    assert active is True
+
+    active = analyzer._is_front_brake_active(
+        0.09,
+        was_active=active,
+    )
+    assert active is True
+
+    active = analyzer._is_front_brake_active(
+        0.05,
+        was_active=active,
+    )
+    assert active is False

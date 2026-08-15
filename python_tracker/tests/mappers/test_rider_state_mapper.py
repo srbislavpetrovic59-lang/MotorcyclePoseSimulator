@@ -14,6 +14,7 @@ def test_from_analysis():
         "throttle_close":True,
         "clutch_in_friction_zone": True,
         "front_brake_active": True,
+        "front_brake_progress": 0.20,
         "head_forward": True,
         "left_elbow_angle": 90.0,
         "right_elbow_angle": 95.0,
@@ -24,7 +25,7 @@ def test_from_analysis():
         "right_foot_angle": 94.0,
         "torso_angle": 45.0,
         "clutch_progress": 0.61,
-        "clutch_progress": 0.61
+       
     }
     
     state = RiderStateMapper.from_analysis(analysis)
@@ -41,6 +42,7 @@ def test_from_analysis():
     assert state.throttle_close is True
     assert state.clutch_in_friction_zone is True
     assert state.front_brake_active is True
+    assert state.front_brake_progress == 0.20
     assert state.head_forward is True
     assert state.left_elbow_angle == 90.0
     assert state.right_elbow_angle == 95.0
