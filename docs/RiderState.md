@@ -1,116 +1,229 @@
-The original RiderState concept was replaced during the architecture refactoring.
-Explicit measurements and specialized analyzers provide a simpler
-and more maintainable design than a centralized mutable RiderState object.
+﻿# RiderState
 
+## Purpose
 
+`RiderState` is an immutable-style snapshot of the rider state
+produced for a single analyzed frame.
 
+It collects measurements and derived control states produced by
+specialized analyzers.
 
+`RiderState` does not perform analysis, event detection, or coaching.
 
-struct RiderState
+Its responsibility is to provide a clean data model that can be:
 
-{
+- serialized
+- recorded
+- compared between frames
+- converted into rider events
+- transmitted to Unreal Engine
 
-&#x20;   //------------------------
+## Position in the Architecture
 
-&#x20;   // Tracking quality
+Camera
+   │
+   ▼
+Pose / Hand Detectors
+   │
+   ▼
+Specialized Analyzers
+   │
+   ▼
+PoseAnalyzer
+   │
+   ▼
+RiderStateMapper
+   │
+   ▼
+RiderState
+   │
+   ├── RiderEventDetector
+   ├── SessionRecorder
+   └── WebSocket / Unreal Engine
 
-&#x20;   //------------------------
+## Design Principle
 
+`RiderState` is a data container.
 
+It must not calculate geometry or decide whether rider behavior is
+good or bad.
 
-&#x20;   float PoseConfidence;
+Those responsibilities belong to:
 
+- analyzers for measurements
+- predicates / recognizers for state interpretation
+- RiderEventDetector for transitions
+- PoseCoach for coaching
 
+This keeps the model simple and prevents business logic from becoming
+embedded inside the transport structure.
 
-&#x20;   //------------------------
+## Current Measurements
 
-&#x20;   // Head
+### Head
 
-&#x20;   //------------------------
+- `head_roll`
+- `head_yaw_ratio`
+- `head_forward`
 
+### Arms
 
+- `left_elbow_angle`
+- `right_elbow_angle`
 
-&#x20;   float HeadYaw;
+### Hands
 
-&#x20;   float HeadPitch;
+- `left_hand_detected`
+- `right_hand_detected`
+- `left_hand_rotation`
+- `right_hand_rotation`
 
+### Clutch
 
+- `clutch_progress`
+- `clutch_in_friction_zone`
 
-&#x20;   //------------------------
+`clutch_progress` may be `None` when the required hand geometry is
+unavailable.
 
-&#x20;   // Arms
+A missing measurement is intentionally different from:
 
-&#x20;   //------------------------
+`clutch_progress == 0.0`
 
+which represents a valid released-clutch position.
 
+### Front Brake
 
-&#x20;   float LeftShoulder;
+- `front_brake_progress`
+- `front_brake_active`
 
-&#x20;   float RightShoulder;
+`front_brake_progress` may be `None` when the right-hand measurement
+is unavailable.
 
+`front_brake_active` is derived using hysteresis to avoid unstable
+state changes near the activation threshold.
 
+### Throttle
 
-&#x20;   float LeftElbow;
+- `throttle_progress`
+- `throttle_active`
 
-&#x20;   float RightElbow;
+`throttle_progress` represents the calibrated throttle position:
 
+0.0 = throttle closed
 
+1.0 = throttle fully open
 
-&#x20;   //------------------------
+Intermediate values represent intermediate throttle rotation.
 
-&#x20;   // Controls
+The throttle measurement supports circular angle wraparound and uses
+live calibration.
 
-&#x20;   //------------------------
+Calibration can be changed during operation and is persisted between
+sessions.
 
+### Legs
 
+- `left_knee_angle`
+- `right_knee_angle`
+- `left_foot_angle`
+- `right_foot_angle`
 
-&#x20;   float Throttle;
+### Body
 
-&#x20;   float Clutch;
+- `torso_angle`
 
-&#x20;   float FrontBrake;
+### Tracking Quality
 
+- `pose_confidence`
 
+## Missing Measurements
 
-&#x20;   //------------------------
+Some measurements may temporarily be unavailable because of:
 
-&#x20;   // Body
+- hand occlusion
+- MediaPipe detection loss
+- insufficient landmark confidence
+- incomplete control calibration
 
-&#x20;   //------------------------
+For continuous hand controls, `None` means:
 
+> the control position is currently unknown
 
+It must never automatically be interpreted as zero.
 
-&#x20;   float BodyLean;
+This distinction is important because detection loss must not create
+false control events.
 
-&#x20;   float HipRotation;
+For example:
 
+friction zone → hand lost
 
+must not be interpreted as:
 
-&#x20;   //------------------------
+clutch released
 
-&#x20;   // Legs
+and:
 
-&#x20;   //------------------------
+front brake active → hand lost
 
+must not be interpreted as:
 
+front brake released
 
-&#x20;   float LeftKnee;
+## Rider Events
 
-&#x20;   float RightKnee;
+`RiderState` represents state.
 
+`RiderEventDetector` compares consecutive valid states and produces
+transitions such as:
 
+- clutch friction zone reached
+- clutch released from friction zone
+- clutch pulled from friction zone
+- front brake applied
+- front brake released
+- throttle opened
+- throttle closed
 
-&#x20;   float LeftFoot;
+Detection loss is not treated as a rider action.
 
-&#x20;   float RightFoot;
+## Serialization
 
+`RiderState` can be serialized to JSON for transport.
 
+The JSON representation is used by the WebSocket output layer and
+consumed by Unreal Engine.
 
-&#x20;   float RearBrake;
+This keeps the Python analysis layer independent from Unreal-specific
+code.
 
+## Unreal Engine
 
+The Unreal C++ side contains a corresponding `FRiderState`.
 
-&#x20;   int Gear;
+Python remains responsible for measurement and interpretation.
 
-};
+Unreal receives the resulting state and can use it for:
 
+- visualization
+- Blueprint events
+- HUD elements
+- avatar behavior
+- future simulation logic
+
+The transport boundary should not duplicate analysis rules unless
+required for presentation or event exposure.
+
+## Future Extensions
+
+Possible future fields include:
+
+- rear brake progress/state
+- gear
+- additional finger metrics
+- richer control confidence values
+- control calibration metadata
+
+New fields should be added only when the underlying measurement or
+state has actually been implemented.

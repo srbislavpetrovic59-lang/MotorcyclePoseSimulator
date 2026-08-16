@@ -2,135 +2,249 @@
 
 ## Purpose
 
-Defines the message format exchanged between the Python pose
-analysis application and Unreal Engine.
+Defines the communication boundary between the Python rider-analysis
+application and Unreal Engine.
 
-The protocol allows Unreal Engine to receive already prepared
-rider feedback without depending on Python implementation details.
+Python performs detection, measurement, and control-state analysis.
+
+Unreal Engine receives prepared rider state and exposes it to the
+visualization and Blueprint layers.
+
+The protocol prevents Unreal Engine from depending on Python
+implementation details.
 
 ## Transport
 
 Messages are transmitted as UTF-8 encoded JSON objects over a
 WebSocket connection.
 
-Each WebSocket message contains exactly one JSON object.
+Each WebSocket message contains one serialized rider-state snapshot.
 
-## Message Types
+## Direction
 
-### pose_feedback
+The current protocol is primarily:
 
-Represents one rider coaching message.
+Python → Unreal Engine
+
+Python produces analyzed rider state.
+
+Unreal Engine consumes that state.
+
+Bidirectional control messages are not currently part of the protocol.
+
+## RiderState Message
+
+The main real-time message contains the current rider state.
+
+Example:
 
 ```json
 {
-  "type": "pose_feedback",
-  "timestamp": 12.4,
-  "message": "Relax your shoulders",
-  "severity": "gentle"
+  "head_roll": -4.2,
+  "head_yaw_ratio": -0.1,
+
+  "left_elbow_angle": 148.0,
+  "right_elbow_angle": 152.7,
+
+  "left_knee_angle": 170.0,
+  "right_knee_angle": 168.0,
+
+  "left_foot_angle": 145.0,
+  "right_foot_angle": 142.0,
+
+  "torso_angle": 89.5,
+  "pose_confidence": 0.92,
+
+  "clutch_progress": null,
+  "clutch_in_friction_zone": false,
+
+  "front_brake_progress": 0.35,
+  "front_brake_active": true,
+
+  "throttle_progress": 0.45,
+  "throttle_active": true
 }
-```
 
-## Fields
-### type
+The exact serialized field names are defined by the Python
+RiderState model and must remain compatible with the Unreal
+FRiderState parser.
 
-Message type identifier.
+Missing Measurements
 
-For coaching feedback, the value must be:
+A missing continuous measurement is represented as:
 
-pose_feedback
-timestamp
+null
 
-Number of seconds elapsed since the start of the riding session.
+This is intentionally different from:
 
-### Type:
+0.0
 
-'float'
+For example:
 
-### message
+"throttle_progress": null
 
-Human-readable coaching message prepared by the Python application.
+means that the throttle position is currently unknown.
 
-Type:
+"throttle_progress": 0.0
 
-'string'
+means that a valid measurement indicates a closed throttle.
 
-Unreal Engine must display or present this message without changing
-its meaning.
+Unreal Engine must preserve this distinction.
 
-### severity
+Detection loss must not be interpreted as physical control movement.
 
-Controls how prominently Unreal Engine presents the message.
+Clutch
 
-Initial supported values:
+The current protocol can expose:
 
-gentle
-normal
-important
+clutch_progress
+clutch_in_friction_zone
 
-The severity affects presentation only.
+clutch_progress is a normalized continuous value when valid.
 
-It must not change the meaning of the coaching message.
+The friction-zone state is derived by Python.
 
-## Responsibilities
-### Python
+Unreal Engine must not independently recalculate the friction zone.
+
+Front Brake
+
+The current protocol exposes:
+
+front_brake_progress
+front_brake_active
+
+front_brake_progress represents the normalized brake-control
+measurement.
+
+front_brake_active is derived by Python using the current control
+logic and hysteresis.
+
+Unreal Engine consumes this state rather than reproducing the
+front-brake analysis.
+
+Throttle
+
+The current protocol exposes:
+
+throttle_progress
+throttle_active
+
+throttle_progress is normalized:
+
+0.0 = throttle closed
+
+1.0 = throttle fully open
+
+Intermediate values represent intermediate throttle opening.
+
+Throttle calibration and circular-angle handling are Python
+responsibilities.
+
+throttle_active is also determined by Python.
+
+Unreal Engine must not duplicate throttle calibration or hysteresis
+logic.
+
+Unreal RiderState
+
+The Unreal C++ layer contains a corresponding FRiderState.
+
+UPoseWebSocketComponent receives each WebSocket message, parses the
+JSON representation, and populates FRiderState.
+
+The component can then expose selected state and transitions to
+Blueprint.
+
+Blueprint Events
+
+Unreal may expose state transitions as Blueprint events.
+
+Current examples include:
+
+front brake applied
+front brake released
+
+Additional events can be exposed as required by the visualization
+layer.
+
+Event exposure in Unreal must not change the underlying measurement
+meaning defined by Python.
+
+Responsibilities
+Python
 
 Python is responsible for:
 
-- pose detection
-- pose analysis
-- evaluation
-- feedback selection
-- coaching behaviour
-- message wording
-- severity selection
-- JSON serialization
-
-### Unreal Engine
+pose detection
+hand detection
+geometric measurement
+control calibration
+normalized control progress
+hysteresis
+rider-state construction
+event interpretation where applicable
+coaching logic
+JSON serialization
+Unreal Engine
 
 Unreal Engine is responsible for:
 
-- receiving JSON messages
-- validating required fields
-- displaying messages
-- choosing visual presentation based on severity
-- logging malformed or unsupported messages
+maintaining the WebSocket connection
+receiving JSON messages
+validating and parsing supported fields
+exposing rider state to C++ and Blueprint
+visualization
+HUD presentation
+avatar behavior
+logging malformed or unsupported data
 
-Unreal Engine must not reinterpret pose analysis results.
+Unreal Engine must not reinterpret raw pose or hand geometry when the
+corresponding state has already been prepared by Python.
 
-## Validation Rules
+Validation
 
-A valid `pose_feedback` message must contain:
+A malformed JSON message must be rejected and logged.
 
-- `type`
-- `timestamp`
-- `message`
-- `severity`
+Missing optional measurements must remain invalid rather than being
+silently converted into physical zero values.
 
-Messages with missing required fields should be rejected and logged.
+Unknown fields should not prevent otherwise compatible RiderState
+messages from being processed.
 
-Unknown message types should be ignored and logged.
+Compatibility
 
-### Version 1 Scope
+Python RiderState serialization and Unreal FRiderState parsing form
+a protocol boundary.
 
-Version 1 supports only:
+When a new field is introduced, the preferred implementation order is:
 
-pose_feedback
+measurement or state implemented in Python
+Python RiderState updated
+serialization covered by tests
+Unreal FRiderState updated
+Unreal JSON parser updated
+live WebSocket communication verified
 
-The protocol does not yet include:
+This prevents documentation or Unreal code from getting ahead of the
+actual analysis implementation.
 
-raw pose landmarks
-joint rotations
-session reports
-connection status messages
-command messages from Unreal to Python
-binary data
+Future Extensions
 
-## Acceptance criteria za postojeći issue
+Possible future protocol additions include:
 
-Možemo ih postaviti ovako:
+rear brake state
+gear state
+additional hand-control metrics
+session summaries
+coaching messages
+connection/status messages
+Unreal-to-Python commands
 
-## Design Principle
+These should be added only when the corresponding feature is actually
+implemented.
 
-Python decides what the rider should be told.
+Design Principle
 
-Unreal Engine decides how that message is presented.
+Python decides what the rider state means.
+
+Unreal Engine decides how that state is visualized and presented.
