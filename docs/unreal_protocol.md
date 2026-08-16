@@ -170,6 +170,41 @@ layer.
 Event exposure in Unreal must not change the underlying measurement
 meaning defined by Python.
 
+Unreal Engine exposes selected rider-state transitions as
+
+Current events include:
+
+### Front Brake
+
+- `OnFrontBrakeApplied`
+- `OnFrontBrakeReleased`
+
+### Throttle
+
+- `OnThrottleOpened`
+- `OnThrottleClosed`
+
+### Clutch
+
+- `OnClutchFrictionZoneEntered`
+- `OnClutchFrictionZoneExited`
+
+These events are emitted only when a valid control-state transition
+is detected.
+
+Frames with invalid control measurements must not generate false
+transitions.
+
+For example:
+
+- lost front-brake tracking must not generate `Released`
+- lost throttle tracking must not generate `Closed`
+- lost clutch tracking must not generate `FrictionZoneExited`
+
+Blueprint events are presentation/integration signals.
+
+They do not replace the Python-side rider-state and event logic.
+
 Responsibilities
 Python
 
