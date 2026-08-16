@@ -12,6 +12,7 @@ def test_from_analysis():
         "left_hand_rotation": 180.0,
         "throttle_open": True,
         "throttle_close":True,
+        "throttle_progress": 0.65,
         "clutch_in_friction_zone": True,
         "front_brake_active": True,
         "front_brake_progress": 0.20,
@@ -40,6 +41,7 @@ def test_from_analysis():
     assert state.left_hand_rotation == 180.0  
     assert state.throttle_open is True
     assert state.throttle_close is True
+    assert state.throttle_progress == 0.65
     assert state.clutch_in_friction_zone is True
     assert state.front_brake_active is True
     assert state.front_brake_progress == 0.20

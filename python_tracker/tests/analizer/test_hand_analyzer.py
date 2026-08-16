@@ -365,9 +365,13 @@ def test_throttle_calibration_becomes_complete():
 def test_current_throttle_progress_returns_none_without_calibration():
     analyzer = HandControlAnalyzer()
 
+    analyzer._throttle_calibration = ThrottleCalibration()
+
     progress = analyzer._current_throttle_progress(
         current_rotation=20.0
     )
+
+    assert progress is None
 
     assert progress is None
 def test_current_throttle_progress_uses_calibration():
@@ -564,3 +568,4 @@ def test_throttle_calibration_save_creates_parent_directory(
     calibration.save(file_path)
 
     assert file_path.exists()
+

@@ -27,6 +27,8 @@ class RiderStateMapper:
             throttle_open=result["throttle_open"],
             throttle_close=result["throttle_close"],
 
+            throttle_progress=result["throttle_progress"],
+
             head_forward=result["head_forward"],
 
             clutch_in_friction_zone=result["clutch_in_friction_zone"],

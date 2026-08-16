@@ -165,6 +165,7 @@ class HandControlAnalyzer:
             "left_hand_rotation": left_hand_rotation,
             "throttle_open": throttle_open,
             "throttle_close": throttle_close,
+            "throttle_progress": throttle_progress,
             "clutch_progress": clutch_progress,
             "clutch_in_friction_zone": clutch_in_friction_zone,
             "front_brake_progress": front_brake_progress,

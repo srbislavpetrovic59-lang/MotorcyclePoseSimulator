@@ -14,7 +14,9 @@ def test_rider_state_to_json():
         left_foot_angle=92.0,
         right_foot_angle=94.0,
         right_knee_angle=125.0,
-        torso_angle=45.0
+        torso_angle=45.0,
+        throttle_progress=0.65
+
     )
 
     data = json.loads(rider_state.to_json())
@@ -29,5 +31,6 @@ def test_rider_state_to_json():
     assert data["torso_angle"] == 45
     assert data["pose_confidence"] == 0.98 
     assert data["front_brake_progress"] == 0.42
-
-   
+    assert data["throttle_progress"] == 0.65
+  
+    
