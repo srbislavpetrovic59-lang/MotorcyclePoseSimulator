@@ -1,4 +1,5 @@
 import pytest
+import json
 from types import SimpleNamespace
 
 from mediapipe.python.solutions.hands import HandLandmark
@@ -452,3 +453,114 @@ def test_throttle_progress_handles_half_turn_range():
         173.0 / 180.0,
         abs=0.01,
     )
+def test_throttle_calibration_can_be_serialized():
+    calibration = ThrottleCalibration(
+        closed_rotation=350.0,
+        open_rotation=120.0,
+    )
+
+    data = calibration.to_dict()
+
+    assert data == {
+        "closed_rotation": 350.0,
+        "open_rotation": 120.0,
+    }
+
+def test_throttle_calibration_can_be_deserialized():
+    data = {
+        "closed_rotation": 350.0,
+        "open_rotation": 120.0,
+    }
+
+    calibration = ThrottleCalibration.from_dict(data)
+
+    assert calibration.closed_rotation == 350.0
+    assert calibration.open_rotation == 120.0
+    assert calibration.is_complete() is True
+
+def test_throttle_calibration_can_be_saved(tmp_path):
+    calibration = ThrottleCalibration(
+        closed_rotation=350.0,
+        open_rotation=120.0,
+    )
+
+    file_path = tmp_path / "throttle_calibration.json"
+
+    calibration.save(file_path)
+
+    assert file_path.exists()
+
+def test_throttle_calibration_can_be_saved(tmp_path):
+    calibration = ThrottleCalibration(
+        closed_rotation=350.0,
+        open_rotation=120.0,
+    )
+
+    file_path = tmp_path / "throttle_calibration.json"
+
+    calibration.save(file_path)
+
+    assert file_path.exists()
+
+    saved_data = json.loads(
+        file_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert saved_data == {
+        "closed_rotation": 350.0,
+        "open_rotation": 120.0,
+    }
+
+def test_throttle_calibration_can_be_loaded(tmp_path):
+    file_path = tmp_path / "throttle_calibration.json"
+
+    file_path.write_text(
+        """
+        {
+            "closed_rotation": 350.0,
+            "open_rotation": 120.0
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    calibration = ThrottleCalibration.load(
+        file_path
+    )
+
+    assert calibration.closed_rotation == 350.0
+    assert calibration.open_rotation == 120.0
+    assert calibration.is_complete() is True
+
+def test_throttle_calibration_load_returns_empty_when_file_missing(
+    tmp_path,
+):
+    file_path = tmp_path / "missing_throttle_calibration.json"
+
+    calibration = ThrottleCalibration.load(
+        file_path
+    )
+
+    assert calibration.closed_rotation is None
+    assert calibration.open_rotation is None
+    assert calibration.is_complete() is False
+
+def test_throttle_calibration_save_creates_parent_directory(
+    tmp_path,
+):
+    file_path = (
+        tmp_path
+        / "config"
+        / "throttle_calibration.json"
+    )
+
+    calibration = ThrottleCalibration(
+        closed_rotation=350.0,
+        open_rotation=120.0,
+    )
+
+    calibration.save(file_path)
+
+    assert file_path.exists()

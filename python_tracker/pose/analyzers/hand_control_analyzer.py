@@ -7,6 +7,11 @@ from pose.hand_landmarks import HandLandmark
 from pose.models.clutch_calibration import ClutchCalibration
 from pose.models.front_brake_calibration import FrontBrakeCalibration
 from pose.models.throttle_calibration import ThrottleCalibration
+from pathlib import Path
+
+THROTTLE_CALIBRATION_PATH = Path(
+    "config/throttle_calibration.json"
+)
 
 
 
@@ -16,7 +21,9 @@ class HandControlAnalyzer:
         self.clutch_calibration = ClutchCalibration()
         self._front_brake_calibration = FrontBrakeCalibration()
         self._front_brake_active = False
-        self._throttle_calibration = ThrottleCalibration()
+        self._throttle_calibration = ThrottleCalibration.load(
+            THROTTLE_CALIBRATION_PATH
+        )
         
 
     def analyze(
@@ -490,6 +497,10 @@ class HandControlAnalyzer:
         self._throttle_calibration.set_closed(
             current_rotation
         )
+        self._throttle_calibration.save(
+        THROTTLE_CALIBRATION_PATH
+        )
+
     def calibrate_throttle_open(
         self,
         current_rotation: float,
@@ -497,6 +508,10 @@ class HandControlAnalyzer:
         self._throttle_calibration.set_open(
             current_rotation
         )
+        self._throttle_calibration.save(
+        THROTTLE_CALIBRATION_PATH
+        )
+
     def capture_throttle_closed(
         self,
         current_rotation: float,
