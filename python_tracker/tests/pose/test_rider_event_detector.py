@@ -157,3 +157,74 @@ def test_lost_right_hand_does_not_emit_front_brake_released():
         event.type == RiderEventType.FRONT_BRAKE_RELEASED
         for event in events
     )
+
+def test_throttle_opened_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        throttle_active=False,
+        throttle_progress=0.0,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        throttle_active=True,
+        throttle_progress=0.15,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert len(events) == 1
+    assert (
+        events[0].type
+        == RiderEventType.THROTTLE_OPENED
+    )
+
+def test_throttle_closed_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        throttle_active=True,
+        throttle_progress=0.15,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        throttle_active=False,
+        throttle_progress=0.04,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert len(events) == 1
+    assert (
+        events[0].type
+        == RiderEventType.THROTTLE_CLOSED
+    )
+
+def test_lost_throttle_measurement_does_not_emit_closed_event():
+    detector = RiderEventDetector()
+
+    previous = RiderState(
+        throttle_active=True,
+        throttle_progress=0.50,
+        timestamp=1.0,
+    )
+
+    current = RiderState(
+        throttle_active=True,
+        throttle_progress=None,
+        timestamp=2.0,
+    )
+
+    detector.detect(previous)
+
+    events = detector.detect(current)
+
+    assert events == []

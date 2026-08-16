@@ -24,6 +24,7 @@ class RiderState:
     throttle_close: bool = False
 
     throttle_progress: float | None = None
+    throttle_active: bool = False
 
     clutch_in_friction_zone: bool = False
     clutch_progress: float | None = None

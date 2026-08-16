@@ -24,6 +24,7 @@ class HandControlAnalyzer:
         self._throttle_calibration = ThrottleCalibration.load(
             THROTTLE_CALIBRATION_PATH
         )
+        self._throttle_active = False
         
 
     def analyze(
@@ -61,6 +62,9 @@ class HandControlAnalyzer:
         
         throttle_progress = self._current_throttle_progress(
             current_rotation=right_hand_rotation,
+        )
+        throttle_active = self._update_throttle_active(
+            throttle_progress
         )
         
         print(
@@ -166,6 +170,7 @@ class HandControlAnalyzer:
             "throttle_open": throttle_open,
             "throttle_close": throttle_close,
             "throttle_progress": throttle_progress,
+            "throttle_active": throttle_active,
             "clutch_progress": clutch_progress,
             "clutch_in_friction_zone": clutch_in_friction_zone,
             "front_brake_progress": front_brake_progress,
@@ -527,3 +532,17 @@ class HandControlAnalyzer:
         self.calibrate_throttle_open(
             current_rotation
         )
+    def _update_throttle_active(
+        self,
+        throttle_progress: float | None,
+    ) -> bool:
+        if throttle_progress is None:
+            return self._throttle_active
+
+        if throttle_progress >= 0.10:
+            self._throttle_active = True
+
+        elif throttle_progress <= 0.05:
+            self._throttle_active = False
+
+        return self._throttle_active

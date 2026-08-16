@@ -45,7 +45,28 @@ class RiderEventDetector:
                 RiderEventType.POSE_LOST,
                 rider_state,
             )
+        
+        # Detect throttle opened event
+        if (
+            not previous_state.throttle_active
+            and rider_state.throttle_active
+        ):
+            self._emit(
+                events,
+                RiderEventType.THROTTLE_OPENED,
+                rider_state,
+            )
 
+        # Detect throttle closed event
+        if (
+            previous_state.throttle_active
+            and not rider_state.throttle_active
+        ):
+            self._emit(
+                events,
+                RiderEventType.THROTTLE_CLOSED,
+                rider_state,
+            )
         # Detect clutch friction zone reached event
         previous_clutch_friction = (
             previous_state.clutch_in_friction_zone

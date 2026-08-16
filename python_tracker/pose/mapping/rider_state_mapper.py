@@ -28,6 +28,7 @@ class RiderStateMapper:
             throttle_close=result["throttle_close"],
 
             throttle_progress=result["throttle_progress"],
+            throttle_active=result["throttle_active"],
 
             head_forward=result["head_forward"],
 

@@ -569,3 +569,42 @@ def test_throttle_calibration_save_creates_parent_directory(
 
     assert file_path.exists()
 
+def test_throttle_becomes_active_above_open_threshold():
+    analyzer = HandControlAnalyzer()
+
+    active = analyzer._update_throttle_active(
+        throttle_progress=0.15,
+    )
+
+    assert active is True
+
+def test_throttle_stays_active_inside_hysteresis_zone():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._update_throttle_active(
+        throttle_progress=0.15,
+    )
+
+    active = analyzer._update_throttle_active(
+        throttle_progress=0.07,
+    )
+
+    assert active is True
+
+def test_throttle_becomes_inactive_below_close_threshold():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._update_throttle_active(
+        throttle_progress=0.15,
+    )
+
+    analyzer._update_throttle_active(
+        throttle_progress=0.07,
+    )
+
+    active = analyzer._update_throttle_active(
+        throttle_progress=0.04,
+    )
+
+    assert active is False
+
