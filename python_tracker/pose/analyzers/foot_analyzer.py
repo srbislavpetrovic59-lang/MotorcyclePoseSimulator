@@ -10,7 +10,28 @@ class FootAnalyzer:
 
         left_foot_angle = self._left_foot_angle(landmarks)
         right_foot_angle = self._right_foot_angle(landmarks)
-        
+        right_ankle = landmarks[PoseLandmark.RIGHT_ANKLE]
+        right_foot = landmarks[PoseLandmark.RIGHT_FOOT_INDEX]
+        right_foot_rotation = self._right_foot_rotation(
+            landmarks
+        )
+
+        print(
+            "Right foot rotation:",
+            right_foot_rotation
+        )
+        right_foot_drop = (
+                right_foot.y - right_ankle.y
+            )
+
+        print(
+            "Right foot drop:",
+            right_foot_drop
+        )
+        print(
+            "Right foot angle:",
+            right_foot_angle
+        )
         return {
             "left_knee_angle": left_knee_angle,
             "right_knee_angle": right_knee_angle,
@@ -49,6 +70,12 @@ class FootAnalyzer:
     def _right_foot_angle(self, landmarks):
         return Geometry.angle(
             landmarks[PoseLandmark.RIGHT_KNEE],
+            landmarks[PoseLandmark.RIGHT_ANKLE],
+            landmarks[PoseLandmark.RIGHT_FOOT_INDEX],
+        )
+    def _right_foot_rotation(self, landmarks):
+        return Geometry.angle(
+            landmarks[PoseLandmark.RIGHT_HEEL],
             landmarks[PoseLandmark.RIGHT_ANKLE],
             landmarks[PoseLandmark.RIGHT_FOOT_INDEX],
         )

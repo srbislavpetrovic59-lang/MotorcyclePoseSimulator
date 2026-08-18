@@ -155,6 +155,10 @@ JSON representation, and populates FRiderState.
 The component can then expose selected state and transitions to
 Blueprint.
 
+`UPoseWebSocketComponent` also tracks the previous valid control
+state so that selected state transitions can be exposed to Blueprint
+without treating invalid measurements as physical rider actions.
+
 Blueprint Events
 
 Unreal may expose state transitions as Blueprint events.
