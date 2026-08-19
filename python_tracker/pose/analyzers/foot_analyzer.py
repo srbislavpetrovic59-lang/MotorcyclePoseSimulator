@@ -132,8 +132,11 @@ class FootAnalyzer:
     def _rear_brake_progress(
         released_drop: float,
         full_drop: float,
-        current_drop: float,
-    ) -> float:
+        current_drop: float | None,
+    ) -> float | None:
+        if current_drop is None:
+            return None
+
         total_range = full_drop - released_drop
 
         if total_range == 0:
@@ -163,4 +166,14 @@ class FootAnalyzer:
                 self._rear_brake_active = True
 
         return self._rear_brake_active
+
+    @staticmethod
+    def _right_foot_visible(
+        right_ankle,
+        right_foot,
+    ) -> bool:
+        return (
+            right_ankle.visibility >= 0.5
+            and right_foot.visibility >= 0.5
+        )
     

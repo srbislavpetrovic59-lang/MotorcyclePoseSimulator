@@ -2,6 +2,8 @@ import pytest
 from pose.analyzers.foot_analyzer import FootAnalyzer
 from pose.models.rear_brake_calibration import RearBrakeCalibration
 
+from types import SimpleNamespace
+
 def test_rear_brake_ready_when_foot_is_over_brake():
     assert FootAnalyzer._is_rear_brake_ready(
         65.0
@@ -164,3 +166,46 @@ def test_rear_brake_detection_loss_keeps_previous_state():
 
     assert active is True
 
+def test_rear_brake_progress_is_none_when_measurement_missing():
+    progress = FootAnalyzer._rear_brake_progress(
+        released_drop=0.08,
+        full_drop=0.12,
+        current_drop=None,
+    )
+
+    assert progress is None
+
+
+
+def test_right_foot_not_visible_when_landmark_visibility_is_low():
+    right_ankle = SimpleNamespace(
+        visibility=0.9
+    )
+
+    right_foot = SimpleNamespace(
+        visibility=0.2
+    )
+
+    assert (
+        FootAnalyzer._right_foot_visible(
+            right_ankle,
+            right_foot,
+        )
+        is False
+    )
+
+def test_right_foot_visible_when_landmarks_are_visible():
+    right_ankle = SimpleNamespace(
+        visibility=0.9
+    )
+    right_foot = SimpleNamespace(
+        visibility=0.8
+    )
+
+    assert (
+        FootAnalyzer._right_foot_visible(
+            right_ankle,
+            right_foot,
+        )
+        is True
+    )
