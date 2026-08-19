@@ -32,9 +32,15 @@ class FootAnalyzer:
             "Right foot rotation:",
             right_foot_rotation
         )
-        right_foot_drop = (
+        if self._right_foot_visible(
+            right_ankle,
+            right_foot,
+        ):
+            right_foot_drop = (
                 right_foot.y - right_ankle.y
             )
+        else:
+            right_foot_drop = None
         
         rear_brake_progress = self._rear_brake_progress(
             released_drop=0.08,
@@ -46,8 +52,8 @@ class FootAnalyzer:
         )
         print(
             "Rear brake:",
-            f"drop={right_foot_drop:.3f}",
-            f"progress={rear_brake_progress:.2f}",
+            f"drop={right_foot_drop}",
+            f"progress={rear_brake_progress}",
             f"active={rear_brake_active}",
         )
                 
