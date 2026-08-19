@@ -60,14 +60,6 @@ def test_rear_brake_progress_is_zero_when_released():
 
     assert progress == 0.0
 
-def test_rear_brake_progress_is_one_when_fully_pressed():
-    progress = FootAnalyzer._rear_brake_progress(
-        released_drop=0.0,
-        full_drop=10.0,
-        current_drop=10.0,
-    )
-
-    assert progress == 1.0
 
 def test_rear_brake_progress_is_half_when_half_pressed():
     progress = FootAnalyzer._rear_brake_progress(
@@ -96,3 +88,79 @@ def test_rear_brake_progress_is_clamped(
     )
 
     assert progress == expected
+
+def test_rear_brake_progress_is_one_when_fully_pressed():
+    progress = FootAnalyzer._rear_brake_progress(
+        released_drop=0.08,
+        full_drop=0.12,
+        current_drop=0.12,
+    )
+
+    assert progress == 1.0
+
+def test_rear_brake_becomes_active_when_progress_is_high():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.5
+    )
+
+    assert active is True
+
+def test_rear_brake_is_inactive_when_released():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.0
+    )
+
+    assert active is False
+
+def test_rear_brake_is_inactive_when_progress_is_none():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=None
+    )
+
+    assert active is False
+
+def test_rear_brake_hysteresis_keeps_active_state():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active(
+        rear_brake_progress=0.5
+    )
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.15
+    )
+
+    assert active is True
+
+def test_rear_brake_hysteresis_releases_below_lower_threshold():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active(
+        rear_brake_progress=0.5
+    )
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.05
+    )
+
+    assert active is False
+
+def test_rear_brake_detection_loss_keeps_previous_state():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active(
+        rear_brake_progress=0.5
+    )
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=None
+    )
+
+    assert active is True
+

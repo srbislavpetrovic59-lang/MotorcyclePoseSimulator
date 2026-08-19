@@ -198,17 +198,18 @@ class PosePipeline:
         metrics = self._analyzer.analyze(
             frame_analysis
         )
-
+       
         self._last_analysis_result = metrics
 
         rider_state = self._rider_state_mapper.from_analysis(
             metrics
         )
-
         try:
+           
             self._websocket_server.send(
                 rider_state.to_json()
             )
+            
         except RuntimeError:
             pass
 

@@ -6,6 +6,7 @@ class FootAnalyzer:
 
     def __init__(self):
         self._rear_brake_ready = False
+        self._rear_brake_active = False
 
     def analyze(self, landmarks):
         left_knee_angle = self._left_knee_angle(landmarks)
@@ -34,11 +35,22 @@ class FootAnalyzer:
         right_foot_drop = (
                 right_foot.y - right_ankle.y
             )
-
-        print(
-            "Right foot drop:",
-            right_foot_drop
+        
+        rear_brake_progress = self._rear_brake_progress(
+            released_drop=0.08,
+            full_drop=0.12,
+            current_drop=right_foot_drop,
         )
+        rear_brake_active = self._update_rear_brake_active(
+            rear_brake_progress
+        )
+        print(
+            "Rear brake:",
+            f"drop={right_foot_drop:.3f}",
+            f"progress={rear_brake_progress:.2f}",
+            f"active={rear_brake_active}",
+        )
+                
         print(
             "Right foot angle:",
             right_foot_angle
@@ -52,6 +64,8 @@ class FootAnalyzer:
             "left_leg_extended": left_knee_angle > 165,
             "right_leg_extended": right_knee_angle > 165,
             "rear_brake_ready": rear_brake_ready,
+            "rear_brake_progress": rear_brake_progress,
+            "rear_brake_active": rear_brake_active,
             "leg_symmetry": round(
                 max(0.0, 100.0 - abs(left_knee_angle - right_knee_angle)),
                 1,
@@ -134,4 +148,19 @@ class FootAnalyzer:
             min(1.0, progress),
         )
 
+    def _update_rear_brake_active(
+        self,
+        rear_brake_progress: float | None,
+    ) -> bool:
+        if rear_brake_progress is None:
+            return self._rear_brake_active
+
+        if self._rear_brake_active:
+            if rear_brake_progress <= 0.10:
+                self._rear_brake_active = False
+        else:
+            if rear_brake_progress >= 0.20:
+                self._rear_brake_active = True
+
+        return self._rear_brake_active
     

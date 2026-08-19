@@ -27,6 +27,8 @@ def test_from_analysis():
         "right_foot_angle": 94.0,
         "torso_angle": 45.0,
         "clutch_progress": 0.61,
+        "rear_brake_progress": 0.65,
+        "rear_brake_active": True,
        
     }
     
@@ -47,6 +49,8 @@ def test_from_analysis():
     assert state.clutch_in_friction_zone is True
     assert state.front_brake_active is True
     assert state.front_brake_progress == 0.20
+    assert state.rear_brake_progress == 0.65
+    assert state.rear_brake_active is True
     assert state.head_forward is True
     assert state.left_elbow_angle == 90.0
     assert state.right_elbow_angle == 95.0

@@ -30,6 +30,9 @@ class RiderStateMapper:
             throttle_progress=result["throttle_progress"],
             throttle_active=result["throttle_active"],
 
+            rear_brake_progress=result["rear_brake_progress"],
+            rear_brake_active=result["rear_brake_active"],
+
             head_forward=result["head_forward"],
 
             clutch_in_friction_zone=result["clutch_in_friction_zone"],

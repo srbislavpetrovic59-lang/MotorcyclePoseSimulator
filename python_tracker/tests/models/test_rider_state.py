@@ -15,7 +15,9 @@ def test_rider_state_to_json():
         right_foot_angle=94.0,
         right_knee_angle=125.0,
         torso_angle=45.0,
-        throttle_progress=0.65
+        throttle_progress=0.65,
+        rear_brake_progress=0.65,
+        rear_brake_active=True
 
     )
 
@@ -32,5 +34,7 @@ def test_rider_state_to_json():
     assert data["pose_confidence"] == 0.98 
     assert data["front_brake_progress"] == 0.42
     assert data["throttle_progress"] == 0.65
+    assert data["rear_brake_progress"] == 0.65
+    assert data["rear_brake_active"] is True
   
     
