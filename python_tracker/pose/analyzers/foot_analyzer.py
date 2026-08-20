@@ -7,6 +7,8 @@ class FootAnalyzer:
     def __init__(self):
         self._rear_brake_ready = False
         self._rear_brake_active = False
+        self._right_foot_was_visible = False
+        self._right_foot_seen_once = False
 
     def analyze(self, landmarks):
         left_knee_angle = self._left_knee_angle(landmarks)
@@ -14,42 +16,73 @@ class FootAnalyzer:
 
         left_foot_angle = self._left_foot_angle(landmarks)
         right_foot_angle = self._right_foot_angle(landmarks)
+     
+        right_heel = landmarks[PoseLandmark.RIGHT_HEEL]
         right_ankle = landmarks[PoseLandmark.RIGHT_ANKLE]
         right_foot = landmarks[PoseLandmark.RIGHT_FOOT_INDEX]
-        right_foot_rotation = self._right_foot_rotation(
-            landmarks
+
+        right_foot_is_visible = self._right_foot_visible(
+            right_heel,
+            right_ankle,
+            right_foot,
         )
-        rear_brake_ready = self._update_rear_brake_ready(
-            right_foot_rotation
-        )       
+        right_foot_reacquired = (
+            right_foot_is_visible
+            and self._right_foot_seen_once
+            and not self._right_foot_was_visible
+        )
+
+        if right_foot_is_visible:
+            right_foot_rotation = self._right_foot_rotation(
+                landmarks
+            )
+
+            if right_foot_reacquired:
+                rear_brake_ready = None
+            else:
+                rear_brake_ready = self._update_rear_brake_ready(
+                    right_foot_rotation
+                )
+
+            right_foot_drop = (
+                right_foot.y - right_ankle.y
+            )
+        else:
+            right_foot_rotation = None
+            right_foot_drop = None
+            rear_brake_ready = None
+
         print(
             "Rear brake ready:",
             rear_brake_ready,
             "rotation:",
             right_foot_rotation,
         )
+
         print(
             "Right foot rotation:",
             right_foot_rotation
         )
-        if self._right_foot_visible(
-            right_ankle,
-            right_foot,
-        ):
-            right_foot_drop = (
-                right_foot.y - right_ankle.y
-            )
+        if right_foot_reacquired:
+            rear_brake_progress = None
         else:
-            right_foot_drop = None
-        
-        rear_brake_progress = self._rear_brake_progress(
-            released_drop=0.08,
-            full_drop=0.12,
-            current_drop=right_foot_drop,
-        )
+            rear_brake_progress = self._rear_brake_progress(
+                released_drop=0.08,
+                full_drop=0.12,
+                current_drop=right_foot_drop,
+            )
+
         rear_brake_active = self._update_rear_brake_active(
             rear_brake_progress
         )
+
+        self._right_foot_was_visible = right_foot_is_visible
+        
+        rear_brake_active = self._update_rear_brake_active(
+            rear_brake_progress
+        )
+
+
         print(
             "Rear brake:",
             f"drop={right_foot_drop}",
@@ -61,6 +94,11 @@ class FootAnalyzer:
             "Right foot angle:",
             right_foot_angle
         )
+        if right_foot_is_visible:
+            self._right_foot_seen_once = True
+
+        self._right_foot_was_visible = right_foot_is_visible
+
         return {
             "left_knee_angle": left_knee_angle,
             "right_knee_angle": right_knee_angle,
@@ -175,11 +213,13 @@ class FootAnalyzer:
 
     @staticmethod
     def _right_foot_visible(
+        right_heel,
         right_ankle,
         right_foot,
     ) -> bool:
         return (
-            right_ankle.visibility >= 0.5
+            right_heel.visibility >= 0.5
+            and right_ankle.visibility >= 0.5
             and right_foot.visibility >= 0.5
         )
     

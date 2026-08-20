@@ -178,6 +178,10 @@ def test_rear_brake_progress_is_none_when_measurement_missing():
 
 
 def test_right_foot_not_visible_when_landmark_visibility_is_low():
+    right_heel = SimpleNamespace(
+        visibility=0.9
+    )
+    
     right_ankle = SimpleNamespace(
         visibility=0.9
     )
@@ -188,6 +192,7 @@ def test_right_foot_not_visible_when_landmark_visibility_is_low():
 
     assert (
         FootAnalyzer._right_foot_visible(
+            right_heel,
             right_ankle,
             right_foot,
         )
@@ -195,6 +200,10 @@ def test_right_foot_not_visible_when_landmark_visibility_is_low():
     )
 
 def test_right_foot_visible_when_landmarks_are_visible():
+    right_heel = SimpleNamespace(
+        visibility=0.9
+    )   
+
     right_ankle = SimpleNamespace(
         visibility=0.9
     )
@@ -204,6 +213,7 @@ def test_right_foot_visible_when_landmarks_are_visible():
 
     assert (
         FootAnalyzer._right_foot_visible(
+            right_heel,
             right_ankle,
             right_foot,
         )

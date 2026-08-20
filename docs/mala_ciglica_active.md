@@ -1,27 +1,20 @@
-﻿Odlično. ✅ Sada smo stigli do pravog live testa za bug koji smo jurili.
+﻿Da — ovo je sada upravo ponašanje koje smo želeli. ✅
 
-Pokreni Python + UE i uradi baš ovaj scenario:
+Na slici se vidi ključni prelaz:
 
-1. desno stopalo se vidi
-2. rear brake active
-3. skloni stopalo iz kadra
-4. vrati ga u kadar
+Rear brake ready: True rotation: 14.76...
+Rear brake: drop=0.167... progress=1.0 active=True
 
-U Python terminalu sada očekujemo kada stopalo nestane:
+zatim stopalo nestane:
 
-drop=None
-progress=None
+Rear brake ready: None rotation: None
+Right foot rotation: None
+Rear brake: drop=None progress=None active=True
 
-a rear_brake_active treba da zadrži prethodno stanje, ne da se prebaci zbog nestanka merenja.
+i active=True ostaje sačuvan i u sledećem frejmu. Dakle:
 
-U UE ne sme da se pojavi lažni:
+validno merenje → active=True → gubitak stopala → nema merenja, ali nema lažnog RELEASED događaja.
 
-REAR BRAKE RELEASED
+To znači da je Python deo ovog buga praktično zatvoren. 🧱
 
-kad stopalo nestane, niti lažni:
-
-REAR BRAKE APPLIED
-
-kad se samo ponovo pojavi.
-
-Ako ovo live prođe, bug je stvarno zatvoren. 🧱🏍️
+Sada ostaje još poslednja potvrda u UE: u istom scenariju ne sme da se pojavi REAR BRAKE RELEASED kada stopalo nestane, niti REAR BRAKE APPLIED samo zato što se ponovo pojavilo. Ako je UE tih kroz nestanak i povratak stopala, onda možemo stvarno da stavimo tačku na ovaj bug. 🏍️
