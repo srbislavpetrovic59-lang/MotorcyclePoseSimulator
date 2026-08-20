@@ -1,21 +1,69 @@
+# Motorcycle Pose Simulator Architecture
+
+The application is organized as a real-time processing pipeline.
+
 ```mermaid
 flowchart TD
 
+    Camera[Camera]
+    PoseDetector[PoseDetector]
+    HandDetector[HandDetector]
+
+    Pipeline[PosePipeline]
+
+    ArmAnalyzer[ArmAnalyzer]
+    BodyAnalyzer[BodyAnalyzer]
+    FootAnalyzer[FootAnalyzer]
+
+    Evaluator[PoseEvaluator]
+    FeedbackManager[FeedbackManager]
+    PoseCoach[PoseCoach]
+
+    Mapper[RiderStateMapper]
+    RiderState[RiderState]
+
+    Recorder[SessionRecorder]
+    Summary[SessionSummary]
+    Narrator[SessionNarrator]
+
+    Dispatcher[OutputDispatcher]
+    Console[ConsoleOutput]
+
+    WebSocket[WebSocketServer]
+    Unreal[Unreal Engine<br/>PoseWebSocketComponent / BP_PoseReceiver]
+
     Camera --> PoseDetector
-    PoseDetector --> PoseAnalyzer
+    Camera --> HandDetector
 
-    PoseAnalyzer --> ArmAnalyzer
-    PoseAnalyzer --> BodyAnalyzer
-    PoseAnalyzer --> FootAnalyzer
+    PoseDetector --> Pipeline
+    HandDetector --> Pipeline
 
-    PoseAnalyzer --> PoseMetrics
+    Pipeline --> ArmAnalyzer
+    Pipeline --> BodyAnalyzer
+    Pipeline --> FootAnalyzer
 
-    PoseMetrics --> PoseEvaluator
+    ArmAnalyzer --> Evaluator
+    BodyAnalyzer --> Evaluator
+    FootAnalyzer --> Evaluator
 
-    PoseEvaluator --> FeedbackManager
+    Evaluator --> FeedbackManager
+    FeedbackManager --> PoseCoach
 
-    FeedbackManager --> OverlayRenderer
-    FeedbackManager --> VoiceCoach
+    ArmAnalyzer --> Mapper
+    BodyAnalyzer --> Mapper
+    FootAnalyzer --> Mapper
 
-    OverlayRenderer --> OpenCV
-```
+    Mapper --> RiderState
+
+    RiderState --> Recorder
+    RiderState --> WebSocket
+
+    Recorder --> Summary
+    Summary --> Narrator
+
+    PoseCoach --> Dispatcher
+    Narrator --> Dispatcher
+
+    Dispatcher --> Console
+
+    WebSocket --> Unreal
