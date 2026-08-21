@@ -87,7 +87,7 @@ class HandControlAnalyzer:
         )
 
         self._front_brake_active = front_brake_active
-            
+       
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
         )
@@ -431,13 +431,13 @@ class HandControlAnalyzer:
         front_brake_progress: float | None,
         was_active: bool = False,
     ) -> bool:
-        if front_brake_progress is None:
-            return False
+         if front_brake_progress is None:
+            return was_active
 
-        if was_active:
+         if was_active:
             return front_brake_progress > 0.06
 
-        return front_brake_progress >= 0.12
+         return front_brake_progress >= 0.12
 
     @staticmethod
     def _throttle_progress(

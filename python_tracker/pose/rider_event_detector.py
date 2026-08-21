@@ -133,7 +133,7 @@ class RiderEventDetector:
                 RiderEventType.FRONT_BRAKE_RELEASED,
                 rider_state,
             )
-
+      
         # Detect left hand detected event
         previous_left = previous_state.left_hand_detected
         current_left = rider_state.left_hand_detected
