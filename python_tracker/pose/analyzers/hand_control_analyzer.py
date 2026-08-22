@@ -1,5 +1,6 @@
 ﻿# han#d_control_analyzer.py
 import math
+import time
 from pose.landmarks import PoseLandmark
 from pose.models.frame_analysis import FrameAnalysis
 from pose.geometry import Geometry
@@ -25,6 +26,11 @@ class HandControlAnalyzer:
             THROTTLE_CALIBRATION_PATH
         )
         self._throttle_active = False
+        self._clutch_in_friction_zone = False
+        self._clutch_measurement_was_available = False
+        self._clutch_measurement_seen_once = False
+        self._clutch_last_measurement_time = None
+        self._clutch_tracking_timeout = 0.4
         
 
     def analyze(
@@ -88,8 +94,29 @@ class HandControlAnalyzer:
 
         self._front_brake_active = front_brake_active
        
+        clutch_measurement_available = (
+            left_index_finger_bend is not None
+        )
+
+        clutch_reacquired = (
+            clutch_measurement_available
+            and self._clutch_measurement_seen_once
+            and not self._clutch_measurement_was_available
+        )
+        
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
+        )
+
+        clutch_progress = self._apply_clutch_tracking_timeout(
+            clutch_progress,
+            now=time.monotonic(),
+        )
+
+        clutch_in_friction_zone = (
+            self._update_clutch_in_friction_zone(
+                clutch_progress
+            )
         )
         if left_index_finger_bend is None:
             print(
@@ -97,10 +124,12 @@ class HandControlAnalyzer:
                 f"hands={frame_analysis.hand_landmarks}"
             )
      
-        clutch_in_friction_zone = (
-            self._is_clutch_in_friction_zone(
-                clutch_progress
-            )
+       
+
+        print(
+            "Clutch:",
+            f"progress={clutch_progress}",
+            f"friction_zone={clutch_in_friction_zone}",
         )
       
               
@@ -158,7 +187,13 @@ class HandControlAnalyzer:
             current_rotation=left_hand_rotation,
         )
  
-                      
+        if clutch_measurement_available:
+            self._clutch_measurement_seen_once = True
+
+        self._clutch_measurement_was_available = (
+            clutch_measurement_available
+        )    
+        
         return {
             "left_hand_detected": left_hand is not None,
             "right_hand_detected": right_hand is not None,
@@ -353,15 +388,7 @@ class HandControlAnalyzer:
             current_angle
         )
 
-    @staticmethod
-    def _is_clutch_in_friction_zone(
-        clutch_progress: float | None,
-    ) -> bool:
-        if clutch_progress is None:
-            return False
-
-        return 0.55 <= clutch_progress <= 0.70
-
+   
     @staticmethod
     def _front_brake_progress(
         released_angle: float,
@@ -546,3 +573,34 @@ class HandControlAnalyzer:
             self._throttle_active = False
 
         return self._throttle_active
+
+    def _update_clutch_in_friction_zone(
+        self,
+        clutch_progress: float | None,
+    ) -> bool:
+        if clutch_progress is None:
+            return self._clutch_in_friction_zone
+
+        self._clutch_in_friction_zone = (
+            0.55 <= clutch_progress <= 0.70
+        )
+
+        return self._clutch_in_friction_zone
+
+    def _apply_clutch_tracking_timeout(
+        self,
+        clutch_progress: float | None,
+        now: float,
+    ) -> float | None:
+        if clutch_progress is not None:
+            self._clutch_last_measurement_time = now
+            return clutch_progress
+
+        if (
+            self._clutch_last_measurement_time is not None
+            and now - self._clutch_last_measurement_time
+                >= self._clutch_tracking_timeout
+        ):
+            return 0.0
+
+        return None

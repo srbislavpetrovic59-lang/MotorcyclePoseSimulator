@@ -113,33 +113,94 @@ def test_clutch_calibration_and_progress_work_together():
     )
 
 def test_clutch_is_in_friction_zone():
-    assert (
-        HandControlAnalyzer._is_clutch_in_friction_zone(
-            0.61
-        )
-        is True
-    )
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._update_clutch_in_friction_zone(
+        0.60
+    ) is True
 
 def test_clutch_is_not_in_friction_zone_when_released():
-    assert (
-        HandControlAnalyzer._is_clutch_in_friction_zone(
-            0.0
-        )
-        is False
-    )
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._update_clutch_in_friction_zone(
+        0.0
+    ) is False
 
 def test_clutch_is_not_in_friction_zone_when_fully_pulled():
-    assert (
-        HandControlAnalyzer._is_clutch_in_friction_zone(
-            1.0
-        )
-        is False
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._update_clutch_in_friction_zone(
+        1.0
+    ) is False
+
+def test_clutch_keeps_friction_zone_when_progress_is_none():
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._update_clutch_in_friction_zone(
+        0.60
+    ) is True
+
+    assert analyzer._update_clutch_in_friction_zone(
+        None
+    ) is True
+
+def test_clutch_keeps_outside_friction_zone_when_progress_is_none():
+    analyzer = HandControlAnalyzer()
+
+    assert analyzer._update_clutch_in_friction_zone(
+        0.0
+    ) is False
+
+    assert analyzer._update_clutch_in_friction_zone(
+        None
+    ) is False
+
+def test_clutch_tracking_timeout_keeps_missing_progress_initially():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_clutch_tracking_timeout(
+        0.60,
+        now=10.0,
     )
 
-def test_clutch_is_not_in_friction_zone_when_progress_is_none():
-    assert (
-        HandControlAnalyzer._is_clutch_in_friction_zone(
-            None
-        )
-        is False
+    progress = analyzer._apply_clutch_tracking_timeout(
+        None,
+        now=10.2,
     )
+
+    assert progress is None
+
+def test_clutch_tracking_timeout_releases_after_timeout():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_clutch_tracking_timeout(
+        0.60,
+        now=10.0,
+    )
+
+    progress = analyzer._apply_clutch_tracking_timeout(
+        None,
+        now=10.5,
+    )
+
+    assert progress == 0.0
+
+def test_clutch_tracking_timeout_resets_on_new_measurement():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_clutch_tracking_timeout(
+        0.60,
+        now=10.0,
+    )
+
+    analyzer._apply_clutch_tracking_timeout(
+        0.65,
+        now=10.3,
+    )
+
+    progress = analyzer._apply_clutch_tracking_timeout(
+        None,
+        now=10.5,
+    )
+
+    assert progress is None

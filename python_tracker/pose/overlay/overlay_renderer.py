@@ -77,6 +77,42 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
          )
+      
+         clutch_progress = metrics.get("clutch_progress")
+         clutch_in_friction_zone = metrics.get(
+                "clutch_in_friction_zone",
+                False,
+            )
+         clutch_text = (
+            f"Clutch: {clutch_progress:.2f}"
+            if clutch_progress is not None
+            else "Clutch: INVALID"
+         )
+
+         cv2.putText(
+            frame,
+            clutch_text,
+            (20, 310),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2,
+         )
+
+         friction_text = (
+            "FRICTION ZONE"
+            if clutch_in_friction_zone
+            else "Friction zone: no"
+         )
+         cv2.putText(
+             frame,
+             friction_text,
+             (20, 340),
+             cv2.FONT_HERSHEY_SIMPLEX,
+             0.7,
+             (0, 255, 0) if clutch_in_friction_zone else (255, 255, 255),
+             2,
+         )
          '''
          cv2.putText(
             frame,
@@ -111,6 +147,8 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
         )
+
+      
 
     def _draw_feedback(
         self,
