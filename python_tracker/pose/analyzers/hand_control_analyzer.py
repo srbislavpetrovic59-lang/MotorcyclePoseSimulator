@@ -45,8 +45,7 @@ class HandControlAnalyzer:
 
         left_hand = hands.get("Left")
         right_hand = hands.get("Right")
-        print("Right hand visible:", right_hand is not None)
-        
+                
         left_hand_rotation = self._hand_rotation(
             left_hand,
         )
@@ -590,7 +589,11 @@ class HandControlAnalyzer:
 
         return None
 
-    def _apply_throttle_tracking_timeout(self, throttle_progress: float | None, now: float) -> float | None:
+    def _apply_throttle_tracking_timeout(
+        self,
+        throttle_progress: float | None,
+        now: float,
+    ) -> float | None:
 
         if throttle_progress is not None:
             self._throttle_last_measurement_time = now

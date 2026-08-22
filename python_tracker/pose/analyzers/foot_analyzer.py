@@ -76,13 +76,7 @@ class FootAnalyzer:
             rear_brake_progress
         )
 
-        self._right_foot_was_visible = right_foot_is_visible
-        
-        rear_brake_active = self._update_rear_brake_active(
-            rear_brake_progress
-        )
-
-
+       
         print(
             "Rear brake:",
             f"drop={right_foot_drop}",
