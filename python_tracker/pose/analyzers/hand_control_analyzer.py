@@ -27,10 +27,12 @@ class HandControlAnalyzer:
         )
         self._throttle_active = False
         self._clutch_in_friction_zone = False
-        self._clutch_measurement_was_available = False
-        self._clutch_measurement_seen_once = False
+       
         self._clutch_last_measurement_time = None
         self._clutch_tracking_timeout = 0.4
+
+        self._throttle_last_measurement_time = None
+        self._throttle_tracking_timeout = 0.4
         
 
     def analyze(
@@ -43,6 +45,7 @@ class HandControlAnalyzer:
 
         left_hand = hands.get("Left")
         right_hand = hands.get("Right")
+        print("Right hand visible:", right_hand is not None)
         
         left_hand_rotation = self._hand_rotation(
             left_hand,
@@ -69,14 +72,19 @@ class HandControlAnalyzer:
         throttle_progress = self._current_throttle_progress(
             current_rotation=right_hand_rotation,
         )
-        throttle_active = self._update_throttle_active(
-            throttle_progress
+        throttle_progress = self._apply_throttle_tracking_timeout(
+            throttle_progress,
+            now=time.monotonic(),
         )
         
+        throttle_active = self._update_throttle_active(throttle_progress)
+
         print(
             f"Throttle: "
             f"rotation={right_hand_rotation}, "
+            f"throttle_active={throttle_active}, "
             f"progress={throttle_progress}"
+          
         )    
 
         thumb_index_distance = None
@@ -94,15 +102,6 @@ class HandControlAnalyzer:
 
         self._front_brake_active = front_brake_active
        
-        clutch_measurement_available = (
-            left_index_finger_bend is not None
-        )
-
-        clutch_reacquired = (
-            clutch_measurement_available
-            and self._clutch_measurement_seen_once
-            and not self._clutch_measurement_was_available
-        )
         
         clutch_progress = self._current_clutch_progress(
             current_angle=left_index_finger_bend
@@ -124,15 +123,7 @@ class HandControlAnalyzer:
                 f"hands={frame_analysis.hand_landmarks}"
             )
      
-       
-
-        print(
-            "Clutch:",
-            f"progress={clutch_progress}",
-            f"friction_zone={clutch_in_friction_zone}",
-        )
-      
-              
+                     
         if left_hand is not None:
             thumb_tip = self._get_landmark(
                left_hand,
@@ -186,13 +177,7 @@ class HandControlAnalyzer:
             neutral_rotation=325.0,
             current_rotation=left_hand_rotation,
         )
- 
-        if clutch_measurement_available:
-            self._clutch_measurement_seen_once = True
-
-        self._clutch_measurement_was_available = (
-            clutch_measurement_available
-        )    
+   
         
         return {
             "left_hand_detected": left_hand is not None,
@@ -603,4 +588,18 @@ class HandControlAnalyzer:
         ):
             return 0.0
 
+        return None
+
+    def _apply_throttle_tracking_timeout(self, throttle_progress: float | None, now: float) -> float | None:
+
+        if throttle_progress is not None:
+            self._throttle_last_measurement_time = now
+            return throttle_progress
+
+        if (
+            self._throttle_last_measurement_time is not None
+            and now - self._throttle_last_measurement_time
+                >= self._throttle_tracking_timeout
+        ):
+            return 0.0
         return None

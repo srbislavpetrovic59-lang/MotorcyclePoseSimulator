@@ -1,20 +1,68 @@
-﻿Da — ovo je sada upravo ponašanje koje smo želeli. ✅
+﻿Da — ovo je baš potvrda koju smo tražili. ✅
 
-Na slici se vidi ključni prelaz:
+Redosled je:
 
-Rear brake ready: True rotation: 14.76...
-Rear brake: drop=0.167... progress=1.0 active=True
+progress=0.6558  friction_zone=True
+progress=None    friction_zone=False   ← pogrešno
+progress=None    friction_zone=False
+progress=0.8045  friction_zone=False
 
-zatim stopalo nestane:
+Dakle trenutno gubitak leve šake automatski izbacuje kvačilo iz friction zone. Uzrok je ova postojeća logika:
 
-Rear brake ready: None rotation: None
-Right foot rotation: None
-Rear brake: drop=None progress=None active=True
+if clutch_progress is None:
+    return False
 
-i active=True ostaje sačuvan i u sledećem frejmu. Dakle:
+To treba promeniti po istom principu kao rear/front brake:
 
-validno merenje → active=True → gubitak stopala → nema merenja, ali nema lažnog RELEASED događaja.
+None znači „nemam novo merenje“, a ne „stanje je False“.
 
-To znači da je Python deo ovog buga praktično zatvoren. 🧱
+U __init__() dodaj:
 
-Sada ostaje još poslednja potvrda u UE: u istom scenariju ne sme da se pojavi REAR BRAKE RELEASED kada stopalo nestane, niti REAR BRAKE APPLIED samo zato što se ponovo pojavilo. Ako je UE tih kroz nestanak i povratak stopala, onda možemo stvarno da stavimo tačku na ovaj bug. 🏍️
+self._clutch_in_friction_zone = False
+
+A umesto sadašnjeg _is_clutch_in_friction_zone() predlažem stateful verziju:
+
+def _update_clutch_in_friction_zone(
+    self,
+    clutch_progress: float | None,
+) -> bool:
+    if clutch_progress is None:
+        return self._clutch_in_friction_zone
+
+
+    self._clutch_in_friction_zone = (
+        0.55 <= clutch_progress <= 0.70
+    )
+
+
+    return self._clutch_in_friction_zone
+
+I u analyze() promeni:
+
+clutch_in_friction_zone = (
+    self._is_clutch_in_friction_zone(
+        clutch_progress
+    )
+)
+
+u:
+
+clutch_in_friction_zone = (
+    self._update_clutch_in_friction_zone(
+        clutch_progress
+    )
+)
+
+Tada isti test treba da daje:
+
+progress=0.6558  friction_zone=True
+progress=None    friction_zone=True
+progress=None    friction_zone=True
+
+To rešava dropout.
+
+Ali onaj poslednji:
+
+progress=0.8045 friction_zone=False
+
+ćemo posebno posmatrati. To može biti stvarno stanje šake posle povratka, ali može biti i isti reacquisition problem koji smo imali sa desnim stopalom. Ne bih ga još unapred popravljao — prvo da vidimo šta se dešava posle ove male izmene. 🧱🏍️

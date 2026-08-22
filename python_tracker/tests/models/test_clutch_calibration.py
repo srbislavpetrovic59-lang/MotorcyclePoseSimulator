@@ -204,3 +204,56 @@ def test_clutch_tracking_timeout_resets_on_new_measurement():
     )
 
     assert progress is None
+
+
+def test_throttle_tracking_timeout_keeps_missing_progress_initially():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_throttle_tracking_timeout(
+        1.0,
+        now=10.0,
+    )
+
+    progress = analyzer._apply_throttle_tracking_timeout(
+        None,
+        now=10.2,
+    )
+
+    assert progress is None
+
+
+def test_throttle_tracking_timeout_releases_after_timeout():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_throttle_tracking_timeout(
+        1.0,
+        now=10.0,
+    )
+
+    progress = analyzer._apply_throttle_tracking_timeout(
+        None,
+        now=10.5,
+    )
+
+    assert progress == 0.0
+
+
+def test_throttle_tracking_timeout_resets_on_new_measurement():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._apply_throttle_tracking_timeout(
+        1.0,
+        now=10.0,
+    )
+
+    analyzer._apply_throttle_tracking_timeout(
+        0.8,
+        now=10.3,
+    )
+
+    progress = analyzer._apply_throttle_tracking_timeout(
+        None,
+        now=10.5,
+    )
+
+    assert progress is None

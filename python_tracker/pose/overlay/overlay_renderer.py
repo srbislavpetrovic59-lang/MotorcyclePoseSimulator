@@ -67,7 +67,18 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
          )
-
+         cv2.putText(
+            frame,
+            f"Throttle_active: {metrics['throttle_active']}",
+            (20, 280),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
+            2,
+         )
+         cv2.putText(frame, f"Right hand visible: {metrics.get('right_hand_detected', False)}", (20, 340), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+         
+         '''
          cv2.putText(
             frame,
             f"Confidence: {metrics['pose_confidence']:.2f}",
@@ -77,7 +88,7 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
          )
-      
+            '''
          clutch_progress = metrics.get("clutch_progress")
          clutch_in_friction_zone = metrics.get(
                 "clutch_in_friction_zone",
