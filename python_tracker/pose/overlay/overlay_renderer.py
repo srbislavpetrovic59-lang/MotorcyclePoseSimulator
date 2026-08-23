@@ -109,31 +109,42 @@ class OverlayRenderer:
             (255, 255, 255),
             2,
          )
+         left_foot_angle = metrics.get("left_foot_angle")
+         lef_foot_drop = metrics.get("left_foot_drop")
 
-         friction_text = (
-            "FRICTION ZONE"
-            if clutch_in_friction_zone
-            else "Friction zone: no"
+         left_foot_text = (
+             f"Left foot angle: {left_foot_angle:.1f}"
+             if left_foot_angle is not None
+             else "Left foot angle: INVALID"
          )
+
          cv2.putText(
              frame,
-             friction_text,
-             (20, 340),
+             left_foot_text,
+             (20, 370),
              cv2.FONT_HERSHEY_SIMPLEX,
              0.7,
-             (0, 255, 0) if clutch_in_friction_zone else (255, 255, 255),
+             (255, 255, 255),
              2,
          )
-         '''
+
+         left_foot_drop_text = (
+             f"Left foot drop: {lef_foot_drop:.1f}"
+             if lef_foot_drop is not None
+             else "Left foot drop: INVALID"
+         )
+
          cv2.putText(
-            frame,
-            f"Right hand rotation: {rotation:.1f}",
-            (20, 310),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (255, 255, 255),
-            2,
-         )'''
+             frame,
+             left_foot_drop_text,
+             (20, 400),
+             cv2.FONT_HERSHEY_SIMPLEX,
+             0.7,
+             (255, 255, 255),
+             2,
+         )
+
+
     def _draw_evaluation(
         self,
         frame,

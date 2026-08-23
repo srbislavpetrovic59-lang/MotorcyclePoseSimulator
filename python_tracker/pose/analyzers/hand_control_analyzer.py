@@ -77,14 +77,14 @@ class HandControlAnalyzer:
         )
         
         throttle_active = self._update_throttle_active(throttle_progress)
-
+        '''
         print(
             f"Throttle: "
             f"rotation={right_hand_rotation}, "
             f"throttle_active={throttle_active}, "
             f"progress={throttle_progress}"
           
-        )    
+        )   ''' 
 
         thumb_index_distance = None
 

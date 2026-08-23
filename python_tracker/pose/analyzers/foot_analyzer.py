@@ -1,5 +1,7 @@
+import time
 from pose.geometry import Geometry
 from pose.landmarks import PoseLandmark
+from pose.analyzers.gear_shift_detector import GearShiftDetector
 
 
 class FootAnalyzer:
@@ -9,6 +11,8 @@ class FootAnalyzer:
         self._rear_brake_active = False
         self._right_foot_was_visible = False
         self._right_foot_seen_once = False
+        self._start_time = time.monotonic() 
+        self._gear_shift_detector = GearShiftDetector()
 
     def analyze(self, landmarks):
         left_knee_angle = self._left_knee_angle(landmarks)
@@ -16,7 +20,47 @@ class FootAnalyzer:
 
         left_foot_angle = self._left_foot_angle(landmarks)
         right_foot_angle = self._right_foot_angle(landmarks)
-     
+        
+        left_heel = landmarks[PoseLandmark.LEFT_HEEL]
+        left_ankle = landmarks[PoseLandmark.LEFT_ANKLE]
+        left_foot = landmarks[PoseLandmark.LEFT_FOOT_INDEX]
+
+        left_foot_is_visible = self._left_foot_visible(
+            left_heel,
+            left_ankle,
+            left_foot,
+        )
+
+        if left_foot_is_visible:
+            left_foot_drop = (
+                left_foot.y - left_ankle.y
+            )
+            gear_shift = self._gear_shift_detector.update(
+                left_foot_drop
+            )
+
+            if gear_shift is not None:
+                print(
+                    "GEAR SHIFT:",
+                    gear_shift,
+                )
+        else:
+            left_foot_drop = None
+        
+        elapsed = time.monotonic() - self._start_time
+        print(
+            "Left foot:",
+            f"t={elapsed:.3f}, "
+            f"drop={left_foot_drop}",
+            f"angle={left_foot_angle:.1f}",
+        )
+        print(
+            "Left visibility:",
+            f"heel={left_heel.visibility:.2f}",
+            f"ankle={left_ankle.visibility:.2f}",
+            f"foot={left_foot.visibility:.2f}",
+        )
+
         right_heel = landmarks[PoseLandmark.RIGHT_HEEL]
         right_ankle = landmarks[PoseLandmark.RIGHT_ANKLE]
         right_foot = landmarks[PoseLandmark.RIGHT_FOOT_INDEX]
@@ -51,7 +95,7 @@ class FootAnalyzer:
             right_foot_rotation = None
             right_foot_drop = None
             rear_brake_ready = None
-
+        '''
         print(
             "Rear brake ready:",
             rear_brake_ready,
@@ -62,7 +106,7 @@ class FootAnalyzer:
         print(
             "Right foot rotation:",
             right_foot_rotation
-        )
+        )'''
         if right_foot_reacquired:
             rear_brake_progress = None
         else:
@@ -76,7 +120,7 @@ class FootAnalyzer:
             rear_brake_progress
         )
 
-       
+        '''
         print(
             "Rear brake:",
             f"drop={right_foot_drop}",
@@ -87,7 +131,7 @@ class FootAnalyzer:
         print(
             "Right foot angle:",
             right_foot_angle
-        )
+        )'''
         if right_foot_is_visible:
             self._right_foot_seen_once = True
 
@@ -98,6 +142,7 @@ class FootAnalyzer:
             "right_knee_angle": right_knee_angle,
             "left_foot_angle": left_foot_angle,
             "right_foot_angle": right_foot_angle,
+            "left_foot_drop": left_foot_drop,
             "right_foot_drop": right_foot_drop,
             "left_leg_extended": left_knee_angle > 165,
             "right_leg_extended": right_knee_angle > 165,
@@ -108,6 +153,7 @@ class FootAnalyzer:
                 max(0.0, 100.0 - abs(left_knee_angle - right_knee_angle)),
                 1,
             ),
+            
         }
 
     def _left_knee_angle(self, landmarks):
@@ -215,5 +261,17 @@ class FootAnalyzer:
             right_heel.visibility >= 0.5
             and right_ankle.visibility >= 0.5
             and right_foot.visibility >= 0.5
+        )
+
+    @staticmethod
+    def _left_foot_visible(
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) -> bool:
+        return (
+            left_heel.visibility >= 0.5
+            and left_ankle.visibility >= 0.5
+            and left_foot.visibility >= 0.5
         )
     

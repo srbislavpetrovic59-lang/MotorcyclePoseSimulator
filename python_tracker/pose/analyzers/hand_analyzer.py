@@ -28,13 +28,13 @@ class HandAnalyzer:
             #f"3D={bend_3d}, "
             f"ratio={index_tip_to_mcp_ratio}"
         )
-        '''
+       
         print(
             f"Right index bend: "
             f"2D={bend_2d}, "
             f"3D={bend_3d}, "
             f"{right_index_finger_bend}"
-        )
+        ) '''
 
         return {
             "left_index_finger_bend": bend_2d,
