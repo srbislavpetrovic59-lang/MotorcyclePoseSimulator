@@ -38,6 +38,8 @@ class RiderState:
     left_foot_angle: float = 0.0
     right_foot_angle: float = 0.0
 
+    gear_shift: str | None = None
+
     rear_brake_progress: float | None = None
     rear_brake_active: bool = False
     

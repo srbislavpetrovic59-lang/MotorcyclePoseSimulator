@@ -30,13 +30,14 @@ class FootAnalyzer:
             left_ankle,
             left_foot,
         )
-
+        gear_shift = None
         if left_foot_is_visible:
             left_foot_drop = (
                 left_foot.y - left_ankle.y
             )
             gear_shift = self._gear_shift_detector.update(
-                left_foot_drop
+                left_foot_drop = left_foot_drop,
+                left_foot_angle=left_foot_angle
             )
 
             if gear_shift is not None:
@@ -149,6 +150,7 @@ class FootAnalyzer:
             "rear_brake_ready": rear_brake_ready,
             "rear_brake_progress": rear_brake_progress,
             "rear_brake_active": rear_brake_active,
+            "gear_shift": gear_shift,
             "leg_symmetry": round(
                 max(0.0, 100.0 - abs(left_knee_angle - right_knee_angle)),
                 1,

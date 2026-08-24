@@ -24,6 +24,7 @@ def test_from_analysis():
         "left_knee_angle": 120.0,
         "right_knee_angle": 125.0,
         "left_foot_angle": 92.0,
+        "gear_shift": "SHIFT_UP",
         "right_foot_angle": 94.0,
         "torso_angle": 45.0,
         "clutch_progress": 0.61,
@@ -58,6 +59,7 @@ def test_from_analysis():
     assert state.left_knee_angle == 120.0
     assert state.right_knee_angle == 125.0
     assert state.left_foot_angle == 92.0
+    assert state.gear_shift == "SHIFT_UP"
     assert state.right_foot_angle == 94.0
     assert state.torso_angle == 45.0
     assert state.clutch_progress == 0.61

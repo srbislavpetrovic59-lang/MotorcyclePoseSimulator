@@ -12,6 +12,7 @@ def test_rider_state_to_json():
         pose_confidence=0.98,
         left_knee_angle=120.0,
         left_foot_angle=92.0,
+        gear_shift="SHIFT_UP",
         right_foot_angle=94.0,
         right_knee_angle=125.0,
         torso_angle=45.0,
@@ -29,6 +30,7 @@ def test_rider_state_to_json():
     assert data["left_knee_angle"] == 120
     assert data["right_knee_angle"] == 125
     assert data["left_foot_angle"] == 92.0
+    assert data["gear_shift"] == "SHIFT_UP"
     assert data["right_foot_angle"] == 94.0
     assert data["torso_angle"] == 45
     assert data["pose_confidence"] == 0.98 
@@ -37,4 +39,11 @@ def test_rider_state_to_json():
     assert data["rear_brake_progress"] == 0.65
     assert data["rear_brake_active"] is True
   
-    
+def test_rider_state_to_json_without_gear_shift():
+    rider_state = RiderState(
+        gear_shift=None,
+    )
+
+    data = json.loads(rider_state.to_json())
+
+    assert data["gear_shift"] is None    

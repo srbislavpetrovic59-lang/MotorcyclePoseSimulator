@@ -49,6 +49,8 @@ class RiderStateMapper:
             
             left_foot_angle=result["left_foot_angle"],
             right_foot_angle=result["right_foot_angle"],
+
+            gear_shift=result["gear_shift"],
             
             torso_angle=result["torso_angle"],
             pose_confidence=result["pose_confidence"],
