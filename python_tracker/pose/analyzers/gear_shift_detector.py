@@ -179,3 +179,10 @@ class GearShiftDetector:
             return "DOWN"
 
         return "TRANSITION"
+
+    @staticmethod
+    def _is_foot_moved_forward(left_foot_forward):
+        if left_foot_forward is None:
+            return False
+
+        return left_foot_forward >= 0.030

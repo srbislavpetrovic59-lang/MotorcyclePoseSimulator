@@ -49,12 +49,25 @@ class FootAnalyzer:
             left_foot_drop = None
         
         elapsed = time.monotonic() - self._start_time
-        
+        left_foot_forward = left_foot.x - left_ankle.x  #testnapred nazad
+        print(
+            "LEFT FOOT FORWARD:",
+            f"t={elapsed:.3f}",
+            f"value={left_foot_forward:.4f}",
+        )
         print(
             "Left foot:",
             f"t={elapsed:.3f}, "
             f"drop={left_foot_drop}",
             f"angle={left_foot_angle:.1f}",
+        )
+       
+        print(
+            "LEFT FOOT XYZ:",
+            f"t={elapsed:.3f}",
+            f"heel=({left_heel.x:.3f}, {left_heel.y:.3f}, {left_heel.z:.3f})",
+            f"ankle=({left_ankle.x:.3f}, {left_ankle.y:.3f}, {left_ankle.z:.3f})",
+            f"toe=({left_foot.x:.3f}, {left_foot.y:.3f}, {left_foot.z:.3f})",
         )
         print(
             "Left visibility:",

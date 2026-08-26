@@ -1,120 +1,59 @@
-﻿Da — ovo je pravo mesto gde metrics zaista postoji. 👍
+﻿Da — pošto je još dan, iskoristimo ga za još jedan kvalitetan live set merenja, ali sada ciljano.
 
-Pošto nam vreme trenutno treba samo za live eksperiment, možemo mnogo jednostavnije nego preko FootAnalyzer-a.
+Ne bih sada dirao detector. Snimio bih samo sirove metrike za tri odvojena scenarija, jer će nam to kasnije dati mnogo bolju kalibraciju:
 
-U _process_pose(), odmah posle:
-
-metrics = self._analyzer.analyze(
-    frame_analysis
-)
-
-dodaj:
-
-metrics["elapsed_time"] = time.monotonic() - self._start_time
-
-Ali samo ako PosePipeline već ima self._start_time. Ako nema, ne dodaj još tu liniju.
-
-Pošto želimo da vreme na overlay-u bude isto ono koje već ispisuje FootAnalyzer, čistije je ipak da ne pravimo drugi _start_time.
-
-Najmanja i najsigurnija varijanta
-
-U FootAnalyzer.analyze() već imaš:
-
-elapsed = time.monotonic() - self._start_time
-
-Na kraju FootAnalyzer.analyze() sigurno vraća neki rezultat, verovatno dictionary poput:
-
-return {
-    ...
-}
-
-Tu samo dodamo:
-
-"elapsed_time": elapsed,
-
-Tada će tok biti prirodan:
-
-FootAnalyzer
-     ↓
-elapsed_time
-     ↓
-PoseAnalyzer metrics
-     ↓
-_process_pose()
-     ↓
-OverlayRenderer
-
-i u ovom _process_pose() ne moramo ništa menjati.
-
-Dakle, pošalji mi samo return deo iz FootAnalyzer.analyze(). Mislim da će nam trebati bukvalno jedna linija.
-
-ok znaci bez starttime, nego elapsed, a gde da ispisuje
-
-Da — ne pravimo novi start_time. Koristimo elapsed koji već računaš u FootAnalyzer. 👍
-
-U FootAnalyzer.analyze() na kraju, u dictionary koji već vraćaš, dodaćemo:
-
-"elapsed_time": elapsed,
-
-Time će elapsed_time automatski završiti u metrics.
-
-A ispis na slici ostaje u OverlayRenderer._draw_metrics(). Tamo dodaj, najbolje na samom početku metode:
-
-elapsed = metrics.get("elapsed_time")
+A) 5 s FOOTPEG
+   3 s NAPRED do menjača, bez šaltanja
+   5 s FOOTPEG
 
 
-time_text = (
-    f"TIME: {elapsed:.1f} s"
-    if elapsed is not None
-    else "TIME: --"
-)
+B) 5 s FOOTPEG
+   pravi SHIFT_UP
+   5 s FOOTPEG
 
 
-cv2.putText(
-    frame,
-    time_text,
-    (700, 60),
-    cv2.FONT_HERSHEY_SIMPLEX,
-    1.5,
-    (255, 255, 255),
-    3,
-    cv2.LINE_AA,
-)
+C) 5 s FOOTPEG
+   pravi SHIFT_DOWN
+   5 s FOOTPEG
 
-Dakle tok je:
+U logu neka ostanu:
+left_foot_forward, left_foot_drop, left_foot_angle, plus visibility.
 
-FootAnalyzer
-    elapsed
-       ↓
-"elapsed_time": elapsed
-       ↓
-PoseAnalyzer
-       ↓
-metrics
-       ↓
-OverlayRenderer
-       ↓
-TIME: 18.4 s
+Vreme mi posle napiši samo približno, npr.:
 
-Samo nam još treba da vidimo kako tačno izgleda return na kraju FootAnalyzer.analyze(), da ti kažem gde da ubaciš "elapsed_time": elapsed bez nagađanja.
+napred: 10–13 s
+shift up: 20–23 s
+shift down: 30–33 s
 
+Najvažnije: radi sve sa istim položajem kamere, istim svetlom i patikama, jer onda ćemo moći direktno da uporedimo koliko se left_foot_forward menja kod samog prilaska menjaču, a koliko kod pravog UP/DOWN pokreta.
 
+Ako hoćeš, možemo odmah da uradimo jedan kontinuirani snimak od oko 40 sekundi sa sva tri scenarija.
 
+Pasted text(20260826-153247).txt
+Document
+napred nazad: 10 ;  shift up: 20s;    shift down 30s
 
-Da, baš se vidi da visibility često pada ispod praga, pa zato dobijaš drop=None i detector praktično oslepi za stopalo.
+Ovaj snimak je veoma koristan, jer sada imamo sva tri scenarija u istim uslovima.
 
-Na početku loga imaš, recimo:
+Kod običnog napred–nazad oko 10 s, left_foot_forward se menja dosta jako — ide od približno 0.005 do 0.038. Dakle sama amplituda forward pomeranja jeste dobar signal da je noga napustila miran položaj, ali nije dovoljna da kaže da li je to bio shift ili samo prilazak menjaču.
 
-heel=0.34 ankle=0.33 foot=0.31
+Kod pravog SHIFT_UP oko 20 s forward ide približno do 0.040, a ugao se penje do oko 162°. Kod SHIFT_DOWN oko 30 s forward ide još više, do oko 0.047, dok ugao pada čak do oko 145–146°. Dakle sada već imamo dosta lep fizički obrazac:
 
-a kasnije dugo ostaje oko ankle 0.3–0.4, foot 0.4–0.5, pa drop ostaje None.
+FOOTPEG / mirno
+    ↓
+left_foot_forward se značajno promeni
+    ↓
+ako angle ide nagore → SHIFT_UP kandidat
+ako angle ide nadole → SHIFT_DOWN kandidat
+    ↓
+povratak noge → potvrda
 
-Tek oko t≈11.7 s visibility konačno pređe prag dovoljno da dobijemo stvarne drop vrednosti i GEAR logove.
+To je mnogo bolji model nego sadašnji „trenutni ugao određuje smer“.
 
-Znači sada je veći problem tracking stopala, ne logika menjača.
+Još jedna važna stvar: visibility kod SHIFT_DOWN dela pada na oko 0.77–0.82, dok je ranije oko 0.9. To znači da ćemo morati da budemo tolerantni prema visibility-ju; ne bih stavljao visok prag tipa 0.9, jer bismo baš pravi shift-down mogli da odbacimo. U logu stvarno ima uspešan SHIFT_DOWN oko 32.6 s uz visibility oko 0.77–0.80.
 
-Ja bih sledeće uradio praktično: ne diramo detector, nego scenu. Kamera malo niže ili bliže, da stopalo zauzme veći deo slike, i da kontrast oko stopala ostane jak. Ako može, neka leva noga i menjač budu bliže centru kadra — MediaPipe obično mnogo stabilnije drži landmarke tamo nego pri dnu/ivici slike.
+I potvrđuje se da trenutna logika još pravi lažne događaje — npr. oko 10.45 s, kada si radio samo napred–nazad, ona emituje SHIFT_UP. To je upravo ono što novi „forward + trend“ model treba da spreči.
 
-I još nešto: naš prag visibility >= 0.5 trenutno je dosta strog za ovu scenu. Ali ne bih ga odmah spuštao, jer bi onda dobili više pogrešnih landmarkova. Prvo bih pokušao da fizički dignemo visibility iznad 0.6.
+Po meni imamo dovoljno dnevnih merenja. Sledeći korak više nije live snimanje, nego da u kod uvedemo dve stvari: foot_moved_forward kao uslov za početak kandidata i trend ugla kroz nekoliko frejmova za određivanje UP ili DOWN.
 
-Dakle trenutno: kamera/scena pre koda. Kad dobijemo stabilno heel/ankle/foot > 0.6, onda tek ima smisla dalje učiti shift putanju.  
+Tu bih sutra krenuo test-first, malim korakom.

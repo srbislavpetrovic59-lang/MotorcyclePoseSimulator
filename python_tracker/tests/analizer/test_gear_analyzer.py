@@ -226,3 +226,4 @@ def test_front_view_footpeg_jitter_does_not_emit_shift():
     )
 
     assert result is None
+
