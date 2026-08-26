@@ -49,6 +49,7 @@ class FootAnalyzer:
             left_foot_drop = None
         
         elapsed = time.monotonic() - self._start_time
+        
         print(
             "Left foot:",
             f"t={elapsed:.3f}, "
@@ -155,6 +156,7 @@ class FootAnalyzer:
                 max(0.0, 100.0 - abs(left_knee_angle - right_knee_angle)),
                 1,
             ),
+            "elapsed_time": elapsed,
             
         }
 

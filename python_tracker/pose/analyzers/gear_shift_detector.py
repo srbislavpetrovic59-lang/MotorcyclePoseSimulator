@@ -6,6 +6,8 @@ class GearShiftDetector:
     FOOTPEG_MIN = 0.070
     FOOTPEG_MAX = 0.075
 
+    FOOTPEG_EXIT_CONFIRM_FRAMES = 3
+
     UP_MIN = 0.085
     UP_MAX = 0.095
 
@@ -16,6 +18,8 @@ class GearShiftDetector:
         self._state = "IDLE"
         self._last_zone = None
         self._zone_history = []
+        self._outside_footpeg_frames = 0
+        self._pending_zones = []
       
    
    
@@ -37,7 +41,11 @@ class GearShiftDetector:
         left_foot_drop,
         left_foot_angle=None,
     ):
-        zone = self._drop_zone(left_foot_drop)
+        zone = self._movement_zone(
+            left_foot_drop,
+            left_foot_angle,
+        )
+        
 
         print(
             "GEAR:",
@@ -46,6 +54,8 @@ class GearShiftDetector:
             f"zone={zone}",
             f"state={self._state}",
             f"history={self._zone_history}",
+            f"pending={self._pending_zones}",
+            f"outside={self._outside_footpeg_frames}",
         )
 
         if self._state == "IDLE":
@@ -61,27 +71,47 @@ class GearShiftDetector:
             return None
 
         if self._state == "READY":
-            if self._is_footpeg_position(
+            if self._is_footpeg_stay_position(
                 left_foot_drop,
                 left_foot_angle,
             ):
-                if self._zone_history == ["LOW", "HIGH"]:
+                self._outside_footpeg_frames = 0
+                self._pending_zones.clear()
+
+                if self._zone_history == ["UP"]:
                     self._zone_history.clear()
                     return "SHIFT_UP"
 
-                if self._zone_history == ["HIGH", "LOW"]:
+                if self._zone_history == ["DOWN"]:
                     self._zone_history.clear()
                     return "SHIFT_DOWN"
 
                 self._zone_history.clear()
                 return None
 
+            self._outside_footpeg_frames += 1
+
             if zone is not None:
                 if (
-                    not self._zone_history
-                    or self._zone_history[-1] != zone
+                    not self._pending_zones
+                    or self._pending_zones[-1] != zone
                 ):
-                    self._zone_history.append(zone)
+                    self._pending_zones.append(zone)
+
+            if (
+                self._outside_footpeg_frames
+                < self.FOOTPEG_EXIT_CONFIRM_FRAMES
+            ):
+                return None
+
+            for pending_zone in self._pending_zones:
+                if (
+                    not self._zone_history
+                    or self._zone_history[-1] != pending_zone
+                ):
+                    self._zone_history.append(pending_zone)
+
+            self._pending_zones.clear()
 
             return None
         
@@ -111,6 +141,41 @@ class GearShiftDetector:
             return False
 
         return (
-            0.055 <= left_foot_drop <= 0.065
-            and 120.0 <= left_foot_angle <= 134.0
+            0.095 <= left_foot_drop <= 0.135
+            and 150.0 <= left_foot_angle <= 157.0
         )
+
+    @staticmethod
+    def _is_footpeg_stay_position(
+        left_foot_drop,
+        left_foot_angle,
+    ) -> bool:
+        if (
+            left_foot_drop is None
+            or left_foot_angle is None
+        ):
+            return False
+
+        return (
+            0.090 <= left_foot_drop <= 0.140
+            and 150.0 <= left_foot_angle <= 158.0
+        )
+    @classmethod
+    def _movement_zone(
+        cls,
+        left_foot_drop,
+        left_foot_angle,
+    ):
+        if (
+            left_foot_drop is None
+            or left_foot_angle is None
+        ):
+            return None
+
+        if left_foot_angle >= 158.0:
+            return "UP"
+
+        if left_foot_angle <= 150.0:
+            return "DOWN"
+
+        return "TRANSITION"

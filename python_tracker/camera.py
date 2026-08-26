@@ -7,6 +7,7 @@ class Camera:
 
         self._source = source
         self._capture = cv2.VideoCapture(source)
+        self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         if not self._capture.isOpened():
             raise RuntimeError(f"Cannot open camera: {source}")
@@ -17,7 +18,6 @@ class Camera:
 
         if not ok:
             return None
-
         return cv2.flip(frame, 1)
 
     def release(self):

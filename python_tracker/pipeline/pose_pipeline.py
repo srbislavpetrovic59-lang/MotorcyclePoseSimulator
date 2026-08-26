@@ -198,7 +198,7 @@ class PosePipeline:
         metrics = self._analyzer.analyze(
             frame_analysis
         )
-       
+      
         self._last_analysis_result = metrics
 
         rider_state = self._rider_state_mapper.from_analysis(

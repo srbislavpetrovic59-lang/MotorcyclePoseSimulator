@@ -19,7 +19,25 @@ class OverlayRenderer:
         self,
         frame,
         metrics,
-    ):
+    ):  
+         elapsed = metrics.get("elapsed_time")
+
+         time_text = (
+            f"TIME: {elapsed:.1f} s"
+            if elapsed is not None
+            else "TIME: --"
+         )
+
+         cv2.putText(
+            frame,
+            time_text,
+            (700, 300),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            5,
+            (0, 0, 255),
+            3,
+            cv2.LINE_AA,
+         )
          cv2.putText(
             frame,
             f"Left elbow: {metrics['left_elbow_angle']:.1f} deg",
