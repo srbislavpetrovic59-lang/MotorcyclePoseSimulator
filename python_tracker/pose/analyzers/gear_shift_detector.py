@@ -20,6 +20,7 @@ class GearShiftDetector:
         self._zone_history = []
         self._outside_footpeg_frames = 0
         self._pending_zones = []
+        self._angle_history = []
       
    
    
@@ -40,7 +41,13 @@ class GearShiftDetector:
         self,
         left_foot_drop,
         left_foot_angle=None,
+        left_foot_forward=None,
     ):
+        self._update_angle_history(left_foot_angle)
+        foot_moved_forward = self._is_foot_moved_forward(
+            left_foot_forward
+        )
+
         zone = self._movement_zone(
             left_foot_drop,
             left_foot_angle,
@@ -56,6 +63,8 @@ class GearShiftDetector:
             f"history={self._zone_history}",
             f"pending={self._pending_zones}",
             f"outside={self._outside_footpeg_frames}",
+            f"forward={left_foot_forward}",
+            f"moved_forward={foot_moved_forward}",
         )
 
         if self._state == "IDLE":
@@ -71,9 +80,12 @@ class GearShiftDetector:
             return None
 
         if self._state == "READY":
-            if self._is_footpeg_stay_position(
-                left_foot_drop,
-                left_foot_angle,
+            if (
+                self._is_footpeg_stay_position(
+                    left_foot_drop,
+                    left_foot_angle,
+                )
+                and not foot_moved_forward
             ):
                 self._outside_footpeg_frames = 0
                 self._pending_zones.clear()
@@ -89,9 +101,14 @@ class GearShiftDetector:
                 self._zone_history.clear()
                 return None
 
+            if not foot_moved_forward:
+                self._outside_footpeg_frames = 0
+                self._pending_zones.clear()
+                return None
+
             self._outside_footpeg_frames += 1
 
-            if zone is not None:
+            if zone in ("UP", "DOWN"):
                 if (
                     not self._pending_zones
                     or self._pending_zones[-1] != zone
@@ -186,3 +203,29 @@ class GearShiftDetector:
             return False
 
         return left_foot_forward >= 0.030
+
+    def _angle_trend(self):
+        if len(self._angle_history) < 4:
+            return None
+
+        first = self._angle_history[0]
+        last = self._angle_history[-1]
+
+        delta = last - first
+
+        if delta >= 5.0:
+            return "RISING"
+
+        if delta <= -5.0:
+            return "FALLING"
+
+        return "STABLE"
+
+    def _update_angle_history(self, angle):
+        if angle is None:
+            return
+
+        self._angle_history.append(angle)
+
+        if len(self._angle_history) > 4:
+            self._angle_history.pop(0)
