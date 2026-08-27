@@ -1,4 +1,5 @@
-﻿from pose.analyzers.gear_shift_detector import GearShiftDetector
+﻿import pytest
+from pose.analyzers.gear_shift_detector import GearShiftDetector
 
 
 def test_detector_waits_for_footpeg_before_tracking_shift():
@@ -143,27 +144,29 @@ def test_front_view_shift_up_path():
     detector.update(
         left_foot_drop=0.120,
         left_foot_angle=155.0,
+        left_foot_forward=0.015,
     )
 
     detector.update(
         left_foot_drop=0.120,
         left_foot_angle=159.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         left_foot_drop=0.130,
         left_foot_angle=161.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         left_foot_drop=0.125,
         left_foot_angle=160.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     result = detector.update(
         left_foot_drop=0.120,
         left_foot_angle=155.0,
+        left_foot_forward=0.015,
     )
 
     assert result == "SHIFT_UP"
@@ -174,27 +177,29 @@ def test_front_view_shift_down_path():
     detector.update(
         left_foot_drop=0.120,
         left_foot_angle=155.0,
+        left_foot_forward =0.015,
     )
 
     detector.update(
         left_foot_drop=0.120,
         left_foot_angle=149.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         left_foot_drop=0.130,
         left_foot_angle=147.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         left_foot_drop=0.125,
         left_foot_angle=148.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     result = detector.update(
         left_foot_drop=0.120,
         left_foot_angle=155.0,
+        left_foot_forward=0.015,
     )
 
     assert result == "SHIFT_DOWN"
@@ -411,30 +416,31 @@ def test_rising_trend_with_forward_movement_builds_up_history():
     detector.update(
         0.120,
         155.0,
+        0.015,
     )
 
     # Forward movement starts, angle first dips slightly...
     detector.update(
         0.120,
         154.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     # ...then rises through transition into UP.
     detector.update(
         0.120,
         156.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         158.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         160.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     assert detector._angle_trend() == "RISING"
@@ -447,27 +453,28 @@ def test_falling_trend_with_forward_movement_builds_down_history():
     detector.update(
         0.120,
         155.0,
+        0.015
     )
 
     detector.update(
         0.120,
         156.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         154.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         152.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         149.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     assert detector._angle_trend() == "FALLING"
@@ -480,30 +487,31 @@ def test_rising_shift_emits_only_on_return_to_footpeg():
     detector.update(
         0.120,
         155.0,
+        0.015   
     )
 
     # Forward + rising movement
     detector.update(
         0.120,
         154.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         156.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         158.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     # While still away from footpeg, no event yet.
     result = detector.update(
         0.120,
         160.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.015,
     )
 
     assert result is None
@@ -512,7 +520,7 @@ def test_rising_shift_emits_only_on_return_to_footpeg():
     result = detector.update(
         0.120,
         155.0,
-        left_foot_forward=0.025,
+        left_foot_forward=0.015,
     )
 
     assert result == "SHIFT_UP"
@@ -524,30 +532,31 @@ def test_falling_shift_emits_only_on_return_to_footpeg():
     detector.update(
         0.120,
         155.0,
+        0.015
     )
 
     # Forward + falling movement
     detector.update(
         0.120,
         156.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         154.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
     detector.update(
         0.120,
         152.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.04,
     )
 
     # Still away from footpeg -> no event yet.
     result = detector.update(
         0.120,
         149.0,
-        left_foot_forward=0.034,
+        left_foot_forward=0.015,
     )
 
     assert result is None
@@ -556,8 +565,127 @@ def test_falling_shift_emits_only_on_return_to_footpeg():
     result = detector.update(
         0.120,
         155.0,
-        left_foot_forward=0.025,
+        left_foot_forward=0.015,
     )
 
     assert result == "SHIFT_DOWN"
+
+def test_forward_movement_stays_active_after_threshold_is_crossed():
+    detector = GearShiftDetector()
+
+    detector._update_forward_movement(0.025)
+    assert detector._forward_movement_active is False
+
+    detector._update_forward_movement(0.034)
+    assert detector._forward_movement_active is True
+
+    # Forward value may fall again during the actual shift.
+    detector._update_forward_movement(0.018)
+    assert detector._forward_movement_active is True
+
+def test_forward_movement_resets_on_return_to_footpeg():
+    detector = GearShiftDetector()
+
+    detector._update_forward_movement(0.034)
+
+    assert detector._forward_movement_active is True
+
+    detector._reset_forward_movement()
+
+    assert detector._forward_movement_active is False
+
+def test_initial_down_zone_can_still_become_shift_up_when_angle_trend_rises():
+    detector = GearShiftDetector()
+
+    # FOOTPEG
+    detector.update(
+        0.120,
+        155.0,
+    )
+
+    # Foot moves forward; first angle can dip.
+    detector.update(
+        0.120,
+        142.0,
+        left_foot_forward=0.035,
+    )
+
+    detector.update(
+        0.120,
+        145.0,
+        left_foot_forward=0.020,
+    )
+    detector.update(
+        0.120,
+        151.0,
+        left_foot_forward=0.018,
+    )
+    detector.update(
+        0.120,
+        158.0,
+        left_foot_forward=0.016,
+    )
+
+    assert detector._angle_trend() == "RISING"
+
+def test_negative_forward_movement_can_activate_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._update_forward_movement(-0.035)
+
+    assert detector._forward_movement_active is True
+
+def test_footpeg_forward_baseline_can_be_set():
+    detector = GearShiftDetector()
+
+    detector._set_forward_baseline(0.018)
+
+    assert detector._forward_baseline == 0.018
+
+    assert detector._forward_offset(-0.002) == pytest.approx(-0.020)
+
+def test_forward_offset_is_none_without_baseline():
+    detector = GearShiftDetector()
+
+    assert detector._forward_offset(0.030) is None
+
+def test_forward_movement_uses_offset_from_baseline():
+    detector = GearShiftDetector()
+
+    detector._set_forward_baseline(0.018)
+
+    detector._update_forward_movement_from_baseline(0.038)
+
+    assert detector._forward_movement_active is True
+
+def test_backward_movement_from_baseline_can_activate_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._set_forward_baseline(0.018)
+
+    detector._update_forward_movement_from_baseline(-0.002)
+
+    assert detector._forward_movement_active is True
+
+def test_forward_baseline_is_learned_on_footpeg():
+    detector = GearShiftDetector()
+
+    detector._update_forward_baseline(
+        left_foot_forward=0.018,
+        on_footpeg=True,
+    )
+
+    assert detector._forward_baseline == pytest.approx(0.018)
+
+def test_forward_baseline_is_not_updated_off_footpeg():
+    detector = GearShiftDetector()
+
+    detector._set_forward_baseline(0.018)
+
+    detector._update_forward_baseline(
+        left_foot_forward=0.040,
+        on_footpeg=False,
+    )
+
+    assert detector._forward_baseline == pytest.approx(0.018)
 

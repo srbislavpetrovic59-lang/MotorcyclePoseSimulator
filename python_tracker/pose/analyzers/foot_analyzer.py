@@ -30,14 +30,21 @@ class FootAnalyzer:
             left_ankle,
             left_foot,
         )
+        
         gear_shift = None
         if left_foot_is_visible:
             left_foot_drop = (
                 left_foot.y - left_ankle.y
             )
+            
+            left_foot_forward = (
+                left_foot.x - left_ankle.x
+            )
+            
             gear_shift = self._gear_shift_detector.update(
-                left_foot_drop = left_foot_drop,
-                left_foot_angle=left_foot_angle
+                left_foot_drop,
+                left_foot_angle,
+                left_foot_forward=left_foot_forward,
             )
 
             if gear_shift is not None:

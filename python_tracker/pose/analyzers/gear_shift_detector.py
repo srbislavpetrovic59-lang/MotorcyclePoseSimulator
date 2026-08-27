@@ -21,6 +21,8 @@ class GearShiftDetector:
         self._outside_footpeg_frames = 0
         self._pending_zones = []
         self._angle_history = []
+        self._forward_movement_active = False
+        self._forward_baseline = None
       
    
    
@@ -44,10 +46,21 @@ class GearShiftDetector:
         left_foot_forward=None,
     ):
         self._update_angle_history(left_foot_angle)
+        self._update_forward_movement_from_baseline(
+            left_foot_forward
+        )
         foot_moved_forward = self._is_foot_moved_forward(
             left_foot_forward
         )
+        on_footpeg = self._is_footpeg_stay_position(
+            left_foot_drop,
+            left_foot_angle,
+        )
 
+        self._update_forward_baseline(
+            left_foot_forward=left_foot_forward,
+            on_footpeg=on_footpeg,
+        )
         zone = self._movement_zone(
             left_foot_drop,
             left_foot_angle,
@@ -87,6 +100,7 @@ class GearShiftDetector:
                 )
                 and not foot_moved_forward
             ):
+                self._reset_forward_movement()
                 self._outside_footpeg_frames = 0
                 self._pending_zones.clear()
 
@@ -101,19 +115,35 @@ class GearShiftDetector:
                 self._zone_history.clear()
                 return None
 
-            if not foot_moved_forward:
+            if not self._forward_movement_active:
                 self._outside_footpeg_frames = 0
                 self._pending_zones.clear()
                 return None
 
             self._outside_footpeg_frames += 1
-
+            '''
             if zone in ("UP", "DOWN"):
                 if (
                     not self._pending_zones
                     or self._pending_zones[-1] != zone
                 ):
                     self._pending_zones.append(zone)
+                    '''
+            trend = self._angle_trend()
+
+            candidate = None
+
+            if trend == "RISING":
+                candidate = "UP"
+            elif trend == "FALLING":
+                candidate = "DOWN"
+
+            if candidate is not None:
+                if (
+                    not self._pending_zones
+                    or self._pending_zones[-1] != candidate
+                ):
+                    self._pending_zones.append(candidate)
 
             if (
                 self._outside_footpeg_frames
@@ -202,7 +232,7 @@ class GearShiftDetector:
         if left_foot_forward is None:
             return False
 
-        return left_foot_forward >= 0.030
+        return abs(left_foot_forward) >= 0.030
 
     def _angle_trend(self):
         if len(self._angle_history) < 4:
@@ -229,3 +259,49 @@ class GearShiftDetector:
 
         if len(self._angle_history) > 4:
             self._angle_history.pop(0)
+
+    def _update_forward_movement(self, left_foot_forward):
+        if self._is_foot_moved_forward(left_foot_forward):
+            self._forward_movement_active = True
+
+    def _reset_forward_movement(self):
+        self._forward_movement_active = False
+
+    def _set_forward_baseline(self, value):
+        self._forward_baseline = value
+
+    def _forward_offset(self, left_foot_forward):
+        if (
+            self._forward_baseline is None
+            or left_foot_forward is None
+        ):
+            return None
+
+        return left_foot_forward - self._forward_baseline
+
+    def _update_forward_movement_from_baseline(
+        self,
+        left_foot_forward,
+    ):
+        offset = self._forward_offset(
+            left_foot_forward
+        )
+
+        if offset is None:
+            return
+
+        if abs(offset) >= 0.019:
+            self._forward_movement_active = True
+
+    def _update_forward_baseline(
+        self,
+        left_foot_forward,
+        on_footpeg,
+    ):
+        if left_foot_forward is None:
+            return
+
+        if not on_footpeg:
+            return
+
+        self._forward_baseline = left_foot_forward
