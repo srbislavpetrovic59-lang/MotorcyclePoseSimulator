@@ -7,6 +7,7 @@ class GearShiftDetector:
     FOOTPEG_MAX = 0.075
 
     FOOTPEG_EXIT_CONFIRM_FRAMES = 3
+    MAX_SHIFT_ATTEMPT_FRAMES = 30
 
     UP_MIN = 0.085
     UP_MAX = 0.095
@@ -121,14 +122,13 @@ class GearShiftDetector:
                 return None
 
             self._outside_footpeg_frames += 1
-            '''
-            if zone in ("UP", "DOWN"):
-                if (
-                    not self._pending_zones
-                    or self._pending_zones[-1] != zone
-                ):
-                    self._pending_zones.append(zone)
-                    '''
+            if (
+                self._outside_footpeg_frames
+                >= self.MAX_SHIFT_ATTEMPT_FRAMES
+            ):
+                self._reset_stale_shift_attempt()
+                return None
+            
             trend = self._angle_trend()
 
             candidate = None
@@ -139,11 +139,7 @@ class GearShiftDetector:
                 candidate = "DOWN"
 
             if candidate is not None:
-                if (
-                    not self._pending_zones
-                    or self._pending_zones[-1] != candidate
-                ):
-                    self._pending_zones.append(candidate)
+                self._add_shift_candidate(candidate)
 
             if (
                 self._outside_footpeg_frames
@@ -151,15 +147,7 @@ class GearShiftDetector:
             ):
                 return None
 
-            for pending_zone in self._pending_zones:
-                if (
-                    not self._zone_history
-                    or self._zone_history[-1] != pending_zone
-                ):
-                    self._zone_history.append(pending_zone)
-
-            self._pending_zones.clear()
-
+            
             return None
         
         return None
@@ -305,3 +293,41 @@ class GearShiftDetector:
             return
 
         self._forward_baseline = left_foot_forward
+    def _reset_stale_shift_attempt(self):
+        self._forward_movement_active = False
+        self._outside_footpeg_frames = 0
+        self._pending_zones.clear()
+        self._zone_history.clear()
+
+    def _add_shift_candidate(self, candidate):
+        if candidate not in ("UP", "DOWN"):
+            return
+
+        self._pending_zones.append(candidate)
+
+        # Direction already confirmed for this attempt.
+        if self._zone_history:
+            return
+
+        if (
+            len(self._pending_zones) >= 2
+            and self._pending_zones[-1] == self._pending_zones[-2]
+        ):
+            self._zone_history = [candidate]
+
+    def test_wrong_first_candidate_can_be_overruled_before_confirmation():
+        detector = GearShiftDetector()
+
+        detector._add_shift_candidate("UP")
+        detector._add_shift_candidate("DOWN")
+        detector._add_shift_candidate("DOWN")
+
+        assert detector._zone_history == ["DOWN"]
+    def test_realistic_down_shift_can_recover_from_initial_up_candidate():
+        detector = GearShiftDetector()
+
+        detector._add_shift_candidate("UP")
+        detector._add_shift_candidate("DOWN")
+        detector._add_shift_candidate("DOWN")
+
+        assert detector._zone_history == ["DOWN"]

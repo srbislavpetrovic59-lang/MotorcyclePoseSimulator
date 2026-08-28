@@ -162,7 +162,11 @@ def test_front_view_shift_up_path():
         left_foot_angle=160.0,
         left_foot_forward=0.04,
     )
-
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=166.0,
+        left_foot_forward=0.04,
+    )
     result = detector.update(
         left_foot_drop=0.120,
         left_foot_angle=155.0,
@@ -193,6 +197,11 @@ def test_front_view_shift_down_path():
     detector.update(
         left_foot_drop=0.125,
         left_foot_angle=148.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=142.0,
         left_foot_forward=0.04,
     )
 
@@ -442,6 +451,11 @@ def test_rising_trend_with_forward_movement_builds_up_history():
         160.0,
         left_foot_forward=0.04,
     )
+    detector.update(
+        0.120,
+        162.0,
+        left_foot_forward=0.04,
+    )
 
     assert detector._angle_trend() == "RISING"
     assert detector._zone_history == ["UP"]
@@ -474,6 +488,11 @@ def test_falling_trend_with_forward_movement_builds_down_history():
     detector.update(
         0.120,
         149.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        0.120,
+        146.0,
         left_foot_forward=0.04,
     )
 
@@ -513,9 +532,15 @@ def test_rising_shift_emits_only_on_return_to_footpeg():
         160.0,
         left_foot_forward=0.015,
     )
+    result = detector.update(
+        0.120,
+        162.0,
+        left_foot_forward=0.015,
+    )
 
     assert result is None
 
+    
     # Return to footpeg confirms the shift.
     result = detector.update(
         0.120,
@@ -556,6 +581,11 @@ def test_falling_shift_emits_only_on_return_to_footpeg():
     result = detector.update(
         0.120,
         149.0,
+        left_foot_forward=0.015,
+    )
+    result = detector.update(
+        0.120,
+        147.0,
         left_foot_forward=0.015,
     )
 
@@ -688,4 +718,160 @@ def test_forward_baseline_is_not_updated_off_footpeg():
     )
 
     assert detector._forward_baseline == pytest.approx(0.018)
+def test_shift_attempt_resets_after_too_many_outside_frames():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_movement_active = True
+    detector._outside_footpeg_frames = 100
+    detector._zone_history = ["DOWN", "UP", "DOWN"]
+
+    detector._reset_stale_shift_attempt()
+
+    assert detector._forward_movement_active is False
+    assert detector._outside_footpeg_frames == 0
+    assert detector._zone_history == []
+def test_shift_direction_can_change_before_confirmation():
+    detector = GearShiftDetector()
+
+    detector._pending_zones = ["UP"]
+
+    detector._add_shift_candidate("DOWN")
+
+    assert detector._pending_zones == ["UP", "DOWN"]
+def test_update_does_not_confirm_direction_from_single_candidate():
+    detector = GearShiftDetector()
+
+    # Establish footpeg / baseline.
+    detector.update(
+        0.110,
+        155.0,
+        left_foot_forward=0.015,
+    )
+
+    detector.update(
+        0.090,
+        145.0,
+        left_foot_forward=0.040,
+    )
+    detector.update(
+        0.085,
+        142.0,
+        left_foot_forward=0.040,
+    )
+
+    # Angle oscillation eventually produces only
+    # one RISING candidate.
+    detector.update(
+        0.090,
+        151.0,
+        left_foot_forward=0.040,
+    )
+    detector.update(
+        0.095,
+        158.0,
+        left_foot_forward=0.040,
+    )
+
+    assert detector._zone_history == []
+    assert detector._pending_zones == ["UP"]
+def test_update_uses_add_shift_candidate(monkeypatch):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_movement_active = True
+
+    candidates = []
+
+    monkeypatch.setattr(
+        detector,
+        "_add_shift_candidate",
+        lambda candidate: candidates.append(candidate),
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_angle_trend",
+        lambda: "RISING",
+    )
+
+    detector.update(
+        0.070,
+        160.0,
+        left_foot_forward=0.040,
+    )
+
+    assert candidates == ["UP"]
+
+def test_single_pending_candidate_does_not_lock_direction():
+    detector = GearShiftDetector()
+
+    detector._pending_zones = ["UP"]
+
+    detector._add_shift_candidate("DOWN")
+
+    assert detector._pending_zones == ["UP", "DOWN"]
+
+def test_repeated_candidate_confirms_shift_direction():
+    detector = GearShiftDetector()
+
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+
+    assert detector._zone_history == ["UP"]
+def test_confirmed_shift_direction_cannot_be_reversed():
+    detector = GearShiftDetector()
+
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+
+    detector._add_shift_candidate("DOWN")
+    detector._add_shift_candidate("DOWN")
+
+    assert detector._zone_history == ["UP"]
+def test_real_shift_down_is_not_confused_by_angle_oscillation():
+    detector = GearShiftDetector()
+
+    events = []
+
+    # Neutral footpeg position - establishes READY and baseline.
+    result = detector.update(
+        0.1049,
+        152.7,
+        left_foot_forward=0.0229,
+    )
+    if result is not None:
+        events.append(result)
+
+    # Real SHIFT_DOWN-like movement from live measurements.
+    samples = [
+        (0.0797, 173.3, -0.0141),
+        (0.0589, 179.9, -0.0022),
+        (0.0739, 178.7, -0.0025),
+        (0.0690, 170.3, -0.0033),
+        (-0.0272, 154.8, 0.0026),
+        (0.0077, 137.9, 0.0009),
+        (-0.0193, 168.0, -0.0028),
+        (0.1187, 175.5, -0.0133),
+    ]
+
+    for drop, angle, forward in samples:
+        result = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+        if result is not None:
+            events.append(result)
+
+    # Return to neutral footpeg position.
+    result = detector.update(
+        0.1049,
+        154.0,
+        left_foot_forward=0.0229,
+    )
+    if result is not None:
+        events.append(result)
+
+    assert events == ["SHIFT_DOWN"]
 
