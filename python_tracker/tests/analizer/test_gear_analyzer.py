@@ -861,6 +861,15 @@ def test_real_shift_down_is_not_confused_by_angle_oscillation():
             angle,
             left_foot_forward=forward,
         )
+
+        print(
+            "TEST:",
+            "angle=", angle,
+            "zone=", detector._direction_zone,
+            "frames=", detector._direction_zone_frames,
+            "history=", detector._zone_history,
+        )
+
         if result is not None:
             events.append(result)
 
@@ -1007,6 +1016,7 @@ def test_shift_attempt_emits_first_shift_up():
     )
 
     assert first_event == "SHIFT_UP"
+    
     # Foot moves again immediately, without a stable
 # re-arming period on the footpeg.
     detector.update(
@@ -1035,5 +1045,383 @@ def test_shift_attempt_emits_first_shift_up():
         left_foot_angle=155.0,
         left_foot_forward=0.015,
     )
-
+    print(
+        "SECOND ATTEMPT:",
+        "forward=", detector._forward_movement_active,
+        "back=", detector._back_movement_active,
+        "direction=", detector._direction_zone,
+        "frames=", detector._direction_zone_frames,
+        "history=", detector._zone_history,
+    )
     assert second_event is None
+def test_confirmed_down_is_not_lost_at_attempt_timeout():
+    detector = GearShiftDetector()
+    
+    detector._state = "READY"
+    detector._forward_movement_active = True
+    detector._zone_history = ["DOWN"]
+    detector._outside_footpeg_frames = (
+        detector.MAX_SHIFT_ATTEMPT_FRAMES - 1
+    )
+
+    result = detector.update(
+        left_foot_drop=0.080,
+        left_foot_angle=148.0,
+        left_foot_forward=0.040,
+    )
+
+    assert result == "SHIFT_DOWN"
+
+def test_back_movement_is_detected_when_foot_returns_to_baseline():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.015
+
+    assert detector._is_foot_moved_back(
+        left_foot_forward=0.015,
+    ) is True
+
+def test_back_movement_becomes_active_after_forward_movement_and_return():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.015
+    detector._forward_movement_active = True
+
+    detector._update_back_movement(
+        left_foot_forward=0.015,
+    )
+
+    assert detector._back_movement_active is True
+
+def test_back_movement_is_reset_with_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._back_movement_active = True
+
+    detector._reset_stale_shift_attempt()
+
+    assert detector._back_movement_active is False
+
+def test_rearm_completes_after_back_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.015
+
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    result = detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    assert result is None
+    assert detector._shift_rearm_pending is False
+
+def test_update_detects_back_movement_after_forward_attempt():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.015
+    detector._forward_movement_active = True
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    assert detector._back_movement_active is True
+
+def test_new_forward_movement_clears_old_back_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.015
+    detector._back_movement_active = True
+
+    detector._update_forward_movement_from_baseline(
+        left_foot_forward=0.040,
+    )
+
+    assert detector._forward_movement_active is True
+    assert detector._back_movement_active is False
+
+def test_completed_rearm_resets_movement_state():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.015
+
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    assert detector._shift_rearm_pending is False
+    assert detector._forward_movement_active is False
+    assert detector._back_movement_active is False
+
+def test_confirmed_direction_is_not_overridden_after_back_movement():
+    detector = GearShiftDetector()
+
+    detector._zone_history = ["DOWN"]
+    detector._back_movement_active = True
+
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+
+    assert detector._zone_history == ["DOWN"]
+
+def test_rearm_uses_return_to_baseline_not_absolute_forward_position():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+
+    detector._forward_baseline = 0.050
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.050,
+    )
+
+    assert detector._shift_rearm_pending is False
+
+def test_angle_trend_inside_transition_does_not_confirm_shift():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.015
+
+    # Foot moves away from baseline, but angle remains
+    # inside the TRANSITION region.
+    detector.update(
+        0.120,
+        153.0,
+        left_foot_forward=0.040,
+    )
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.040,
+    )
+    detector.update(
+        0.120,
+        155.0,
+        left_foot_forward=0.040,
+    )
+    detector.update(
+        0.120,
+        156.0,
+        left_foot_forward=0.040,
+    )
+
+    assert detector._zone_history == []
+
+def test_live_baseline_is_not_learned_from_first_frame():
+    detector = GearShiftDetector()
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.010,
+        elapsed_seconds=5.1,
+    )
+
+    assert detector._forward_baseline is None
+
+def test_live_baseline_is_learned_after_five_frames():
+    detector = GearShiftDetector()
+
+    values = [
+        0.010,
+        0.011,
+        0.009,
+        0.010,
+        0.010,
+    ]
+
+    for value in values:
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=value,
+            elapsed_seconds=5.1,
+        )
+
+    assert detector._forward_baseline == pytest.approx(
+        0.010
+    )   
+def test_forward_down_back_emits_shift_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    # Forward movement starts the attempt.
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+    )
+
+    # Clear DOWN phase.
+    detector.update(
+        0.120,
+        149.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        147.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        148.0,
+        left_foot_forward=0.010,
+    )
+
+    # Foot returns to baseline.
+    result = detector.update(
+        0.120,
+        155.0,
+        left_foot_forward=0.035,
+    )
+
+    assert result == "SHIFT_DOWN"
+
+def test_update_counts_three_down_zones_during_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+    detector._forward_movement_active = True
+
+    detector.update(
+        0.120,
+        149.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        147.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        148.0,
+        left_foot_forward=0.010,
+    )
+
+    assert detector._direction_zone == "DOWN"
+    assert detector._direction_zone_frames == 3
+
+def test_direction_zone_counts_consecutive_down_frames():
+    detector = GearShiftDetector()
+
+    detector._update_direction_zone("DOWN")
+    detector._update_direction_zone("DOWN")
+    detector._update_direction_zone("DOWN")
+
+    assert detector._direction_zone == "DOWN"
+    assert detector._direction_zone_frames == 3
+
+def test_update_counts_down_zones_during_forward_movement():
+    detector = GearShiftDetector() 
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+    detector.update(
+        0.120,
+        149.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        147.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        148.0,
+        left_foot_forward=0.010,
+    )
+    assert detector._direction_zone == "DOWN"
+    assert detector._direction_zone_frames == 3
+
+def test_three_initial_up_zones_do_not_confirm_up_during_real_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.0229
+
+    detector.update(
+        0.0797,
+        173.3,
+        left_foot_forward=-0.0141,
+    )
+    detector.update(
+        0.0589,
+        179.9,
+        left_foot_forward=-0.0022,
+    )
+    detector.update(
+        0.0739,
+        178.7,
+        left_foot_forward=-0.0025,
+    )
+
+    assert detector._direction_zone == "UP"
+    assert detector._direction_zone_frames == 3
+    assert detector._zone_history == []
+
+def test_forward_up_back_emits_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    # Forward movement starts the attempt.
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+    )
+
+    # Clear UP phase.
+    detector.update(
+        0.120,
+        161.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        163.0,
+        left_foot_forward=0.010,
+    )
+    detector.update(
+        0.120,
+        165.0,
+        left_foot_forward=0.010,
+    )
+
+    # Foot returns to baseline.
+    result = detector.update(
+        0.120,
+        155.0,
+        left_foot_forward=0.035,
+    )
+
+    assert result == "SHIFT_UP"
