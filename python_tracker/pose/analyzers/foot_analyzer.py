@@ -30,7 +30,8 @@ class FootAnalyzer:
             left_ankle,
             left_foot,
         )
-        
+
+        elapsed = time.monotonic() - self._start_time
         gear_shift = None
         if left_foot_is_visible:
             left_foot_drop = (
@@ -45,6 +46,7 @@ class FootAnalyzer:
                 left_foot_drop,
                 left_foot_angle,
                 left_foot_forward=left_foot_forward,
+                elapsed_seconds=elapsed,
             )
 
             if gear_shift is not None:
@@ -55,7 +57,7 @@ class FootAnalyzer:
         else:
             left_foot_drop = None
         
-        elapsed = time.monotonic() - self._start_time
+        
         left_foot_forward = left_foot.x - left_ankle.x  #testnapred nazad
         print(
             "LEFT FOOT FORWARD:",

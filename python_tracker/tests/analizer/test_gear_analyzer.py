@@ -911,3 +911,129 @@ def test_forward_movement_outside_footpeg_starts_shift_attempt():
 
     assert result is None
     assert detector._forward_movement_active is True
+def test_forward_movement_uses_difference_from_baseline():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.030
+
+    detector._update_forward_movement_from_baseline(
+        0.041
+    )
+
+    assert detector._forward_movement_active is False   
+def test_forward_baseline_does_not_chase_foot_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.021
+
+    detector._update_forward_baseline(
+        left_foot_forward=0.031,
+        on_footpeg=True,
+    )
+
+    assert detector._forward_baseline == pytest.approx(0.021)
+
+def test_gear_detector_ignores_shift_during_initial_calibration():
+    detector = GearShiftDetector()
+
+    result = detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=160.0,
+        left_foot_forward=0.040,
+        elapsed_seconds=3.0,
+    )
+
+    assert result is None
+def test_wrong_first_candidate_can_be_overruled_before_confirmation():
+    detector = GearShiftDetector()
+
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("DOWN")
+    detector._add_shift_candidate("DOWN")
+    assert detector._zone_history == ["DOWN"]
+
+def test_current_live_footpeg_position_is_recognized():
+    assert GearShiftDetector._is_footpeg_position(
+        0.058,
+        177.0,
+    ) is True
+
+def test_confirmed_direction_can_be_overruled_by_stronger_opposite_evidence():
+    detector = GearShiftDetector()
+
+    detector._add_shift_candidate("DOWN")
+    detector._add_shift_candidate("DOWN")
+
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+    detector._add_shift_candidate("UP")
+
+    assert detector._zone_history == ["UP"]
+
+def test_shift_attempt_emits_first_shift_up():
+    detector = GearShiftDetector()
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=159.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.130,
+        left_foot_angle=161.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=160.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=166.0,
+        left_foot_forward=0.04,
+    )
+
+    first_event = detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    assert first_event == "SHIFT_UP"
+    # Foot moves again immediately, without a stable
+# re-arming period on the footpeg.
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=159.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.130,
+        left_foot_angle=161.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=160.0,
+        left_foot_forward=0.04,
+    )
+    detector.update(
+        left_foot_drop=0.125,
+        left_foot_angle=166.0,
+        left_foot_forward=0.04,
+    )
+
+    second_event = detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.015,
+    )
+
+    assert second_event is None

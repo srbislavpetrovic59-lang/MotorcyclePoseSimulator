@@ -24,6 +24,7 @@ class GearShiftDetector:
         self._angle_history = []
         self._forward_movement_active = False
         self._forward_baseline = None
+        self._shift_rearm_pending = False
       
    
    
@@ -45,8 +46,17 @@ class GearShiftDetector:
         left_foot_drop,
         left_foot_angle=None,
         left_foot_forward=None,
-    ):
+        elapsed_seconds=None,
+    ):  
+        if (
+            elapsed_seconds is not None
+            and elapsed_seconds < 5.0
+        ):
+            return None
+
         self._update_angle_history(left_foot_angle)
+
+        trend = self._angle_trend()
 
         on_footpeg = self._is_footpeg_stay_position(
             left_foot_drop,
@@ -76,16 +86,16 @@ class GearShiftDetector:
         
 
         print(
-            "GEAR:",
-            f"drop={left_foot_drop}",
-            f"angle={left_foot_angle}",
-            f"zone={zone}",
-            f"state={self._state}",
-            f"history={self._zone_history}",
-            f"pending={self._pending_zones}",
-            f"outside={self._outside_footpeg_frames}",
-            f"forward={left_foot_forward}",
-            f"moved_forward={foot_moved_forward}",
+            f"GEAR: drop={left_foot_drop} "
+            f"angle={left_foot_angle} "
+            f"zone={zone} "
+            f"trend={trend} "
+            f"state={self._state} "
+            f"history={self._zone_history} "
+            f"pending={self._pending_zones} "
+            f"outside={self._outside_footpeg_frames} "
+            f"forward={left_foot_forward} "
+            f"moved_forward={self._forward_movement_active}"
         )
 
         if self._state == "IDLE":
@@ -100,7 +110,36 @@ class GearShiftDetector:
         if zone is None:
             return None
 
+        '''if self._state == "WAIT_RETURN":
+            forward_offset = self._forward_offset(
+                left_foot_forward
+            )
+
+            if (
+                on_footpeg
+                and forward_offset is not None
+                and abs(forward_offset) < 0.019
+            ):
+                self._state = "READY"
+                self._reset_forward_movement()
+                self._outside_footpeg_frames = 0
+                self._pending_zones.clear()
+                self._zone_history.clear()
+
+            return None
+        '''
         if self._state == "READY":
+           
+            if self._shift_rearm_pending:
+                if (
+                    on_footpeg
+                    and not foot_moved_forward
+                    and not self._forward_movement_active
+                ):
+                    self._shift_rearm_pending = False
+
+                return None
+
             if (
                 self._is_footpeg_stay_position(
                     left_foot_drop,
@@ -114,29 +153,23 @@ class GearShiftDetector:
 
                 if self._zone_history == ["UP"]:
                     self._zone_history.clear()
+                    self._shift_rearm_pending = True
                     return "SHIFT_UP"
 
                 if self._zone_history == ["DOWN"]:
                     self._zone_history.clear()
+                    self._shift_rearm_pending = True
                     return "SHIFT_DOWN"
-
+               
                 self._zone_history.clear()
                 return None
-
+            
             if not self._forward_movement_active:
                 self._outside_footpeg_frames = 0
                 self._pending_zones.clear()
                 return None
 
-            trend = self._angle_trend()
-
-            if not self._forward_movement_active:
-                self._outside_footpeg_frames = 0
-                self._pending_zones.clear()
-                return None
-
-            trend = self._angle_trend()
-
+           
             if on_footpeg and trend in (None, "STABLE"):
                 return None
 
@@ -194,8 +227,8 @@ class GearShiftDetector:
             return False
 
         return (
-            0.095 <= left_foot_drop <= 0.135
-            and 150.0 <= left_foot_angle <= 157.0
+            0.050 <= left_foot_drop <= 0.135
+            and 150.0 <= left_foot_angle <= 180.0
         )
 
     @staticmethod
@@ -310,7 +343,11 @@ class GearShiftDetector:
         if not on_footpeg:
             return
 
+        if self._forward_baseline is not None:
+            return
+
         self._forward_baseline = left_foot_forward
+
     def _reset_stale_shift_attempt(self):
         self._forward_movement_active = False
         self._outside_footpeg_frames = 0
@@ -323,29 +360,24 @@ class GearShiftDetector:
 
         self._pending_zones.append(candidate)
 
-        # Direction already confirmed for this attempt.
-        if self._zone_history:
+        if not self._zone_history:
+            if (
+                len(self._pending_zones) >= 2
+                and self._pending_zones[-1] == self._pending_zones[-2]
+            ):
+                self._zone_history = [candidate]
+            return
+
+        confirmed = self._zone_history[0]
+
+        if candidate == confirmed:
             return
 
         if (
-            len(self._pending_zones) >= 2
-            and self._pending_zones[-1] == self._pending_zones[-2]
+            len(self._pending_zones) >= 3
+            and self._pending_zones[-1] == candidate
+            and self._pending_zones[-2] == candidate
+            and self._pending_zones[-3] == candidate
         ):
             self._zone_history = [candidate]
-
-    def test_wrong_first_candidate_can_be_overruled_before_confirmation():
-        detector = GearShiftDetector()
-
-        detector._add_shift_candidate("UP")
-        detector._add_shift_candidate("DOWN")
-        detector._add_shift_candidate("DOWN")
-
-        assert detector._zone_history == ["DOWN"]
-    def test_realistic_down_shift_can_recover_from_initial_up_candidate():
-        detector = GearShiftDetector()
-
-        detector._add_shift_candidate("UP")
-        detector._add_shift_candidate("DOWN")
-        detector._add_shift_candidate("DOWN")
-
-        assert detector._zone_history == ["DOWN"]
+   
