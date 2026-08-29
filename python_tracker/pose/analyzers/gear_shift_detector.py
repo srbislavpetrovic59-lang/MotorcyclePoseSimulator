@@ -47,21 +47,28 @@ class GearShiftDetector:
         left_foot_forward=None,
     ):
         self._update_angle_history(left_foot_angle)
-        self._update_forward_movement_from_baseline(
-            left_foot_forward
-        )
-        foot_moved_forward = self._is_foot_moved_forward(
-            left_foot_forward
-        )
+
         on_footpeg = self._is_footpeg_stay_position(
             left_foot_drop,
             left_foot_angle,
         )
+        
+        self._update_forward_movement_from_baseline(
+            left_foot_forward,
+           # on_footpeg=on_footpeg,
+        )
+
+        foot_moved_forward = self._is_foot_moved_forward(
+            left_foot_forward
+        )
+
+        
 
         self._update_forward_baseline(
             left_foot_forward=left_foot_forward,
             on_footpeg=on_footpeg,
         )
+
         zone = self._movement_zone(
             left_foot_drop,
             left_foot_angle,
@@ -121,15 +128,26 @@ class GearShiftDetector:
                 self._pending_zones.clear()
                 return None
 
+            trend = self._angle_trend()
+
+            if not self._forward_movement_active:
+                self._outside_footpeg_frames = 0
+                self._pending_zones.clear()
+                return None
+
+            trend = self._angle_trend()
+
+            if on_footpeg and trend in (None, "STABLE"):
+                return None
+
             self._outside_footpeg_frames += 1
+
             if (
                 self._outside_footpeg_frames
                 >= self.MAX_SHIFT_ATTEMPT_FRAMES
             ):
                 self._reset_stale_shift_attempt()
                 return None
-            
-            trend = self._angle_trend()
 
             candidate = None
 

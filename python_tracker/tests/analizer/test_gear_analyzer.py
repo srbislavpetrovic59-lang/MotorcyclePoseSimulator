@@ -875,3 +875,39 @@ def test_real_shift_down_is_not_confused_by_angle_oscillation():
 
     assert events == ["SHIFT_DOWN"]
 
+
+def test_forward_drift_on_stable_footpeg_does_not_start_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.020
+
+    for forward in [0.040, 0.041, 0.039, 0.040]:
+        result = detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=forward,
+        )
+
+        assert result is None
+
+    assert detector._forward_movement_active is True
+    assert detector._angle_trend() == "STABLE"
+    assert detector._outside_footpeg_frames == 0
+    assert detector._zone_history == []
+    assert detector._pending_zones == []
+
+def test_forward_movement_outside_footpeg_starts_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.020
+
+    result = detector.update(
+        0.160,
+        147.0,
+        left_foot_forward=0.040,
+    )
+
+    assert result is None
+    assert detector._forward_movement_active is True
