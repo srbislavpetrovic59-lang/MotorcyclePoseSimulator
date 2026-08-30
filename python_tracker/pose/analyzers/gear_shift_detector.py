@@ -30,6 +30,10 @@ class GearShiftDetector:
         self._direction_zone = None
         self._direction_zone_frames = 0
         self._heel_y_history = []
+        self._forward_offset_history = []
+        self._pending_heel_y = None
+        self._rearm_footpeg_frames = 0
+        self._baseline_settle_frames = 0
       
    
    
@@ -75,6 +79,7 @@ class GearShiftDetector:
         )
 
         was_forward_active = self._forward_movement_active
+        pending_heel_y = self._pending_heel_y
 
         self._update_forward_movement_from_baseline(
             left_foot_forward,
@@ -85,6 +90,16 @@ class GearShiftDetector:
             and self._forward_movement_active
         ):
             self._clear_heel_history()
+
+            if pending_heel_y is not None:
+                self._update_heel_history(
+                    pending_heel_y
+                )
+
+            self._pending_heel_y = None
+
+        elif not self._forward_movement_active:
+            self._pending_heel_y = left_heel_y
 
         self._update_shift_heel_history(
             left_heel_y
@@ -153,12 +168,24 @@ class GearShiftDetector:
                     left_foot_forward
                 )
 
+                print(
+                    "BASELINE SAMPLE:",
+                    left_foot_forward,
+                    "samples=",
+                    self._live_forward_baseline_samples,
+                )
+
                 if len(self._live_forward_baseline_samples) < 5:
                     return None
 
                 self._forward_baseline = (
                     sum(self._live_forward_baseline_samples)
                     / len(self._live_forward_baseline_samples)
+                )
+
+                print(
+                    "LIVE BASELINE SET:",
+                    self._forward_baseline,
                 )
 
         if elapsed_seconds is None:
@@ -185,6 +212,7 @@ class GearShiftDetector:
             f"rearm={self._shift_rearm_pending}"
             f"baseline={self._forward_baseline} "
             f"offset={self._forward_offset(left_foot_forward)} "
+            f"offset_history={self._forward_offset_history} "
         )
 
         if self._state == "IDLE":
@@ -202,18 +230,22 @@ class GearShiftDetector:
         if self._state == "READY":
            
             if self._shift_rearm_pending:
-                if (
-                    on_footpeg
-                    and self._back_movement_active
-                ):
+                if on_footpeg:
+                    self._rearm_footpeg_frames += 1
+                else:
+                    self._rearm_footpeg_frames = 0
+
+                if self._rearm_footpeg_frames >= 3:
                     self._shift_rearm_pending = False
                     self._forward_movement_active = False
                     self._back_movement_active = False
+                    self._rearm_footpeg_frames = 0
 
                 return None
 
             if (
-                self._is_footpeg_stay_position(
+                was_forward_active
+                and self._is_footpeg_stay_position(
                     left_foot_drop,
                     left_foot_angle,
                 )
@@ -412,9 +444,79 @@ class GearShiftDetector:
         if offset is None:
             return
 
-        if abs(offset) >= 0.019:
+        if abs(offset) < 0.002:
+            self._baseline_settle_frames += 1
+        else:
+            self._baseline_settle_frames = 0
+
+        if self._baseline_settle_frames >= 3:
+            self._forward_offset_history.clear()
+            self._baseline_settle_frames = 0
+            return
+
+
+
+        self._forward_offset_history.append(offset)
+
+        if len(self._forward_offset_history) > 10:
+            self._forward_offset_history.pop(0)
+
+        if (
+            len(self._forward_offset_history) >= 2
+        ):
+            previous = self._forward_offset_history[-2]
+            current = self._forward_offset_history[-1]
+
+            if (
+                previous >= 0.019
+                and current >= 0.019
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
+            if (
+                previous <= -0.019
+                and current <= -0.019
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
+
+        if len(self._forward_offset_history) >= 3:
+            recent = self._forward_offset_history[-3:]
+
+            if (
+                all(offset > 0.0 for offset in recent)
+                and sum(
+                    offset >= 0.019
+                    for offset in recent
+                ) >= 2
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
+        if (
+            max(self._forward_offset_history) >= 0.008
+            and min(self._forward_offset_history) <= -0.008
+        ):
             self._forward_movement_active = True
             self._back_movement_active = False
+            return
+
+        if len(self._forward_offset_history) >= 2:
+            previous = self._forward_offset_history[-2]
+            current = self._forward_offset_history[-1]
+                       
+            if (
+                previous <= -0.008
+                and current <= -0.008
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
 
     def _update_forward_baseline(
         self,
@@ -431,6 +533,11 @@ class GearShiftDetector:
             return
 
         self._forward_baseline = left_foot_forward
+
+        print(
+            "GEAR BASELINE SET:",
+            self._forward_baseline,
+        )
 
     def _reset_stale_shift_attempt(self):
         self._forward_movement_active = False
