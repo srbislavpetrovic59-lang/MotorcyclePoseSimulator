@@ -1045,14 +1045,7 @@ def test_shift_attempt_emits_first_shift_up():
         left_foot_angle=155.0,
         left_foot_forward=0.015,
     )
-    print(
-        "SECOND ATTEMPT:",
-        "forward=", detector._forward_movement_active,
-        "back=", detector._back_movement_active,
-        "direction=", detector._direction_zone,
-        "frames=", detector._direction_zone_frames,
-        "history=", detector._zone_history,
-    )
+    
     assert second_event is None
 def test_confirmed_down_is_not_lost_at_attempt_timeout():
     detector = GearShiftDetector()
@@ -1425,3 +1418,496 @@ def test_forward_up_back_emits_shift_up():
     )
 
     assert result == "SHIFT_UP"
+def test_real_shift_up_is_not_classified_as_down_from_down_zones():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.033
+
+    # Real SHIFT_UP sample:
+    # forward movement followed by several DOWN geometry zones.
+    detector.update(
+        0.1064,
+        148.4,
+        left_foot_forward=0.0524,
+    )
+    detector.update(
+        0.1017,
+        146.1,
+        left_foot_forward=0.0553,
+        left_heel_y=0.7296,
+    )
+    detector.update(
+        0.1001,
+        145.4,
+        left_foot_forward=0.0559,
+        left_heel_y=0.7327,
+    )
+    detector.update(
+        0.1004,
+        145.1,
+        left_foot_forward=0.0563,
+        left_heel_y=0.7377,
+    )
+
+    # Foot starts returning.
+    result = detector.update(
+        0.1016,
+        148.9,
+        left_foot_forward=0.0478,
+        left_heel_y=0.7409,
+    )
+
+    assert result == "SHIFT_UP"
+
+def test_heel_end_trend_detects_upward_movement():
+    heel_y = [
+        0.6869,
+        0.6358,
+        0.5839,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "UP"
+def test_heel_end_trend_detects_downward_movement():
+    heel_y = [
+        0.7014,
+        0.7046,
+        0.7176,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "DOWN"
+
+def test_heel_end_trend_ignores_small_jitter():
+    heel_y = [
+        0.7000,
+        0.7004,
+        0.7008,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "STABLE"
+
+def test_heel_up_at_end_means_shift_down():
+    assert GearShiftDetector._shift_from_heel_trend(
+        "UP"
+    ) == "SHIFT_DOWN"
+
+def test_heel_down_at_end_means_shift_up():
+    assert GearShiftDetector._shift_from_heel_trend(
+        "DOWN"
+    ) == "SHIFT_UP"
+
+def test_stable_heel_trend_emits_no_shift():
+    assert GearShiftDetector._shift_from_heel_trend(
+        "STABLE"
+    ) is None
+
+def test_update_heel_history_keeps_recent_values():
+    detector = GearShiftDetector()
+
+    detector._update_heel_history(0.70)
+    detector._update_heel_history(0.69)
+    detector._update_heel_history(0.68)
+
+    assert detector._heel_y_history == [
+        0.70,
+        0.69,
+        0.68,
+    ]
+
+def test_update_heel_history_ignores_none():
+    detector = GearShiftDetector()
+
+    detector._update_heel_history(0.70)
+    detector._update_heel_history(None)
+    detector._update_heel_history(0.68)
+
+    assert detector._heel_y_history == [
+        0.70,
+        0.68,
+    ]
+
+def test_update_heel_history_keeps_only_last_ten_values():
+    detector = GearShiftDetector()
+
+    for i in range(12):
+        detector._update_heel_history(
+            0.60 + i * 0.01
+        )
+
+    assert len(detector._heel_y_history) == 10
+
+    assert detector._heel_y_history[0] == 0.62
+    assert detector._heel_y_history[-1] == 0.71
+
+def test_clear_heel_history_removes_old_values():
+    detector = GearShiftDetector()
+
+    detector._update_heel_history(0.70)
+    detector._update_heel_history(0.69)
+    detector._update_heel_history(0.68)
+
+    detector._clear_heel_history()
+
+    assert detector._heel_y_history == []
+
+def test_heel_history_is_not_updated_without_forward_movement():
+        detector = GearShiftDetector()
+
+        detector._forward_movement_active = False
+
+        detector._update_shift_heel_history(
+            0.70
+        )
+
+        assert detector._heel_y_history == []
+
+def test_heel_history_is_updated_during_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = True
+
+    detector._update_shift_heel_history(
+        0.70
+    )
+
+    assert detector._heel_y_history == [
+        0.70
+    ]
+
+def test_heel_history_ignores_none_during_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = True
+
+    detector._update_shift_heel_history(0.70)
+    detector._update_shift_heel_history(None)
+    detector._update_shift_heel_history(0.68)
+
+    assert detector._heel_y_history == [
+        0.70,
+        0.68,
+    ]
+
+def test_update_collects_heel_y_during_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.700,
+    )
+
+    assert detector._heel_y_history == [
+        0.700
+    ]
+def test_update_does_not_collect_heel_y_without_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.034,
+        left_heel_y=0.700,
+    )
+
+    assert detector._heel_y_history == []
+
+def test_update_collects_multiple_heel_y_values_during_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.700,
+    )
+
+    detector.update(
+        0.120,
+        149.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.680,
+    )
+
+    detector.update(
+        0.120,
+        147.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.660,
+    )
+
+    assert detector._heel_y_history == [
+        0.700,
+        0.680,
+        0.660,
+    ]
+
+def test_new_forward_movement_starts_with_fresh_heel_history():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    # Old data from a previous attempt.
+    detector._heel_y_history = [
+        0.750,
+        0.740,
+    ]
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.700,
+    )
+
+    assert detector._heel_y_history == [
+        0.700
+    ]
+
+def test_active_forward_movement_keeps_existing_heel_history():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+    detector._forward_movement_active = True
+    detector._heel_y_history = [
+        0.700,
+        0.680,
+    ]
+
+    detector.update(
+        0.120,
+        149.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.660,
+    )
+
+    assert detector._heel_y_history == [
+        0.700,
+        0.680,
+        0.660,
+    ]
+
+def test_shift_attempt_heel_history_produces_up_end_trend():
+    detector = GearShiftDetector()
+
+    detector._heel_y_history = [
+        0.6869,
+        0.6358,
+        0.5839,
+    ]
+
+    assert detector._heel_end_trend(
+        detector._heel_y_history
+    ) == "UP"
+def test_real_down_heel_history_maps_to_shift_down():
+    detector = GearShiftDetector()
+
+    detector._heel_y_history = [
+        0.6869,
+        0.6358,
+        0.5839,
+    ]
+
+    heel_trend = detector._heel_end_trend(
+        detector._heel_y_history
+    )
+
+    shift = detector._shift_from_heel_trend(
+        heel_trend
+    )
+
+    assert shift == "SHIFT_DOWN"
+
+def test_update_uses_heel_end_trend_for_real_shift_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+
+    # Shift attempt starts.
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.6869,
+    )
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.6358,
+    )
+
+    detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.010,
+        left_heel_y=0.5839,
+    )
+
+    # Foot returns.
+    result = detector.update(
+        0.120,
+        154.0,
+        left_foot_forward=0.035,
+        left_heel_y=0.5839,
+    )
+
+    assert result == "SHIFT_DOWN"
+def test_heel_end_trend_uses_end_of_motion():
+    heel_y = [
+        0.7430,
+        0.7437,
+        0.7296,
+        0.7327,
+        0.7377,
+        0.7387,
+        0.7409,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "DOWN"
+
+def test_real_shift_up_does_not_emit_down_too_early():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.0103
+
+    detector.update(
+        0.1008,
+        147.8,
+        left_foot_forward=0.0314,
+        left_heel_y=0.6478,
+    )
+
+    detector.update(
+        0.0912,
+        149.8,
+        left_foot_forward=0.0272,
+        left_heel_y=0.6489,
+    )
+
+    detector.update(
+        0.0888,
+        146.2,
+        left_foot_forward=0.0334,
+        left_heel_y=0.6502,
+    )
+
+    result = detector.update(
+        0.1245,
+        152.5,
+        left_foot_forward=0.0288,
+        left_heel_y=0.6335,
+    )
+
+    assert result is None
+
+def test_real_shift_up_emits_after_heel_finishes_downward():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.0103
+
+    samples = [
+        (0.1008, 147.8, 0.0314, 0.6478),
+        (0.0912, 149.8, 0.0272, 0.6489),
+        (0.0888, 146.2, 0.0334, 0.6502),
+        (0.1245, 152.5, 0.0288, 0.6335),
+        (0.1223, 152.7, 0.0286, 0.6380),
+        (0.1056, 153.4, 0.0280, 0.6678),
+    ]
+
+    result = None
+
+    for drop, angle, forward, heel_y in samples:
+        result = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+        )
+
+    assert result == "SHIFT_UP"
+
+def test_heel_history_continues_during_back_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = False
+    detector._back_movement_active = True
+
+    detector._update_shift_heel_history(
+        0.6380
+    )
+
+    assert detector._heel_y_history == [
+        0.6380
+    ]
+def test_real_shift_up_final_heel_window_trends_down():
+    heel_y = [
+        0.6489,
+        0.6502,
+        0.6335,
+        0.6380,
+        0.6678,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "DOWN"
+
+def test_heel_end_trend_does_not_confirm_on_single_reversal_step():
+    heel_y = [
+        0.6502,
+        0.6335,
+        0.6380,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "STABLE"
+def test_heel_end_trend_keeps_confirmed_direction_when_last_sample_is_flat():
+    heel_y = [
+        0.6869,
+        0.6358,
+        0.5839,
+        0.5839,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "UP"
+
+def test_heel_end_trend_uses_two_confirmed_final_steps():
+    heel_y = [
+        0.6489,
+        0.6502,
+        0.6335,
+        0.6380,
+        0.6678,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "DOWN"

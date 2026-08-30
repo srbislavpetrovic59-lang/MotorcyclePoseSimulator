@@ -29,6 +29,7 @@ class GearShiftDetector:
         self._live_forward_baseline_samples = []
         self._direction_zone = None
         self._direction_zone_frames = 0
+        self._heel_y_history = []
       
    
    
@@ -51,6 +52,7 @@ class GearShiftDetector:
         left_foot_angle=None,
         left_foot_forward=None,
         elapsed_seconds=None,
+        left_heel_y=None,
     ):  
         if (
             elapsed_seconds is not None
@@ -72,9 +74,20 @@ class GearShiftDetector:
             left_foot_angle,
         )
 
+        was_forward_active = self._forward_movement_active
+
         self._update_forward_movement_from_baseline(
             left_foot_forward,
-           # on_footpeg=on_footpeg,
+        )
+
+        if (
+            not was_forward_active
+            and self._forward_movement_active
+        ):
+            self._clear_heel_history()
+
+        self._update_shift_heel_history(
+            left_heel_y
         )
 
         self._update_back_movement(
@@ -84,6 +97,30 @@ class GearShiftDetector:
         if (
             not self._shift_rearm_pending
             and self._back_movement_active
+            and len(self._heel_y_history) >= 3
+        ):
+            print(
+                "HEEL DECISION:",
+                self._heel_y_history,
+            )
+            heel_trend = self._heel_end_trend(
+                self._heel_y_history
+            )
+
+            heel_shift = self._shift_from_heel_trend(
+                heel_trend
+            )
+
+            if heel_shift is not None:
+                self._shift_rearm_pending = True
+                self._back_movement_active = False
+                return heel_shift
+
+
+        if (
+            not self._shift_rearm_pending
+            and self._back_movement_active
+            and not self._heel_y_history
             and self._direction_zone == "DOWN"
             and self._direction_zone_frames >= 3
         ):
@@ -94,6 +131,7 @@ class GearShiftDetector:
         if (
             not self._shift_rearm_pending
             and self._back_movement_active
+            and not self._heel_y_history
             and self._direction_zone == "UP"
             and self._direction_zone_frames >= 3
         ):
@@ -480,5 +518,117 @@ class GearShiftDetector:
             self._direction_zone = zone
             self._direction_zone_frames = 1
 
+    @staticmethod
+    def _heel_end_trend(heel_y):
+        if heel_y is None or len(heel_y) < 2:
+            return None
+
+        if heel_y[-1] < heel_y[0]:
+            return "UP"
+
+        if heel_y[-1] > heel_y[0]:
+            return "DOWN"
+
+        return "STABLE"
+
         
+    @staticmethod
+    def _heel_end_trend(heel_y):
+        if heel_y is None or len(heel_y) < 2:
+            return None
+
+        delta = heel_y[-1] - heel_y[0]
+
+        if abs(delta) < 0.005:
+            return "STABLE"
+
+        if delta < 0:
+            return "UP"
+
+        return "DOWN"
+
+    @staticmethod
+    def _shift_from_heel_trend(heel_trend):
+        if heel_trend == "UP":
+            return "SHIFT_DOWN"
+
+        if heel_trend == "DOWN":
+            return "SHIFT_UP"
+
+        return None
+
+    def _update_heel_history(self, heel_y):
+        if heel_y is None:
+            return
+
+        self._heel_y_history.append(heel_y)
+
+    def _update_heel_history(self, heel_y):
+        if heel_y is None:
+            return
+
+        self._heel_y_history.append(heel_y)
+
+        if len(self._heel_y_history) > 10:
+            self._heel_y_history.pop(0)
+
+    def _clear_heel_history(self):
+        self._heel_y_history.clear()
+
+    def _update_shift_heel_history(self, heel_y):
+        if (
+            not self._forward_movement_active
+            and not self._back_movement_active
+        ):
+            return
+
+        self._update_heel_history(heel_y)
+  
+    @staticmethod
+    def _heel_end_trend(heel_y):
+        if heel_y is None or len(heel_y) < 3:
+            return None
+
+        end_samples = heel_y[-5:]
+        
+
+        total_delta = (
+            end_samples[-1] - end_samples[0]
+        )
+
+        if abs(total_delta) < 0.005:
+            return "STABLE"
+
+        deltas = [
+            end_samples[index] - end_samples[index - 1]
+            for index in range(1, len(end_samples))
+        ]
+
+        directions = []
+
+        for delta in deltas:
+            if delta < 0:
+                directions.append("UP")
+            elif delta > 0:
+                directions.append("DOWN")
+            else:
+                directions.append("STABLE")
+
+        # Ignore flat samples at the very end.
+        while (
+            directions
+            and directions[-1] == "STABLE"
+        ):
+            directions.pop()
+
+        if len(directions) < 2:
+            return "STABLE"
+        
+        if (
+            directions[-1] == directions[-2]
+            and directions[-1] in ("UP", "DOWN")
+        ):
+            return directions[-1]
+
+        return "STABLE"
    

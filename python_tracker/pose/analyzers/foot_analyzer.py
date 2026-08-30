@@ -24,6 +24,7 @@ class FootAnalyzer:
         left_heel = landmarks[PoseLandmark.LEFT_HEEL]
         left_ankle = landmarks[PoseLandmark.LEFT_ANKLE]
         left_foot = landmarks[PoseLandmark.LEFT_FOOT_INDEX]
+        left_heel_relative_y = left_heel.y - left_foot.y
 
         left_foot_is_visible = self._left_foot_visible(
             left_heel,
@@ -47,6 +48,7 @@ class FootAnalyzer:
                 left_foot_angle,
                 left_foot_forward=left_foot_forward,
                 elapsed_seconds=elapsed,
+                left_heel_y=left_heel.y,
             )
 
             if gear_shift is not None:
@@ -63,6 +65,16 @@ class FootAnalyzer:
             "LEFT FOOT FORWARD:",
             f"t={elapsed:.3f}",
             f"value={left_foot_forward:.4f}",
+        )
+        print(
+            f"LEFT HEEL REL Y: "
+            f"t={elapsed:.3f} "
+            f"value={left_heel_relative_y:.4f}"
+        )
+        print(
+            f"LEFT HEEL Y: "
+            f"t={elapsed:.3f} "
+            f"value={left_heel.y:.4f}"
         )
         print(
             "Left foot:",

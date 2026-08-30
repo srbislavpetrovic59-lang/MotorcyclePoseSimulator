@@ -1,19 +1,127 @@
-﻿Sjajno — znači sada smo na 51/51 zelenih.
+﻿tako je 72/2
 
-Ovim smo popravili baš ono što je live log otkrio: forward drift može da se registruje, ali dok je stopalo još na footpegu i nema potvrđenog RISING/FALLING trenda, outside više ne počinje prerano da raste.
+Super. Sada imamo čist mali dokaz da brojač radi, a stara logika nije dirnuta.
 
-Sada bih uradio commit pre sledećeg live testa, jer imamo čist, testovima potvrđen korak. Predlog poruke:
+Sledeći korak: povežimo brojač sa update(), ali samo kada je forward pokret aktivan.
 
-Prevent premature gear shift attempt on stable footpeg
+U update(), posle:
 
-Posle toga sledeći korak je opet isti live scenario: mirno → SHIFT UP oko 8 s → mirno → SHIFT DOWN oko 16 s → mirno. Tada gledamo da li su outside/history/pending konačno mirni pre stvarnog pokreta.
+self._update_forward_movement_from_baseline(
+    left_foot_forward,
+)
 
-zasluzio si pauzu :)relevantni deo FootAnalyzer testa, ili samo rezultat poslednjeg live testa ako želiš da prvo analiziramo ponašanje. Nastavićemo malim koracima od stvarnog trenutnog stanja.
 
-😂 Dogovoreno, kolega. Mislim da smo obojica zaslužili pauzu — naročito posle 51 zelenog.
+self._update_back_movement(
+    left_foot_forward,
+)
 
-Idi prošetaj, a gear detector neka malo razmisli o svom ponašanju. 😄
+dodaj:
 
-Kad nastavimo, imamo lepo čisto stanje: commit, pa live test 8 s UP / 16 s DOWN. Ne diramo ništa drugo pre toga.
+if self._forward_movement_active:
+    self._update_direction_zone(zone)
 
-Prijatna šetnja! 🚶🙂
+Ali pošto se zone trenutno računa malo kasnije, prvo samo pomeri:
+
+zone = self._movement_zone(
+    left_foot_drop,
+    left_foot_angle,
+)
+
+iznad tog novog bloka.
+
+Dakle redosled neka bude:
+
+zone = self._movement_zone(
+    left_foot_drop,
+    left_foot_angle,
+)
+
+
+self._update_forward_movement_from_baseline(
+    left_foot_forward,
+)
+
+
+self._update_back_movement(
+    left_foot_forward,
+)
+
+
+if self._forward_movement_active:
+    self._update_direction_zone(zone)
+
+Za sada ništa ne emitujemo iz toga.
+
+Dodaj test:
+
+def test_update_counts_down_zones_during_forward_movement():
+    detector = GearShiftDetector()
+
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.035
+Mi smo ranije privremeno dodali:
+
+assert detector._back_movement_active is True
+
+da proverimo staru hipotezu. Ali sada smo namerno promenili emitovanje tako da radi:
+
+self._shift_rearm_pending = True
+self._back_movement_active = False
+return "SHIFT_UP"
+
+Zato je:
+
+_back_movement_active == False
+
+upravo ono što sada želimo.
+
+Samo ukloni taj privremeni assert
+
+Obriši:
+
+assert detector._back_movement_active is True
+
+Ako je ostao i privremeni:
+
+print(
+    "SECOND ATTEMPT:",
+    ...
+)
+
+možeš i njega ukloniti.
+
+Produkcioni kod sada ne diramo.
+
+Ponovo pokreni ceo:
+
+python -m pytest tests/analizer/test_gear_analyzer.py
+
+Sada nas zanima pravi rezultat suite-a. Očekivanje je 77/0, ali ako nešto ostane crveno, gledamo baš taj sledeći dokaz.
+
+77/0 zeleno
+
+Odlično — 77/0, sve zeleno. ✅
+
+Sada imamo čistu novu logiku:
+
+FORWARD → 3× DOWN → BACK → SHIFT_DOWN
+FORWARD → 3× UP → BACK → SHIFT_UP
+
+i oba nova emitovanja sada poštuju postojeći rearm, pa isti fizički pokušaj ne može odmah proizvesti drugi događaj.
+
+To je dobro mesto za pauzu ili commit. Sledeći put bih prvo uradio live proveru sa kamerom, pre daljeg refaktorisanja, jer su nam baš realni uzorci ranije otkrili ono što sintetički testovi nisu.
+
+idemo commit
+
+Da. Ovo je baš dobar trenutak za commit: 77/0 zeleno i nova gear-shift putanja je zaokružena.
+
+Predlažem:
+
+git status
+git add pose/analyzers/gear_shift_detector.py tests/analizer/test_gear_analyzer.py
+git commit -m "Improve gear shift direction detection"
+
+Commit poruka mi odgovara jer smo uradili više povezanih stvari: brojanje uzastopnih direction zona, potvrdu UP/DOWN tek pri povratku stopala i povezivanje novih događaja sa rearm zaštitom.
+
+Posle commita samo: crvena.
