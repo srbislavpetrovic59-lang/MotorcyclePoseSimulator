@@ -58,6 +58,7 @@ class GearShiftDetector:
         left_foot_forward=None,
         elapsed_seconds=None,
         left_heel_y=None,
+        left_heel_visibility=None,
     ):  
         if (
             elapsed_seconds is not None
@@ -108,7 +109,8 @@ class GearShiftDetector:
             self._pending_heel_y = left_heel_y
 
         self._update_shift_heel_history(
-            left_heel_y
+            left_heel_y,
+            left_heel_visibility,
         )
 
         

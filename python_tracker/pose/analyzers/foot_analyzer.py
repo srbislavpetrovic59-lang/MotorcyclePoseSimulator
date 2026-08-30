@@ -49,6 +49,7 @@ class FootAnalyzer:
                 left_foot_forward=left_foot_forward,
                 elapsed_seconds=elapsed,
                 left_heel_y=left_heel.y,
+                left_heel_visibility=left_heel.visibility,
             )
 
             if gear_shift is not None:
