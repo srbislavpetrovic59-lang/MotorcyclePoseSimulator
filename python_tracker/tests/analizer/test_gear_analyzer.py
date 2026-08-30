@@ -2466,3 +2466,49 @@ def test_back_movement_requires_motion_toward_baseline():
     )
 
     assert detector._back_movement_active is False
+def test_heel_visibility_history_starts_empty():
+    detector = GearShiftDetector()
+
+    assert detector._heel_visibility_history == []
+
+def test_heel_visibility_history_keeps_last_ten_samples():
+    detector = GearShiftDetector()
+
+    for visibility in range(12):
+        detector._update_heel_visibility_history(
+            visibility
+        )
+
+    assert detector._heel_visibility_history == list(
+        range(2, 12)
+    )
+
+def test_shift_heel_history_also_records_visibility():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = True
+
+    detector._update_shift_heel_history(
+        heel_y=0.700,
+        heel_visibility=0.82,
+    )
+
+    assert detector._heel_y_history == [0.700]
+    assert detector._heel_visibility_history == [0.82]
+
+def test_clear_heel_history_also_clears_visibility_history():
+    detector = GearShiftDetector()
+
+    detector._heel_y_history = [
+        0.70,
+        0.71,
+    ]
+    detector._heel_visibility_history = [
+        0.82,
+        0.79,
+    ]
+
+    detector._clear_heel_history()
+
+    assert detector._heel_y_history == []
+    assert detector._heel_visibility_history == []

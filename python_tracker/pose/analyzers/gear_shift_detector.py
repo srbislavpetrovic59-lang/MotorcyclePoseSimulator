@@ -30,6 +30,7 @@ class GearShiftDetector:
         self._direction_zone = None
         self._direction_zone_frames = 0
         self._heel_y_history = []
+        self._heel_visibility_history = []
         self._forward_offset_history = []
         self._pending_heel_y = None
         self._rearm_footpeg_frames = 0
@@ -725,8 +726,13 @@ class GearShiftDetector:
 
     def _clear_heel_history(self):
         self._heel_y_history.clear()
+        self._heel_visibility_history.clear()
 
-    def _update_shift_heel_history(self, heel_y):
+    def _update_shift_heel_history(
+        self,
+        heel_y,
+        heel_visibility=None,
+    ):
         if (
             not self._forward_movement_active
             and not self._back_movement_active
@@ -734,6 +740,10 @@ class GearShiftDetector:
             return
 
         self._update_heel_history(heel_y)
+
+        self._update_heel_visibility_history(
+            heel_visibility
+        )
   
     @staticmethod
     def _heel_end_trend(heel_y):
@@ -782,4 +792,19 @@ class GearShiftDetector:
             return directions[-1]
 
         return "STABLE"
+
+    def _update_heel_visibility_history(
+        self,
+        visibility,
+    ):
+        if visibility is None:
+            return
+
+        self._heel_visibility_history.append(
+            visibility
+        )
+
+        if len(self._heel_visibility_history) > 10:
+            self._heel_visibility_history.pop(0)
+
    

@@ -1,127 +1,27 @@
-﻿tako je 72/2
+﻿Da 😄 — i to je vrlo važna opaska.
 
-Super. Sada imamo čist mali dokaz da brojač radi, a stara logika nije dirnuta.
+Upravo oko drugog pokreta vidi se da visibility počinje da pada. Pre 18 s je otprilike:
 
-Sledeći korak: povežimo brojač sa update(), ali samo kada je forward pokret aktivan.
+heel=0.86, ankle=0.83, foot=0.84
 
-U update(), posle:
+A kasnije, oko 20.7 s, već je približno:
 
-self._update_forward_movement_from_baseline(
-    left_foot_forward,
-)
+heel=0.72, ankle=0.70, foot=0.73
 
+To menja sliku problema. Kako visibility pada, MediaPipe položaji pete/članka/prstiju postaju manje pouzdani, a mi trenutno heel trend tretiramo kao da su svi ti uzorci jednako dobri.
 
-self._update_back_movement(
-    left_foot_forward,
-)
+Zato bih zaustavio onaj predlog da odmah pravimo novi test iz 17.8 s. Prvo treba proveriti da li je lažni SHIFT_DOWN u 17.984 nastao upravo dok tracking počinje da slabi.
 
-dodaj:
+I to možemo sasvim malim korakom: ne menjamo algoritam, samo uz HEEL DECISION ispišemo visibility pete, članka i prstiju za te frejmove. Ako se pokaže da heel odluka nastaje iz lošeg trackinga, imamo mnogo čistiji uzrok nego još jedno podešavanje geometrije.
 
-if self._forward_movement_active:
-    self._update_direction_zone(zone)
+Dobra primedba — kamera nam se opet umešala u menjač. 😄
 
-Ali pošto se zone trenutno računa malo kasnije, prvo samo pomeri:
+nista pamtim sve, commitujem za svaki slucaj, i sutra da se ponovo vidimo :)
 
-zone = self._movement_zone(
-    left_foot_drop,
-    left_foot_angle,
-)
+Važi, kolega. 😊 Commit je baš dobra tačka za danas.
 
-iznad tog novog bloka.
+Danas smo ipak napravili važan pomak: svi gear testovi su ponovo zeleni, uklonili smo lažni FORWARD → BACK prelaz i dokazali da BACK mora zaista da ide ka baseline-u. Live test nam je zatim pokazao sledeći trag — visibility opada, pa sutra odatle nastavljamo, bez nasumičnog menjanja pragova.
 
-Dakle redosled neka bude:
+Sačuvaj i današnji log; veoma nam je vredan.
 
-zone = self._movement_zone(
-    left_foot_drop,
-    left_foot_angle,
-)
-
-
-self._update_forward_movement_from_baseline(
-    left_foot_forward,
-)
-
-
-self._update_back_movement(
-    left_foot_forward,
-)
-
-
-if self._forward_movement_active:
-    self._update_direction_zone(zone)
-
-Za sada ništa ne emitujemo iz toga.
-
-Dodaj test:
-
-def test_update_counts_down_zones_during_forward_movement():
-    detector = GearShiftDetector()
-
-
-    detector._state = "READY"
-    detector._forward_baseline = 0.035
-Mi smo ranije privremeno dodali:
-
-assert detector._back_movement_active is True
-
-da proverimo staru hipotezu. Ali sada smo namerno promenili emitovanje tako da radi:
-
-self._shift_rearm_pending = True
-self._back_movement_active = False
-return "SHIFT_UP"
-
-Zato je:
-
-_back_movement_active == False
-
-upravo ono što sada želimo.
-
-Samo ukloni taj privremeni assert
-
-Obriši:
-
-assert detector._back_movement_active is True
-
-Ako je ostao i privremeni:
-
-print(
-    "SECOND ATTEMPT:",
-    ...
-)
-
-možeš i njega ukloniti.
-
-Produkcioni kod sada ne diramo.
-
-Ponovo pokreni ceo:
-
-python -m pytest tests/analizer/test_gear_analyzer.py
-
-Sada nas zanima pravi rezultat suite-a. Očekivanje je 77/0, ali ako nešto ostane crveno, gledamo baš taj sledeći dokaz.
-
-77/0 zeleno
-
-Odlično — 77/0, sve zeleno. ✅
-
-Sada imamo čistu novu logiku:
-
-FORWARD → 3× DOWN → BACK → SHIFT_DOWN
-FORWARD → 3× UP → BACK → SHIFT_UP
-
-i oba nova emitovanja sada poštuju postojeći rearm, pa isti fizički pokušaj ne može odmah proizvesti drugi događaj.
-
-To je dobro mesto za pauzu ili commit. Sledeći put bih prvo uradio live proveru sa kamerom, pre daljeg refaktorisanja, jer su nam baš realni uzorci ranije otkrili ono što sintetički testovi nisu.
-
-idemo commit
-
-Da. Ovo je baš dobar trenutak za commit: 77/0 zeleno i nova gear-shift putanja je zaokružena.
-
-Predlažem:
-
-git status
-git add pose/analyzers/gear_shift_detector.py tests/analizer/test_gear_analyzer.py
-git commit -m "Improve gear shift direction detection"
-
-Commit poruka mi odgovara jer smo uradili više povezanih stvari: brojanje uzastopnih direction zona, potvrdu UP/DOWN tek pri povratku stopala i povezivanje novih događaja sa rearm zaštitom.
-
-Posle commita samo: crvena.
+Vidimo se sutra — odmori i ti i menjač. 😄🏍️
