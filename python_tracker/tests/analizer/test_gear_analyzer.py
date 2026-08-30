@@ -2337,3 +2337,132 @@ def test_settled_baseline_clears_old_forward_offsets():
 
     assert detector._forward_offset_history == []
 
+def test_live_positive_shift_sequence_starts_attempt():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.015255022048950195
+
+    samples = [
+        0.025336146354675293,
+        0.029669225215911865,
+        0.029373466968536377,
+        0.029087424278259277,
+        0.029112577438354492,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+    print(
+        "HISTORY:",
+        detector._forward_offset_history,
+    )
+    print(
+        "ACTIVE:",
+        detector._forward_movement_active,
+    )
+    assert detector._forward_movement_active is True
+
+def test_rearm_releases_after_three_stable_footpeg_frames():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    for _ in range(3):
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=0.024,
+            left_heel_y=0.700,
+        )
+
+    assert detector._shift_rearm_pending is False
+def test_static_foot_before_real_shift_does_not_emit_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.04155937433242798
+
+    samples = [
+        (0.09269791841506958, 155.9005, 0.0122032, 0.6207),
+        (0.09330868721008301, 155.2652, 0.0307264, 0.6891),
+        (0.10287582874298096, 159.6000, 0.0291452, 0.7148),
+    ]
+
+    events = []
+
+    for drop, angle, forward, heel_y in samples:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+        )
+        print(
+            "FRAME:",
+            "forward_value=", forward,
+            "offset=", detector._forward_offset(forward),
+            "forward_active=", detector._forward_movement_active,
+            "back_active=", detector._back_movement_active,
+            "heel=", detector._heel_y_history,
+            "event=", event,
+        )
+        if event is not None:
+            events.append(event)
+    print("EVENTS:", events)
+    print(
+        "FORWARD:",
+        detector._forward_movement_active,
+    )
+    print(
+        "BACK:",
+        detector._back_movement_active,
+    )
+    print(
+        "HEEL:",
+        detector._heel_y_history,
+    )
+    assert "SHIFT_UP" not in events
+def test_newly_confirmed_forward_movement_is_not_back_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.04155937433242798
+
+    detector.update(
+        0.09269791841506958,
+        155.9005,
+        left_foot_forward=0.0122032,
+        left_heel_y=0.6207,
+    )
+
+    detector.update(
+        0.09330868721008301,
+        155.2652,
+        left_foot_forward=0.0307264,
+        left_heel_y=0.6891,
+    )
+
+    assert detector._forward_movement_active is True
+    assert detector._back_movement_active is False
+def test_back_movement_requires_motion_toward_baseline():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.04155937433242798
+    detector._forward_movement_active = True
+
+    detector._forward_offset_history = [
+        -0.010832974332427976,
+        -0.012414174332427978,
+    ]
+
+    detector._update_back_movement(
+        0.0291452
+    )
+
+    assert detector._back_movement_active is False

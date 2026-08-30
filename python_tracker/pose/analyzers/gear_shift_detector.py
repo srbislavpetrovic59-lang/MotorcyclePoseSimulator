@@ -85,6 +85,11 @@ class GearShiftDetector:
             left_foot_forward,
         )
 
+        if was_forward_active:
+            self._update_back_movement(
+                left_foot_forward,
+            )
+
         if (
             not was_forward_active
             and self._forward_movement_active
@@ -105,10 +110,7 @@ class GearShiftDetector:
             left_heel_y
         )
 
-        self._update_back_movement(
-            left_foot_forward,
-        )
-
+        
         if (
             not self._shift_rearm_pending
             and self._back_movement_active
@@ -230,6 +232,13 @@ class GearShiftDetector:
         if self._state == "READY":
            
             if self._shift_rearm_pending:
+                print(
+                    "REARM:",
+                    "on_footpeg=", on_footpeg,
+                    "frames=", self._rearm_footpeg_frames,
+                    "drop=", left_foot_drop,
+                    "angle=", left_foot_angle,
+                )
                 if on_footpeg:
                     self._rearm_footpeg_frames += 1
                 else:
@@ -454,12 +463,23 @@ class GearShiftDetector:
             self._baseline_settle_frames = 0
             return
 
+        
+
 
 
         self._forward_offset_history.append(offset)
 
         if len(self._forward_offset_history) > 10:
             self._forward_offset_history.pop(0)
+
+        if len(self._forward_offset_history) >= 5:
+            recent = self._forward_offset_history[-5:]
+
+            if all(offset >= 0.008 for offset in recent):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
 
         if (
             len(self._forward_offset_history) >= 2
@@ -605,8 +625,32 @@ class GearShiftDetector:
         if not self._forward_movement_active:
             return
 
-        if self._is_foot_moved_back(
+        offset = self._forward_offset(
             left_foot_forward
+        )
+
+        if offset is None:
+            return
+
+        if abs(offset) < 0.002:
+            self._back_movement_active = True
+            return
+
+        if len(self._forward_offset_history) < 2:
+            return
+
+        previous = self._forward_offset_history[-2]
+        current = self._forward_offset_history[-1]
+
+        moving_toward_baseline = (
+            abs(current) < abs(previous)
+        )
+
+        if (
+            moving_toward_baseline
+            and self._is_foot_moved_back(
+                left_foot_forward
+            )
         ):
             self._back_movement_active = True
 
