@@ -2512,3 +2512,49 @@ def test_clear_heel_history_also_clears_visibility_history():
 
     assert detector._heel_y_history == []
     assert detector._heel_visibility_history == []
+
+def test_live_forward_baseline_is_not_set_from_unstable_samples():
+    detector = GearShiftDetector()
+
+    samples = [
+        0.02710205316543579,
+        0.016630470752716064,
+        0.003628671169281006,
+        0.002749025821685791,
+        0.03849148750305176,
+    ]
+
+    for sample in samples:
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=sample,
+            elapsed_seconds=6.0,
+        )
+
+    assert detector._forward_baseline is None
+
+def test_rearm_clears_forward_offset_history():
+    detector = GearShiftDetector()
+
+    detector._shift_rearm_pending = True
+    detector._forward_movement_active = True
+    detector._forward_baseline = 0.035
+    detector._forward_offset_history = [
+        -0.024,
+        -0.023,
+        -0.020,
+    ]
+
+    for _ in range(5):
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=0.035,
+        )
+
+    assert detector._shift_rearm_pending is False
+    assert all(
+        abs(offset) < 0.002
+        for offset in detector._forward_offset_history
+    )

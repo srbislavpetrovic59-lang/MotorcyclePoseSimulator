@@ -122,6 +122,8 @@ class GearShiftDetector:
             print(
                 "HEEL DECISION:",
                 self._heel_y_history,
+                "visibility=",
+                self._heel_visibility_history,
             )
             heel_trend = self._heel_end_trend(
                 self._heel_y_history
@@ -183,9 +185,15 @@ class GearShiftDetector:
                 if len(self._live_forward_baseline_samples) < 5:
                     return None
 
+                recent = self._live_forward_baseline_samples[-5:]
+
+                if max(recent) - min(recent) > 0.006:
+                    self._live_forward_baseline_samples.pop(0)
+                    return None
+
                 self._forward_baseline = (
-                    sum(self._live_forward_baseline_samples)
-                    / len(self._live_forward_baseline_samples)
+                    sum(recent)
+                    / len(recent)
                 )
 
                 print(
@@ -466,7 +474,12 @@ class GearShiftDetector:
             self._baseline_settle_frames = 0
             return
 
-        
+        if self._rearm_footpeg_frames >= 3:
+            self._shift_rearm_pending = False
+            self._forward_movement_active = False
+            self._back_movement_active = False
+            self._forward_offset_history.clear()
+            self._rearm_footpeg_frames = 0
 
 
 

@@ -1,27 +1,55 @@
-﻿Da 😄 — i to je vrlo važna opaska.
+﻿Uh, sad imamo važan trag: prethodni „zeleni“ test nas je prevario. 🙂
 
-Upravo oko drugog pokreta vidi se da visibility počinje da pada. Pre 18 s je otprilike:
+U stvarnom logu posle pravog SHIFT_UP u 9.391 s, rearm dolazi do frames=2 oko 10.922 s. Već na sledećem frejmu 10.969 s je rearm=False, ali _forward_offset_history nije očišćen — i dalje sadrži stare vrednosti.
 
-heel=0.86, ankle=0.83, foot=0.84
+Zato kasnije, dok samo sediš, dobijamo još jedan lažni:
 
-A kasnije, oko 20.7 s, već je približno:
+t=11.688
+GEAR SHIFT: SHIFT_UP
 
-heel=0.72, ankle=0.70, foot=0.73
+Zašto je naš test bio zelen? Zato što smo slali tačno:
 
-To menja sliku problema. Kako visibility pada, MediaPipe položaji pete/članka/prstiju postaju manje pouzdani, a mi trenutno heel trend tretiramo kao da su svi ti uzorci jednako dobri.
+left_foot_forward=0.035
+baseline=0.035
 
-Zato bih zaustavio onaj predlog da odmah pravimo novi test iz 17.8 s. Prvo treba proveriti da li je lažni SHIFT_DOWN u 17.984 nastao upravo dok tracking počinje da slabi.
+pa je offset bio 0.0. Time smo aktivirali drugi mehanizam:
 
-I to možemo sasvim malim korakom: ne menjamo algoritam, samo uz HEEL DECISION ispišemo visibility pete, članka i prstiju za te frejmove. Ako se pokaže da heel odluka nastaje iz lošeg trackinga, imamo mnogo čistiji uzrok nego još jedno podešavanje geometrije.
+if abs(offset) < 0.002:
+    self._baseline_settle_frames += 1
 
-Dobra primedba — kamera nam se opet umešala u menjač. 😄
+i on je očistio istoriju. Dakle test nije dokazao da je rearm uradio clear().
 
-nista pamtim sve, commitujem za svaki slucaj, i sutra da se ponovo vidimo :)
+Napravimo sada ispravan test, bez baseline-settle pomoći:
 
-Važi, kolega. 😊 Commit je baš dobra tačka za danas.
+def test_rearm_itself_clears_forward_offset_history():
+    detector = GearShiftDetector()
 
-Danas smo ipak napravili važan pomak: svi gear testovi su ponovo zeleni, uklonili smo lažni FORWARD → BACK prelaz i dokazali da BACK mora zaista da ide ka baseline-u. Live test nam je zatim pokazao sledeći trag — visibility opada, pa sutra odatle nastavljamo, bez nasumičnog menjanja pragova.
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_movement_active = True
+    detector._forward_baseline = 0.035
+    detector._forward_offset_history = [
+        -0.024,
+        -0.023,
+        -0.020,
+    ]
 
-Sačuvaj i današnji log; veoma nam je vredan.
+    for forward in [
+        0.038,
+        0.039,
+        0.038,
+    ]:
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=forward,
+        )
 
-Vidimo se sutra — odmori i ti i menjač. 😄🏍️
+    assert detector._shift_rearm_pending is False
+    assert detector._forward_offset_history == []
+
+Ovde su offseti +0.003, +0.004, +0.003, dakle nijedan nije < 0.002. Baseline-settle ne može da nam pomogne.
+
+Očekujem da ovaj novi test bude crven. Ako jeste, onda ćemo pogledati tačno uvlačenje rearm bloka — jer live log kaže da clear() još uvek nije na pravom mestu.
+
+Usput, baseline ovog puta jeste stabilan (0.0299–0.0358), ali je postavljen tek u 8.359 s, dakle nakon što si već započeo pokret u 8 s. Ipak, prvi događaj je pravilno bio SHIFT_UP u 9.391 s; to ćemo rešavati tek posle ovog rearm baga.
