@@ -2123,21 +2123,7 @@ def test_real_shift_up_forward_sequence_starts_attempt_from_live_log():
         )
 
     assert detector._forward_movement_active is True
-def test_two_consecutive_one_sided_offsets_start_shift_attempt():
-    detector = GearShiftDetector()
-    detector._forward_baseline = 0.03358926773071289
 
-    detector._update_forward_movement_from_baseline(
-        0.024242818355560303
-    )
-
-    assert detector._forward_movement_active is False
-
-    detector._update_forward_movement_from_baseline(
-        0.02369558811187744
-    )
-
-    assert detector._forward_movement_active is True
 def test_one_sided_forward_offsets_do_not_start_attempt_on_footpeg():
     detector = GearShiftDetector()
 
@@ -2558,3 +2544,297 @@ def test_rearm_clears_forward_offset_history():
         abs(offset) < 0.002
         for offset in detector._forward_offset_history
     )
+def test_rearm_itself_clears_forward_offset_history():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_movement_active = True
+    detector._forward_baseline = 0.035
+    detector._forward_offset_history = [
+        -0.024,
+        -0.023,
+        -0.020,
+    ]
+
+    for forward in [
+        0.038,
+        0.039,
+        0.038,
+    ]:
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=forward,
+        )
+
+    assert detector._shift_rearm_pending is False
+    assert detector._forward_offset_history == []
+def test_real_shift_up_heel_sequence_is_shift_up():
+    heel_y = [
+        0.6868953704833984,
+        0.6853688359260559,
+        0.7004469037055969,
+        0.7065775394439697,
+        0.717322826385498,
+        0.7111089825630188,
+        0.7124395966529846,
+        0.7113640904426575,
+        0.7085505127906799,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    shift = GearShiftDetector._shift_from_heel_trend(
+        trend
+    )
+
+    assert shift == "SHIFT_UP"
+def test_cross_baseline_does_not_start_on_single_opposite_sample():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.03982442617416382
+
+    detector._forward_offset_history = [
+        -0.0057545,
+        -0.0042937,
+        -0.0017009,
+        0.0052419,
+        0.0024597,
+        0.0060472,
+        -0.0050849,
+        -0.0048865,
+        -0.0141431,
+    ]
+
+    detector._update_forward_movement_from_baseline(
+        0.055329740047454834
+    )
+
+    assert detector._forward_movement_active is False
+def test_cross_baseline_starts_when_path_passes_through_baseline():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.0271457
+
+    for forward in [
+        0.0355449,  # +0.0084
+        0.0288923,  # +0.0017, near baseline
+        0.0179184,  # -0.0092
+    ]:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+def test_shift_attempt_keeps_recent_heel_history_before_confirmation():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.04044
+
+    samples = [
+        (0.0345, 0.7771),
+        (0.0325, 0.7770),
+        (0.0326, 0.7692),
+        (0.0264, 0.7749),
+        (0.0250, 0.7752),
+    ]
+
+    for forward, heel_y in samples:
+        detector.update(
+            0.125,
+            162.0,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+        )
+
+    assert detector._forward_movement_active is True
+
+    assert detector._heel_y_history == [
+        0.7771,
+        0.7770,
+        0.7692,
+        0.7749,
+        0.7752,
+    ]
+def test_static_negative_forward_jitter_does_not_start_shift():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.028452062606811525
+
+    detector._update_forward_movement_from_baseline(
+        0.017528116703033447
+    )
+
+    detector._update_forward_movement_from_baseline(
+        0.01415717601776123
+    )
+
+    assert detector._forward_movement_active is False
+def test_negative_shift_attempt_requires_progressive_path():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.03358926773071289
+
+    samples = [
+        0.02847588062286377,
+        0.02580583095550537,
+        0.024242818355560303,
+        0.02369558811187744,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+def test_two_consecutive_one_sided_offsets_do_not_start_shift_attempt():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.03358926773071289
+
+    detector._update_forward_movement_from_baseline(
+        0.024242818355560303
+    )
+
+    assert detector._forward_movement_active is False
+
+    detector._update_forward_movement_from_baseline(
+        0.02369558811187744
+    )
+
+    assert detector._forward_movement_active is False
+def test_shift_attempt_does_not_immediately_count_as_back_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.03358926773071289
+
+    samples = [
+        0.02847588062286377,
+        0.02580583095550537,
+        0.024242818355560303,
+        0.02369558811187744,
+    ]
+
+    for forward in samples:
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=forward,
+            left_heel_y=0.705,
+        )
+
+    assert detector._forward_movement_active is True
+    assert detector._back_movement_active is False
+def test_newly_confirmed_forward_movement_is_not_back_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.03358926773071289
+
+    samples = [
+        0.02847588062286377,
+        0.02580583095550537,
+        0.024242818355560303,
+        0.02369558811187744,
+    ]
+
+    for forward in samples:
+        detector.update(
+            0.120,
+            155.0,
+            left_foot_forward=forward,
+            left_heel_y=0.705,
+        )
+
+    assert detector._forward_movement_active is True
+    assert detector._back_movement_active is False
+def test_static_positive_forward_sequence_does_not_start_shift():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.03342646360397339
+
+    samples = [
+        0.04566586017608643,  # +0.0122394
+        0.04456490278244019,  # +0.0111384
+        0.04229289293289185,  # +0.0088664
+        0.04368025064468384,  # +0.0102538
+        0.04520499706268311,  # +0.0117785
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is False
+def test_live_positive_shift_has_outward_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.015255022048950195
+
+    samples = [
+        0.025336146354675293,
+        0.029669225215911865,
+        0.029373466968536377,
+        0.029087424278259277,
+        0.029112577438354492,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+def test_static_negative_drift_with_single_large_offset_does_not_start_shift():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.04003293514251709
+
+    samples = [
+        0.037344157695770264,  # -0.00269
+        0.032955169677734375,  # -0.00708
+        0.02207845449447632,   # -0.01795
+        0.001446843147277832,  # -0.03859
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is False
+
+def test_real_shift_up_sequence_activates_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._set_forward_baseline(
+        0.04004952907562256
+    )
+
+    forward_values = [
+        0.04377186298370361,
+        0.04371899366378784,
+        0.03924596309661865,
+        0.03854548931121826,
+        0.059136271476745605,
+        0.058198750019073486,
+        0.05042147636413574,
+        0.049142539501190186,
+        0.048832714557647705,
+        0.04775357246398926,
+        0.05772686004638672,
+        0.054556965827941895,
+    ]
+
+    for value in forward_values:
+        detector._update_forward_movement_from_baseline(
+            value
+        )
+
+    assert detector._forward_movement_active is True

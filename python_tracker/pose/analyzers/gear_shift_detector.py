@@ -32,7 +32,7 @@ class GearShiftDetector:
         self._heel_y_history = []
         self._heel_visibility_history = []
         self._forward_offset_history = []
-        self._pending_heel_y = None
+        self._pending_heel_y_history = []
         self._rearm_footpeg_frames = 0
         self._baseline_settle_frames = 0
       
@@ -81,7 +81,11 @@ class GearShiftDetector:
         )
 
         was_forward_active = self._forward_movement_active
-        pending_heel_y = self._pending_heel_y
+        
+        
+        pending_heel_y_history = (
+             self._pending_heel_y_history.copy()
+            )
 
         self._update_forward_movement_from_baseline(
             left_foot_forward,
@@ -98,15 +102,21 @@ class GearShiftDetector:
         ):
             self._clear_heel_history()
 
-            if pending_heel_y is not None:
+            for heel_y in pending_heel_y_history:
                 self._update_heel_history(
-                    pending_heel_y
+                    heel_y
                 )
 
-            self._pending_heel_y = None
+            self._pending_heel_y_history.clear()
 
         elif not self._forward_movement_active:
-            self._pending_heel_y = left_heel_y
+            if left_heel_y is not None:
+                self._pending_heel_y_history.append(
+                    left_heel_y
+                )
+
+                if len(self._pending_heel_y_history) > 5:
+                    self._pending_heel_y_history.pop(0)
 
         self._update_shift_heel_history(
             left_heel_y,
@@ -259,6 +269,7 @@ class GearShiftDetector:
                     self._shift_rearm_pending = False
                     self._forward_movement_active = False
                     self._back_movement_active = False
+                    self._forward_offset_history.clear()
                     self._rearm_footpeg_frames = 0
 
                 return None
@@ -491,7 +502,14 @@ class GearShiftDetector:
         if len(self._forward_offset_history) >= 5:
             recent = self._forward_offset_history[-5:]
 
-            if all(offset >= 0.008 for offset in recent):
+            moved_outward = (
+                max(recent) - recent[0] >= 0.004
+            )
+
+            if (
+                all(offset >= 0.008 for offset in recent)
+                and moved_outward
+            ):
                 self._forward_movement_active = True
                 self._back_movement_active = False
                 return
@@ -534,21 +552,87 @@ class GearShiftDetector:
                 self._back_movement_active = False
                 return
 
-        if (
-            max(self._forward_offset_history) >= 0.008
-            and min(self._forward_offset_history) <= -0.008
-        ):
-            self._forward_movement_active = True
-            self._back_movement_active = False
-            return
+        if len(self._forward_offset_history) >= 3:
+            current = self._forward_offset_history[-1]
 
+            if current <= -0.008:
+                for index in range(
+                    len(self._forward_offset_history) - 2,
+                    -1,
+                    -1,
+                ):
+                    previous = self._forward_offset_history[index]
+
+                    if previous >= 0.008:
+                        between = self._forward_offset_history[
+                            index + 1:-1
+                        ]
+
+                        if any(
+                            abs(offset) < 0.004
+                            for offset in between
+                        ):
+                            self._forward_movement_active = True
+                            self._back_movement_active = False
+                            return
+
+                        break
+
+            elif current >= 0.008:
+                for index in range(
+                    len(self._forward_offset_history) - 2,
+                    -1,
+                    -1,
+                ):
+                    previous = self._forward_offset_history[index]
+
+                    if previous <= -0.008:
+                        between = self._forward_offset_history[
+                            index + 1:-1
+                        ]
+
+                        if any(
+                            abs(offset) < 0.004
+                            for offset in between
+                        ):
+                            self._forward_movement_active = True
+                            self._back_movement_active = False
+                            return
+
+                        break
+       
+        if len(self._forward_offset_history) >= 3:
+            previous = self._forward_offset_history[-2]
+            current = self._forward_offset_history[-1]
+
+            approached_from_negative_side = any(
+                -0.008 < offset < 0.0
+                for offset in self._forward_offset_history[:-2]
+            )
+            prior = self._forward_offset_history[-3]
+
+            previous_step = abs(previous - prior)
+            current_step = abs(current - previous)
+
+            settling_negative_path = (
+                current_step <= previous_step
+            )
+            if (
+                approached_from_negative_side
+                and previous <= -0.008
+                and current <= -0.008
+                and settling_negative_path
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
         if len(self._forward_offset_history) >= 2:
             previous = self._forward_offset_history[-2]
             current = self._forward_offset_history[-1]
-                       
+
             if (
-                previous <= -0.008
-                and current <= -0.008
+                previous >= 0.019
+                and current >= 0.018
             ):
                 self._forward_movement_active = True
                 self._back_movement_active = False
@@ -685,35 +769,9 @@ class GearShiftDetector:
             self._direction_zone = zone
             self._direction_zone_frames = 1
 
-    @staticmethod
-    def _heel_end_trend(heel_y):
-        if heel_y is None or len(heel_y) < 2:
-            return None
+   
 
-        if heel_y[-1] < heel_y[0]:
-            return "UP"
-
-        if heel_y[-1] > heel_y[0]:
-            return "DOWN"
-
-        return "STABLE"
-
-        
-    @staticmethod
-    def _heel_end_trend(heel_y):
-        if heel_y is None or len(heel_y) < 2:
-            return None
-
-        delta = heel_y[-1] - heel_y[0]
-
-        if abs(delta) < 0.005:
-            return "STABLE"
-
-        if delta < 0:
-            return "UP"
-
-        return "DOWN"
-
+   
     @staticmethod
     def _shift_from_heel_trend(heel_trend):
         if heel_trend == "UP":
@@ -759,54 +817,7 @@ class GearShiftDetector:
         self._update_heel_visibility_history(
             heel_visibility
         )
-  
-    @staticmethod
-    def _heel_end_trend(heel_y):
-        if heel_y is None or len(heel_y) < 3:
-            return None
-
-        end_samples = heel_y[-5:]
-        
-
-        total_delta = (
-            end_samples[-1] - end_samples[0]
-        )
-
-        if abs(total_delta) < 0.005:
-            return "STABLE"
-
-        deltas = [
-            end_samples[index] - end_samples[index - 1]
-            for index in range(1, len(end_samples))
-        ]
-
-        directions = []
-
-        for delta in deltas:
-            if delta < 0:
-                directions.append("UP")
-            elif delta > 0:
-                directions.append("DOWN")
-            else:
-                directions.append("STABLE")
-
-        # Ignore flat samples at the very end.
-        while (
-            directions
-            and directions[-1] == "STABLE"
-        ):
-            directions.pop()
-
-        if len(directions) < 2:
-            return "STABLE"
-        
-        if (
-            directions[-1] == directions[-2]
-            and directions[-1] in ("UP", "DOWN")
-        ):
-            return directions[-1]
-
-        return "STABLE"
+     
 
     def _update_heel_visibility_history(
         self,
@@ -822,4 +833,50 @@ class GearShiftDetector:
         if len(self._heel_visibility_history) > 10:
             self._heel_visibility_history.pop(0)
 
-   
+    @staticmethod
+    def _heel_end_trend(heel_y):
+        if heel_y is None or len(heel_y) < 3:
+            return None
+
+        confirmed_direction = None
+
+        current_direction = None
+        current_steps = 0
+        current_movement = 0.0
+
+        for index in range(1, len(heel_y)):
+            delta = (
+                heel_y[index]
+                - heel_y[index - 1]
+            )
+
+            if delta < 0:
+                direction = "UP"
+            elif delta > 0:
+                direction = "DOWN"
+            else:
+                # A flat sample does not erase
+                # an already established run.
+                continue
+
+            if direction == current_direction:
+                current_steps += 1
+                current_movement += abs(delta)
+
+            else:
+                current_direction = direction
+                current_steps = 1
+                current_movement = abs(delta)
+
+            if (
+                current_steps >= 2
+                and current_movement >= 0.005
+            ):
+                confirmed_direction = (
+                    current_direction
+                )
+
+        if confirmed_direction is None:
+            return "STABLE"
+
+        return confirmed_direction

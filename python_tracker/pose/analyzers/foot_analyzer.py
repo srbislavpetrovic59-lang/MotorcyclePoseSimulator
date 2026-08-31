@@ -131,19 +131,7 @@ class FootAnalyzer:
         else:
             right_foot_rotation = None
             right_foot_drop = None
-            rear_brake_ready = None
-        '''
-        print(
-            "Rear brake ready:",
-            rear_brake_ready,
-            "rotation:",
-            right_foot_rotation,
-        )
-
-        print(
-            "Right foot rotation:",
-            right_foot_rotation
-        )'''
+        
         if right_foot_reacquired:
             rear_brake_progress = None
         else:
@@ -157,18 +145,7 @@ class FootAnalyzer:
             rear_brake_progress
         )
 
-        '''
-        print(
-            "Rear brake:",
-            f"drop={right_foot_drop}",
-            f"progress={rear_brake_progress}",
-            f"active={rear_brake_active}",
-        )
-                
-        print(
-            "Right foot angle:",
-            right_foot_angle
-        )'''
+       
         if right_foot_is_visible:
             self._right_foot_seen_once = True
 
