@@ -13,6 +13,8 @@ class FootAnalyzer:
         self._right_foot_seen_once = False
         self._start_time = time.monotonic() 
         self._gear_shift_detector = GearShiftDetector()
+        self._left_foot_gear_was_visible = 0
+        
 
     def analyze(self, landmarks):
         left_knee_angle = self._left_knee_angle(landmarks)
@@ -26,7 +28,7 @@ class FootAnalyzer:
         left_foot = landmarks[PoseLandmark.LEFT_FOOT_INDEX]
         left_heel_relative_y = left_heel.y - left_foot.y
 
-        left_foot_is_visible = self._left_foot_visible(
+        left_foot_is_visible = self._left_foot_visible_for_gear_shift(
             left_heel,
             left_ankle,
             left_foot,
@@ -131,6 +133,7 @@ class FootAnalyzer:
         else:
             right_foot_rotation = None
             right_foot_drop = None
+            rear_brake_ready = None
         
         if right_foot_reacquired:
             rear_brake_progress = None
@@ -290,4 +293,33 @@ class FootAnalyzer:
             and left_ankle.visibility >= 0.5
             and left_foot.visibility >= 0.5
         )
-    
+
+    def _left_foot_visible_for_gear_shift(
+        self,
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) -> bool:
+        normally_visible = (
+            left_heel.visibility >= 0.5
+            and left_ankle.visibility >= 0.40
+            and left_foot.visibility >= 0.5
+        )
+
+        if normally_visible:
+            self._left_foot_gear_visibility_grace = 2
+            return True
+
+        briefly_degraded = (
+            self._left_foot_gear_visibility_grace > 0
+            and left_heel.visibility >= 0.5
+            and left_ankle.visibility >= 0.30
+            and left_foot.visibility >= 0.5
+        )
+
+        if briefly_degraded:
+            self._left_foot_gear_visibility_grace -= 1
+            return True
+
+        self._left_foot_gear_visibility_grace = 0
+        return False

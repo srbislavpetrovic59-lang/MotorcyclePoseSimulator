@@ -1,15 +1,9 @@
-﻿Sjajno. 144/144 zelenih. To znači da je korekcija negativne putanje prošla kompletan GearShiftDetector regression suite. 👍
+﻿Da, možemo. Ne moramo više da radimo live sada.
 
-Sada je vreme za live proveru, bez ikakvih daljih izmena koda.
+Imamo dovoljno materijala iz postojećih logova da pređemo na testove iz realnih sekvenci. Sledeće bih uradio ovako: uzmemo vrednosti oko 24 s i 32 s iz poslednjeg loga, napravimo regression testove direktno za GearShiftDetector, i dalje sve radimo RED/GREEN bez kamere.
 
-Ponovi što čistije isti scenario:
+To je čak bolji način za narednu fazu, jer možemo mirno da menjamo algoritam i svaki put tačno znamo šta smo popravili ili pokvarili.
 
-stopalo miruje → oko 8 s uradi jedan SHIFT_UP → zatim stopalo ponovo miruje.
+Live ćemo vratiti tek kada testovi pokažu da obe realne sekvence daju očekivani smer. Dakle: za sada nema više live testova.
 
-Najvažnije su nam dve stvari: da više nema lažnog SHIFT_DOWN pre 8 s, i da pravi SHIFT_UP i dalje bude prepoznat.
-
-Pošalji log posle probe — ako bude veliki, dovoljan je deo otprilike 5–11 s.
-
-Pasted text(20260831-142631).txt
-Document
-shift up radjen u 8s
+Ako hoćeš, odmah ti mogu napisati prvi regression test iz sekvence oko 32 s. pojedinačni MediaPipe trzaj. Detektor ćemo zasnovati na karakterističnoj putanji pravog šaltanja, što je mnogo zdraviji pristup za ovaj projekat.njača na snimku. Laku noć! 🏍️

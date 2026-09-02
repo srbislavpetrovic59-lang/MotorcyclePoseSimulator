@@ -2838,3 +2838,504 @@ def test_real_shift_up_sequence_activates_forward_movement():
         )
 
     assert detector._forward_movement_active is True
+def test_ready_position_establishes_forward_baseline():
+    detector = GearShiftDetector()
+
+    left_foot_drop = 0.06
+    left_foot_angle = 152.0
+    left_foot_forward = -0.045
+
+    detector.update(
+        left_foot_drop=left_foot_drop,
+        left_foot_angle=left_foot_angle,
+        left_foot_forward=left_foot_forward,
+    )
+
+    assert detector._state == "READY"
+    assert detector._forward_baseline is not None
+
+def test_real_idle_heel_motion_does_not_trigger_shift_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.0009360909461975098
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+    detector._direction_zone = "UP"
+    detector._direction_zone_frames = 4
+
+    detector._heel_y_history = [
+        0.7714046239852905,
+        0.770157516002655,
+        0.7658402323722839,
+        0.7639350891113281,
+        0.7642208933830261,
+        0.7918588519096375,
+        0.7855291366577148,
+        0.784561038017273,
+        0.7819739580154419,
+        0.7593326568603516,
+    ]
+
+    result = detector.update(
+        left_foot_drop=0.11205101013183594,
+        left_foot_angle=162.7,
+        left_foot_forward=0.0184,
+        left_heel_y=0.7593326568603516,
+        left_heel_visibility=0.68,
+    )
+
+    assert result is None
+def test_heel_end_trend_distinguishes_false_motion_from_real_shift_down():
+    false_heel_y = [
+        0.7714046239852905,
+        0.770157516002655,
+        0.7658402323722839,
+        0.7639350891113281,
+        0.7642208933830261,
+        0.7918588519096375,
+        0.7855291366577148,
+        0.784561038017273,
+        0.7819739580154419,
+        0.7593326568603516,
+    ]
+
+    real_shift_down_heel_y = [
+        0.6869,
+        0.6358,
+        0.5839,
+        0.5839,
+    ]
+
+    false_trend = GearShiftDetector._heel_end_trend(
+        false_heel_y
+    )
+
+    real_trend = GearShiftDetector._heel_end_trend(
+        real_shift_down_heel_y
+    )
+
+    assert false_trend == "STABLE"
+    assert real_trend == "UP"
+def test_gear_shift_is_suppressed_during_initial_settling_period():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.011
+
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    detector._heel_y_history = [
+        0.650,
+        0.655,
+        0.665,
+    ]
+
+    result = detector.update(
+        left_foot_drop=0.100,
+        left_foot_angle=155.0,
+        left_foot_forward=0.030,
+        left_heel_y=0.670,
+        left_heel_visibility=0.9,
+        elapsed_seconds=5.5,
+    )
+
+    assert result is None
+def test_settling_motion_does_not_emit_shift_after_settling_period():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.010
+
+    # Simulate a shift attempt created while the rider
+    # is still settling in front of the camera.
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+    detector._heel_y_history = [
+        0.83,
+        0.80,
+        0.77,
+    ]
+
+    detector.update(
+        left_foot_drop=0.100,
+        left_foot_angle=155.0,
+        left_foot_forward=0.020,
+        left_heel_y=0.74,
+        left_heel_visibility=0.9,
+        elapsed_seconds=5.9,
+    )
+
+    result = detector.update(
+        left_foot_drop=0.100,
+        left_foot_angle=155.0,
+        left_foot_forward=0.020,
+        left_heel_y=0.72,
+        left_heel_visibility=0.9,
+        elapsed_seconds=6.1,
+    )
+
+    assert result is None
+def test_settling_shift_attempt_does_not_survive_past_six_seconds():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.027
+
+    # During settling, movement starts.
+    detector.update(
+        left_foot_drop=0.097,
+        left_foot_angle=172.0,
+        left_foot_forward=0.001,
+        left_heel_y=0.770,
+        left_heel_visibility=0.9,
+        elapsed_seconds=5.8,
+    )
+
+    detector.update(
+        left_foot_drop=0.097,
+        left_foot_angle=172.0,
+        left_foot_forward=0.001,
+        left_heel_y=0.760,
+        left_heel_visibility=0.9,
+        elapsed_seconds=5.9,
+    )
+
+    # Settling is now over, but there has been
+    # no new genuine shift attempt.
+    result = detector.update(
+        left_foot_drop=0.095,
+        left_foot_angle=169.0,
+        left_foot_forward=0.004,
+        left_heel_y=0.750,
+        left_heel_visibility=0.9,
+        elapsed_seconds=6.1,
+    )
+
+    assert result is None
+    assert detector._shift_rearm_pending is False
+def test_real_settling_sequence_leaves_clean_shift_state():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = (
+        0.027106642723083496
+    )
+
+    samples = [
+        (
+            5.781,
+            0.0986553430557251,
+            171.09699897163063,
+            0.002892792224884033,
+            0.7699,
+            0.81,
+        ),
+        (
+            5.843,
+            0.09732240438461304,
+            172.4183813360996,
+            0.0016916990280151367,
+            0.7700,
+            0.81,
+        ),
+        (
+            5.906,
+            0.09663575887680054,
+            172.0797695328112,
+            0.0011313557624816895,
+            0.7707,
+            0.80,
+        ),
+        (
+            5.953,
+            0.0915117859840393,
+            171.7115536223066,
+            0.0020338892936706543,
+            0.7713,
+            0.80,
+        ),
+    ]
+
+    for (
+        elapsed,
+        drop,
+        angle,
+        forward,
+        heel_y,
+        visibility,
+    ) in samples:
+        result = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+            left_heel_visibility=visibility,
+            elapsed_seconds=elapsed,
+        )
+
+        assert result is None
+
+    assert detector._forward_movement_active is False
+    assert detector._back_movement_active is False
+    assert detector._shift_rearm_pending is False
+    assert detector._heel_y_history == []
+    assert detector._pending_heel_y_history == []
+    assert detector._forward_offset_history == []
+def test_first_shift_after_settling_requires_stable_footpeg():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.027
+
+    # Settling period has finished, but the foot
+    # is still moving and is not yet stably on the footpeg.
+    moving_frames = [
+        (6.00, 0.091, 168.4, 0.0045),
+        (6.06, 0.094, 169.3, 0.0034),
+        (6.11, 0.097, 169.5, 0.0033),
+    ]
+
+    for elapsed, drop, angle, forward in moving_frames:
+        detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=0.76,
+            left_heel_visibility=0.9,
+            elapsed_seconds=elapsed,
+        )
+
+    assert detector._forward_movement_active is False
+def test_real_pre_shift_motion_does_not_emit_false_shift_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = (
+        0.013139069080352783
+    )
+
+    samples = [
+        # elapsed, drop, angle, forward, heel_y, visibility
+        (
+            6.906,
+            0.07146942615509033,
+            143.14348849290496,
+            0.030182957649230957,
+            0.6910,
+            0.61,
+        ),
+        (
+            6.969,
+            0.07867449522018433,
+            149.33734901004058,
+            0.02929025888442993,
+            0.6930,
+            0.63,
+        ),
+        (
+            7.031,
+            0.09845495223999023,
+            157.40067000044434,
+            0.0195620059967041,
+            0.6932,
+            0.65,
+        ),
+        (
+            7.094,
+            0.10272592306137085,
+            161.83292739902478,
+            0.01412808895111084,
+            0.7015,
+            0.67,
+        ),
+        (
+            7.156,
+            0.10667645931243896,
+            165.77632391732067,
+            0.008904039859771729,
+            0.6951,
+            0.69,
+        ),
+        (
+            7.219,
+            0.11518383026123047,
+            166.89536972094152,
+            0.00785815715789795,
+            0.7196,
+            0.70,
+        ),
+        (
+            7.297,
+            0.12544453144073486,
+            167.08800716312672,
+            0.00730586051940918,
+            0.7187,
+            0.71,
+        ),
+        (
+            7.360,
+            0.1355353593826294,
+            166.80396217325165,
+            0.0021372437477111816,
+            0.6868,
+            0.71,
+        ),
+        (
+            7.422,
+            0.1193990707397461,
+            167.6,
+            0.0056,
+            0.7045,
+            0.73,
+        ),
+    ]
+
+    shifts = []
+
+    for (
+        elapsed,
+        drop,
+        angle,
+        forward,
+        heel_y,
+        visibility,
+    ) in samples:
+        result = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+            left_heel_visibility=visibility,
+            elapsed_seconds=elapsed,
+        )
+
+        if result is not None:
+            shifts.append(result)
+
+    assert shifts == []
+def test_heel_end_trend_rejects_reversed_end_movement():
+    heel_y = [
+        0.6932,
+        0.7015,
+        0.6951,
+        0.7196,
+        0.7187,
+        0.6868,
+        0.7045,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(
+        heel_y
+    ) == "STABLE"
+
+def test_real_pre_shift_motion_at_six_seconds_does_not_emit_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = (
+        0.034899353981018066
+    )
+
+    samples = [
+        # elapsed, drop, angle, forward, heel_y, visibility
+        (
+            6.218,
+            0.12055468559265137,
+            155.6785055069093,
+            0.02478128671646118,
+            0.7610,
+            0.86,
+        ),
+        (
+            6.281,
+            0.11482447385787964,
+            155.15053493771254,
+            0.02620309591293335,
+            0.7778,
+            0.86,
+        ),
+        (
+            6.343,
+            0.1252613067626953,
+            156.55893958875873,
+            0.025733113288879395,
+            0.7748,
+            0.86,
+        ),
+        (
+            6.406,
+            0.12260735034942627,
+            155.743539976939,
+            0.030365467071533203,
+            0.7760,
+            0.86,
+        ),
+        (
+            6.468,
+            0.1327560544013977,
+            156.2239812050022,
+            0.030506134033203125,
+            0.7634,
+            0.86,
+        ),
+        (
+            6.515,
+            0.14222514629364014,
+            159.09308113858316,
+            0.022153198719024658,
+            0.7735,
+            0.86,
+        ),
+        (
+            6.578,
+            0.14027541875839233,
+            160.82570610431094,
+            0.017367005348205566,
+            0.7803,
+            0.86,
+        ),
+        (
+            6.625,
+            0.13455075025558472,
+            161.57190392457227,
+            0.017161071300506592,
+            0.7829,
+            0.86,
+        ),
+        (
+            6.687,
+            0.13122576475143433,
+            164.3,
+            0.0177,
+            0.7825,
+            0.86,
+        ),
+    ]
+
+    shifts = []
+
+    for (
+        elapsed,
+        drop,
+        angle,
+        forward,
+        heel_y,
+        visibility,
+    ) in samples:
+        result = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+            left_heel_visibility=visibility,
+            elapsed_seconds=elapsed,
+        )
+
+        if result is not None:
+            shifts.append(result)
+
+    assert shifts == []

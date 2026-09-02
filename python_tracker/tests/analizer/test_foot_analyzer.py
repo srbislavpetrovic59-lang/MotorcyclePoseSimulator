@@ -273,3 +273,89 @@ def test_zone_classifies_measured_shift_up_peak_as_high():
 def test_zone_keeps_value_below_high_threshold_in_transition():
     assert GearShiftDetector._zone(0.055) == "TRANSITION"
 
+def test_left_foot_visible_with_slightly_lower_ankle_visibility():
+    analyzer = FootAnalyzer()
+    
+    class Landmark:
+        def __init__(self, visibility):
+            self.visibility = visibility
+
+    left_heel = Landmark(0.52)
+    left_ankle = Landmark(0.46)
+    left_foot = Landmark(0.52)
+
+    
+
+    assert analyzer._left_foot_visible_for_gear_shift(
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) is True
+
+def test_left_foot_visible_for_gear_shift_with_low_ankle_visibility(): 
+    analyzer = FootAnalyzer()
+    
+    class Landmark:
+        def __init__(self, visibility):
+            self.visibility = visibility
+
+    left_heel = Landmark(0.62)
+    left_ankle = Landmark(0.40)
+    left_foot = Landmark(0.58)
+
+   
+
+    assert analyzer._left_foot_visible_for_gear_shift(
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) is True
+def test_gear_shift_visibility_survives_brief_ankle_visibility_drop():
+    analyzer = FootAnalyzer()
+
+    class Landmark:
+        def __init__(self, visibility):
+            self.visibility = visibility
+
+    # Good tracking first.
+    assert analyzer._left_foot_visible_for_gear_shift(
+        Landmark(0.65),
+        Landmark(0.41),
+        Landmark(0.58),
+    ) is True
+
+    # Ankle briefly drops below the normal threshold,
+    # while heel and foot are still visible.
+    assert analyzer._left_foot_visible_for_gear_shift(
+        Landmark(0.63),
+        Landmark(0.39),
+        Landmark(0.56),
+    ) is True
+def test_gear_shift_visibility_survives_two_brief_ankle_visibility_drops():
+    analyzer = FootAnalyzer()
+
+    class Landmark:
+        def __init__(self, visibility):
+            self.visibility = visibility
+
+    # Good tracking.
+    assert analyzer._left_foot_visible_for_gear_shift(
+        Landmark(0.64),
+        Landmark(0.40),
+        Landmark(0.57),
+    ) is True
+
+    # First degraded frame.
+    assert analyzer._left_foot_visible_for_gear_shift(
+        Landmark(0.63),
+        Landmark(0.39),
+        Landmark(0.56),
+    ) is True
+
+    # Second degraded frame.
+    assert analyzer._left_foot_visible_for_gear_shift(
+        Landmark(0.62),
+        Landmark(0.37),
+        Landmark(0.54),
+    ) is True
+
