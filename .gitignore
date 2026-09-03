@@ -11,4 +11,5 @@ Intermediate/
 Saved/
 DerivedDataCache/
 .vs/
-*.sln  
+*.sln 
+.venv 
