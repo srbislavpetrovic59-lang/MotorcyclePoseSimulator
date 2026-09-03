@@ -14,6 +14,7 @@ class FootAnalyzer:
         self._start_time = time.monotonic() 
         self._gear_shift_detector = GearShiftDetector()
         self._left_foot_gear_was_visible = 0
+        self._left_foot_gear_visibility_grace = 0
         
 
     def analyze(self, landmarks):
