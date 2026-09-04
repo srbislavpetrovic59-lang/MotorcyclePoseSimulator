@@ -88,10 +88,10 @@ def test_run_loop_processes_pose_once_per_frame() -> None:
     frame = MagicMock()
     pose_landmarks = MagicMock()
 
-    camera.read.side_effect = [
-        frame,
-        None,
-    ]
+    camera.read_with_id.side_effect = [
+    (frame, 7),
+    (None, 8),
+]
 
     detector.detect.return_value = pose_landmarks
     hand_detector.detect.return_value = (
@@ -128,5 +128,71 @@ def test_run_loop_processes_pose_once_per_frame() -> None:
          return_value=-1,
      ):
      pipeline._run_loop()
+
+    pipeline._process_pose.assert_called_once()
+def test_run_loop_does_not_process_same_frame_twice() -> None:
+    camera = MagicMock()
+    detector = MagicMock()
+    hand_detector = MagicMock()
+    renderer = MagicMock()
+    analyzer = MagicMock()
+    evaluator = MagicMock()
+    feedback_manager = MagicMock()
+    coach = MagicMock()
+    recorder = MagicMock()
+    overlay = MagicMock()
+    session_summary = MagicMock()
+    narrator = MagicMock()
+    output_dispatcher = MagicMock()
+    rider_state_mapper = MagicMock()
+    websocket_server = MagicMock()
+
+    frame = MagicMock()
+    pose_landmarks = MagicMock()
+
+    camera.read.side_effect = [
+        frame,
+        frame,
+        None,
+    ]
+
+    camera.read_with_id.side_effect = [
+        (frame, 7),
+        (frame, 7),
+        (None, 8),
+    ]
+
+    detector.detect.return_value = pose_landmarks
+    hand_detector.detect.return_value = (
+        None,
+        None,
+    )
+
+    pipeline = PosePipeline(
+        camera=camera,
+        detector=detector,
+        hand_detector=hand_detector,
+        renderer=renderer,
+        analyzer=analyzer,
+        evaluator=evaluator,
+        feedback_manager=feedback_manager,
+        coach=coach,
+        recorder=recorder,
+        overlay=overlay,
+        session_summary=session_summary,
+        narrator=narrator,
+        output_dispatcher=output_dispatcher,
+        rider_state_mapper=rider_state_mapper,
+        websocket_server=websocket_server,
+    )
+
+    pipeline._process_pose = MagicMock()
+
+    with patch("pipeline.pose_pipeline.cv2.imshow"), \
+         patch(
+             "pipeline.pose_pipeline.cv2.waitKey",
+             return_value=-1,
+         ):
+        pipeline._run_loop()
 
     pipeline._process_pose.assert_called_once()

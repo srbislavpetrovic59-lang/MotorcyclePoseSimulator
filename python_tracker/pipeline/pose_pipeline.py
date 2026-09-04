@@ -58,6 +58,7 @@ class PosePipeline:
         self._rider_state_mapper = rider_state_mapper
         self._websocket_server = websocket_server
         self._last_analysis_result = None
+        self._last_frame_id = None
     
     
 
@@ -78,10 +79,15 @@ class PosePipeline:
         while True:
             start = time.perf_counter()
 
-            frame = self._camera.read()
+            frame, frame_id = self._camera.read_with_id()
 
             if frame is None:
                 break
+
+            if frame_id == self._last_frame_id:
+                continue
+
+            self._last_frame_id = frame_id
 
             landmarks = self._detector.detect(frame)
 

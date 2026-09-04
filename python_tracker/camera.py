@@ -39,6 +39,7 @@ class Camera:
             )
 
         self._latest_frame = frame
+        self._frame_id = 0
         self._running = True
 
 
@@ -80,3 +81,16 @@ class Camera:
                 continue
 
             self._latest_frame = frame
+            self._frame_id += 1
+    def read_with_id(self):
+
+        if self._latest_frame is None:
+            return None, self._frame_id
+
+        return (
+            cv2.flip(
+                self._latest_frame.copy(),
+                1,
+            ),
+            self._frame_id,
+        )
