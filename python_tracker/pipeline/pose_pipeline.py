@@ -188,6 +188,13 @@ class PosePipeline:
                         f"Throttle OPEN calibrated: "
                         f"{right_hand_rotation:.1f}"
                     )
+                if frame_analysis.pose_landmarks is not None:
+                    self._process_pose(
+                        frame,
+                        frame_analysis,
+                    )
+                else:
+                    print("POSE LOST")
 
 
     def _process_pose(
