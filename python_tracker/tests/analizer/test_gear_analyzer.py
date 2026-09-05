@@ -3339,3 +3339,118 @@ def test_real_pre_shift_motion_at_six_seconds_does_not_emit_shift_up():
             shifts.append(result)
 
     assert shifts == []
+
+def test_live_footpeg_stay_position():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=0.048,
+        left_foot_angle=100.0,
+    ) is True
+def test_live_up_sequence_is_detected_as_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = -0.060
+
+    sequence = [
+        # neutral / start
+        (0.0404,  99.0, -0.060),
+        (0.0373, 107.2, -0.058),
+
+        # real UP trajectory
+        (0.0330, 109.5, -0.045),
+        (0.0342, 109.0, -0.030),
+        (0.0096, 127.0, -0.015),
+        (-0.0150, 154.9, -0.010),
+
+        # return toward footpeg
+        (0.0400, 105.0, -0.040),
+        (0.0480, 100.0, -0.058),
+    ]
+
+    events = []
+
+    for drop, angle, forward in sequence:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+
+        if event is not None:
+            events.append(event)
+
+    assert "SHIFT_UP" in events
+    assert "SHIFT_DOWN" not in events
+def test_live_ready_transition_does_not_set_baseline_from_single_frame():
+    detector = GearShiftDetector()
+
+    detector.update(
+        left_foot_drop=0.080,
+        left_foot_angle=160.0,
+        left_foot_forward=-0.005,
+        elapsed_seconds=6.1,
+    )
+
+    assert detector._state == "READY"
+    assert detector._forward_baseline is None
+def test_live_footpeg_stay_position_with_high_neutral_angle():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=0.045,
+        left_foot_angle=167.0,
+    ) is True
+def test_live_footpeg_stay_position_with_negative_drop():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=-0.115,
+        left_foot_angle=157.0,
+    ) is True
+def test_live_footpeg_stay_position_with_negative_small_drop():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=-0.049,
+        left_foot_angle=165.0,
+    ) is True
+def test_live_footpeg_position_with_negative_drop():
+    assert GearShiftDetector._is_footpeg_position(
+        left_foot_drop=-0.050,
+        left_foot_angle=165.0,
+    ) is True
+def test_live_baseline_accepts_small_real_world_jitter():
+    detector = GearShiftDetector()
+
+    samples = [
+        -0.0094,
+        -0.0036,
+        -0.0022,
+        -0.0021,
+        -0.0096,
+    ]
+
+    for forward in samples:
+        detector.update(
+            left_foot_drop=0.100,
+            left_foot_angle=156.0,
+            left_foot_forward=forward,
+            elapsed_seconds=10.0,
+        )
+
+    assert detector._forward_baseline is not None
+
+def test_live_down_forward_sequence_activates_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.022690469026565553
+
+    samples = [
+        0.026180773973464966,
+        0.028219670057296753,
+        0.028722494840621948,
+        0.029509335756301880,
+        0.029705554246902466,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True

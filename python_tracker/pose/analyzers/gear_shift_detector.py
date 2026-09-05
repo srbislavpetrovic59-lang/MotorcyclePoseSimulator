@@ -39,7 +39,452 @@ class GearShiftDetector:
         self._startup_footpeg_frames = 0
       
    
-   
+    def update(
+        self,
+        left_foot_drop,
+        left_foot_angle=None,
+        left_foot_forward=None,
+        elapsed_seconds=None,
+        left_heel_y=None,
+        left_heel_visibility=None,
+        ):
+            if (
+                elapsed_seconds is not None
+                and elapsed_seconds < 5.0
+            ):
+                return None
+
+            suppress_shift_event = (
+                elapsed_seconds is not None
+                and elapsed_seconds < 6.0
+            )
+
+            self._update_angle_history(left_foot_angle)
+
+            trend = self._angle_trend()
+
+            on_footpeg = self._is_footpeg_stay_position(
+                left_foot_drop,
+                left_foot_angle,
+            )
+
+            zone = self._movement_zone(
+                left_foot_drop,
+                left_foot_angle,
+            )
+
+            # ---------------------------------------------------------
+            # Live baseline learning
+            # ---------------------------------------------------------
+
+            if elapsed_seconds is not None:
+                if (
+                    self._forward_baseline is None
+                    and on_footpeg
+                ):
+                    self._live_forward_baseline_samples.append(
+                        left_foot_forward
+                    )
+
+                    print(
+                        "BASELINE SAMPLE:",
+                        left_foot_forward,
+                        "samples=",
+                        self._live_forward_baseline_samples,
+                    )
+
+                    if (
+                        len(
+                            self._live_forward_baseline_samples
+                        )
+                        < 5
+                    ):
+                        return None
+
+                    recent = (
+                        self._live_forward_baseline_samples[-5:]
+                    )
+
+                    if (
+                        max(recent) - min(recent)
+                        > 0.008
+                    ):
+                        self._live_forward_baseline_samples.pop(
+                            0
+                        )
+                        return None
+
+                    self._forward_baseline = (
+                        sum(recent)
+                        / len(recent)
+                    )
+
+                    print(
+                        "LIVE BASELINE SET:",
+                        self._forward_baseline,
+                    )
+
+            # Unit-test / non-live baseline handling
+            if elapsed_seconds is None:
+                self._update_forward_baseline(
+                    left_foot_forward=left_foot_forward,
+                    on_footpeg=on_footpeg,
+                )
+
+            # ---------------------------------------------------------
+            # State initialization
+            # ---------------------------------------------------------
+
+            if self._state == "IDLE":
+                if self._is_footpeg_position(
+                    left_foot_drop,
+                    left_foot_angle,
+                ):
+                    self._state = "READY"
+
+                    if (
+                        elapsed_seconds is None
+                        and self._forward_baseline is None
+                    ):
+                        self._set_forward_baseline(
+                            left_foot_forward
+                        )
+
+                return None
+
+            # ---------------------------------------------------------
+            # Settling period
+            #
+            # 5-6 s:
+            # - READY and baseline are allowed
+            # - no shift-attempt state may survive
+            # ---------------------------------------------------------
+
+            if suppress_shift_event:
+                self._forward_movement_active = False
+                self._back_movement_active = False
+                self._shift_rearm_pending = False
+
+                self._clear_heel_history()
+                self._pending_heel_y_history.clear()
+                self._forward_offset_history.clear()
+
+                return None
+
+            # ---------------------------------------------------------
+            # startup stabilization after 6 s
+            # ---------------------------------------------------------
+
+            if (
+                elapsed_seconds is not None
+                and not self._startup_ready
+            ):
+                if on_footpeg:
+                    self._startup_footpeg_frames += 1
+                else:
+                    self._startup_footpeg_frames = 0
+
+                if self._startup_footpeg_frames >= 3:
+                    self._startup_ready = True
+
+                    self._forward_movement_active = False
+                    self._back_movement_active = False
+                    self._forward_offset_history.clear()
+
+                return None
+
+            # ---------------------------------------------------------
+            # Normal gear-shift detection starts here
+            # ---------------------------------------------------------
+
+            was_forward_active = (
+                self._forward_movement_active
+            )
+
+            pending_heel_y_history = (
+                self._pending_heel_y_history.copy()
+            )
+
+            self._update_forward_movement_from_baseline(
+                left_foot_forward,
+            )
+
+            if was_forward_active:
+                self._update_back_movement(
+                    left_foot_forward,
+                )
+
+            if (
+                not was_forward_active
+                and self._forward_movement_active
+            ):
+                self._clear_heel_history()
+
+                for heel_y in pending_heel_y_history:
+                    self._update_heel_history(
+                        heel_y
+                    )
+
+                self._pending_heel_y_history.clear()
+
+            elif not self._forward_movement_active:
+                if left_heel_y is not None:
+                    self._pending_heel_y_history.append(
+                        left_heel_y
+                    )
+
+                    if (
+                        len(
+                            self._pending_heel_y_history
+                        )
+                        > 5
+                    ):
+                        self._pending_heel_y_history.pop(
+                            0
+                        )
+
+            self._update_shift_heel_history(
+                left_heel_y,
+                left_heel_visibility,
+            )
+
+            # ---------------------------------------------------------
+            # Heel-based shift decision
+            # ---------------------------------------------------------
+
+            if (
+                not self._shift_rearm_pending
+                and self._back_movement_active
+                and len(self._heel_y_history) >= 3
+            ):
+                print(
+                    "HEEL DECISION:",
+                    self._heel_y_history,
+                    "visibility=",
+                    self._heel_visibility_history,
+                )
+
+                heel_trend = self._heel_end_trend(
+                    self._heel_y_history
+                )
+
+                heel_shift = self._shift_from_heel_trend(
+                    heel_trend
+                )
+
+                if heel_shift is not None:
+                    self._shift_rearm_pending = True
+                    self._back_movement_active = False
+
+                    return heel_shift
+
+            # ---------------------------------------------------------
+            # Direction-zone fallback
+            # ---------------------------------------------------------
+
+            if (
+                not self._shift_rearm_pending
+                and self._back_movement_active
+                and not self._heel_y_history
+                and self._direction_zone == "DOWN"
+                and self._direction_zone_frames >= 3
+            ):
+                self._shift_rearm_pending = True
+                self._back_movement_active = False
+
+                return "SHIFT_DOWN"
+
+            if (
+                not self._shift_rearm_pending
+                and self._back_movement_active
+                and not self._heel_y_history
+                and self._direction_zone == "UP"
+                and self._direction_zone_frames >= 3
+            ):
+                self._shift_rearm_pending = True
+                self._back_movement_active = False
+
+                return "SHIFT_UP"
+
+            # ---------------------------------------------------------
+            # Direction tracking
+            # ---------------------------------------------------------
+
+            if self._forward_movement_active:
+                self._update_direction_zone(
+                    zone
+                )
+
+            foot_moved_forward = (
+                self._is_foot_moved_forward(
+                    left_foot_forward
+                )
+            )
+
+            # ---------------------------------------------------------
+            # Debug output
+            # ---------------------------------------------------------
+
+            print(
+                f"GEAR: drop={left_foot_drop} "
+                f"angle={left_foot_angle} "
+                f"zone={zone} "
+                f"trend={trend} "
+                f"state={self._state} "
+                f"history={self._zone_history} "
+                f"pending={self._pending_zones} "
+                f"outside={self._outside_footpeg_frames} "
+                f"forward={left_foot_forward} "
+                f"moved_forward={self._forward_movement_active}"
+                f"back={self._back_movement_active} "
+                f"rearm={self._shift_rearm_pending}"
+                f"baseline={self._forward_baseline} "
+                f"offset={self._forward_offset(left_foot_forward)} "
+                f"offset_history={self._forward_offset_history} "
+            )
+
+            if zone is None:
+                return None
+
+            # ---------------------------------------------------------
+            # READY state
+            # ---------------------------------------------------------
+
+            if self._state == "READY":
+
+                # -----------------------------------------------------
+                # Rearm after detected shift
+                # -----------------------------------------------------
+
+                if self._shift_rearm_pending:
+                    print(
+                        "REARM:",
+                        "on_footpeg=", on_footpeg,
+                        "frames=",
+                        self._rearm_footpeg_frames,
+                        "drop=", left_foot_drop,
+                        "angle=", left_foot_angle,
+                    )
+
+                    if on_footpeg:
+                        self._rearm_footpeg_frames += 1
+                    else:
+                        self._rearm_footpeg_frames = 0
+
+                    if (
+                        self._rearm_footpeg_frames
+                        >= 3
+                    ):
+                        self._shift_rearm_pending = False
+                        self._forward_movement_active = False
+                        self._back_movement_active = False
+
+                        self._forward_offset_history.clear()
+
+                        self._rearm_footpeg_frames = 0
+
+                    return None
+
+                # -----------------------------------------------------
+                # Foot returned to footpeg after shift attempt
+                # -----------------------------------------------------
+
+                if (
+                    was_forward_active
+                    and self._is_footpeg_stay_position(
+                        left_foot_drop,
+                        left_foot_angle,
+                    )
+                    and self._back_movement_active
+                ):
+                    self._reset_forward_movement()
+                    self._outside_footpeg_frames = 0
+                    self._pending_zones.clear()
+
+                    if self._zone_history == ["UP"]:
+                        self._zone_history.clear()
+                        self._shift_rearm_pending = True
+
+                        return "SHIFT_UP"
+
+                    if self._zone_history == ["DOWN"]:
+                        self._zone_history.clear()
+                        self._shift_rearm_pending = True
+
+                        return "SHIFT_DOWN"
+
+                    self._zone_history.clear()
+
+                    return None
+
+                # -----------------------------------------------------
+                # No shift attempt
+                # -----------------------------------------------------
+
+                if not self._forward_movement_active:
+                    self._outside_footpeg_frames = 0
+                    self._pending_zones.clear()
+
+                    return None
+
+                if (
+                    on_footpeg
+                    and trend in (None, "STABLE")
+                ):
+                    return None
+
+                self._outside_footpeg_frames += 1
+
+                # -----------------------------------------------------
+                # Shift attempt timeout
+                # -----------------------------------------------------
+
+                if (
+                    self._outside_footpeg_frames
+                    >= self.MAX_SHIFT_ATTEMPT_FRAMES
+                ):
+                    if self._zone_history == ["UP"]:
+                        self._reset_stale_shift_attempt()
+                        self._shift_rearm_pending = True
+
+                        return "SHIFT_UP"
+
+                    if self._zone_history == ["DOWN"]:
+                        self._reset_stale_shift_attempt()
+                        self._shift_rearm_pending = True
+
+                        return "SHIFT_DOWN"
+
+                    self._reset_stale_shift_attempt()
+
+                    return None
+
+                # -----------------------------------------------------
+                # Shift direction candidate
+                # -----------------------------------------------------
+
+                candidate = None
+
+                if trend == "RISING":
+                    candidate = "UP"
+
+                elif trend == "FALLING":
+                    candidate = "DOWN"
+
+                if candidate is not None:
+                    self._add_shift_candidate(
+                        candidate
+                    )
+
+                if (
+                    self._outside_footpeg_frames
+                    < self.FOOTPEG_EXIT_CONFIRM_FRAMES
+                ):
+                    return None
+
+                return None
+
+            return None
     @classmethod
     def _zone(cls, left_foot_drop):
         if left_foot_drop is None:
@@ -53,449 +498,7 @@ class GearShiftDetector:
 
         return "TRANSITION"
 
-    def update(
-        self,
-        left_foot_drop,
-        left_foot_angle=None,
-        left_foot_forward=None,
-        elapsed_seconds=None,
-        left_heel_y=None,
-        left_heel_visibility=None,
-    ):
-        if (
-            elapsed_seconds is not None
-            and elapsed_seconds < 5.0
-        ):
-            return None
-
-        suppress_shift_event = (
-            elapsed_seconds is not None
-            and elapsed_seconds < 6.0
-        )
-
-        self._update_angle_history(left_foot_angle)
-
-        trend = self._angle_trend()
-
-        on_footpeg = self._is_footpeg_stay_position(
-            left_foot_drop,
-            left_foot_angle,
-        )
-
-        zone = self._movement_zone(
-            left_foot_drop,
-            left_foot_angle,
-        )
-
-        # ---------------------------------------------------------
-        # Live baseline learning
-        # ---------------------------------------------------------
-
-        if elapsed_seconds is not None:
-            if (
-                self._forward_baseline is None
-                and on_footpeg
-            ):
-                self._live_forward_baseline_samples.append(
-                    left_foot_forward
-                )
-
-                print(
-                    "BASELINE SAMPLE:",
-                    left_foot_forward,
-                    "samples=",
-                    self._live_forward_baseline_samples,
-                )
-
-                if (
-                    len(
-                        self._live_forward_baseline_samples
-                    )
-                    < 5
-                ):
-                    return None
-
-                recent = (
-                    self._live_forward_baseline_samples[-5:]
-                )
-
-                if (
-                    max(recent) - min(recent)
-                    > 0.006
-                ):
-                    self._live_forward_baseline_samples.pop(
-                        0
-                    )
-                    return None
-
-                self._forward_baseline = (
-                    sum(recent)
-                    / len(recent)
-                )
-
-                print(
-                    "LIVE BASELINE SET:",
-                    self._forward_baseline,
-                )
-
-        # Unit-test / non-live baseline handling
-        if elapsed_seconds is None:
-            self._update_forward_baseline(
-                left_foot_forward=left_foot_forward,
-                on_footpeg=on_footpeg,
-            )
-
-        # ---------------------------------------------------------
-        # State initialization
-        # ---------------------------------------------------------
-
-        if self._state == "IDLE":
-            if self._is_footpeg_position(
-                left_foot_drop,
-                left_foot_angle,
-            ):
-                self._state = "READY"
-
-                if self._forward_baseline is None:
-                    self._set_forward_baseline(
-                        left_foot_forward
-                    )
-
-            return None
-
-        # ---------------------------------------------------------
-        # Settling period
-        #
-        # 5-6 s:
-        # - READY and baseline are allowed
-        # - no shift-attempt state may survive
-        # ---------------------------------------------------------
-
-        if suppress_shift_event:
-            self._forward_movement_active = False
-            self._back_movement_active = False
-            self._shift_rearm_pending = False
-
-            self._clear_heel_history()
-            self._pending_heel_y_history.clear()
-            self._forward_offset_history.clear()
-
-            return None
-
-        # ---------------------------------------------------------
-        # startup stabilization after 6 s
-        # ---------------------------------------------------------
-
-        if (
-            elapsed_seconds is not None
-            and not self._startup_ready
-        ):
-            if on_footpeg:
-                self._startup_footpeg_frames += 1
-            else:
-                self._startup_footpeg_frames = 0
-
-            if self._startup_footpeg_frames >= 3:
-                self._startup_ready = True
-
-                self._forward_movement_active = False
-                self._back_movement_active = False
-                self._forward_offset_history.clear()
-
-            return None
-
-        # ---------------------------------------------------------
-        # Normal gear-shift detection starts here
-        # ---------------------------------------------------------
-
-        was_forward_active = (
-            self._forward_movement_active
-        )
-
-        pending_heel_y_history = (
-            self._pending_heel_y_history.copy()
-        )
-
-        self._update_forward_movement_from_baseline(
-            left_foot_forward,
-        )
-
-        if was_forward_active:
-            self._update_back_movement(
-                left_foot_forward,
-            )
-
-        if (
-            not was_forward_active
-            and self._forward_movement_active
-        ):
-            self._clear_heel_history()
-
-            for heel_y in pending_heel_y_history:
-                self._update_heel_history(
-                    heel_y
-                )
-
-            self._pending_heel_y_history.clear()
-
-        elif not self._forward_movement_active:
-            if left_heel_y is not None:
-                self._pending_heel_y_history.append(
-                    left_heel_y
-                )
-
-                if (
-                    len(
-                        self._pending_heel_y_history
-                    )
-                    > 5
-                ):
-                    self._pending_heel_y_history.pop(
-                        0
-                    )
-
-        self._update_shift_heel_history(
-            left_heel_y,
-            left_heel_visibility,
-        )
-
-        # ---------------------------------------------------------
-        # Heel-based shift decision
-        # ---------------------------------------------------------
-
-        if (
-            not self._shift_rearm_pending
-            and self._back_movement_active
-            and len(self._heel_y_history) >= 3
-        ):
-            print(
-                "HEEL DECISION:",
-                self._heel_y_history,
-                "visibility=",
-                self._heel_visibility_history,
-            )
-
-            heel_trend = self._heel_end_trend(
-                self._heel_y_history
-            )
-
-            heel_shift = self._shift_from_heel_trend(
-                heel_trend
-            )
-
-            if heel_shift is not None:
-                self._shift_rearm_pending = True
-                self._back_movement_active = False
-
-                return heel_shift
-
-        # ---------------------------------------------------------
-        # Direction-zone fallback
-        # ---------------------------------------------------------
-
-        if (
-            not self._shift_rearm_pending
-            and self._back_movement_active
-            and not self._heel_y_history
-            and self._direction_zone == "DOWN"
-            and self._direction_zone_frames >= 3
-        ):
-            self._shift_rearm_pending = True
-            self._back_movement_active = False
-
-            return "SHIFT_DOWN"
-
-        if (
-            not self._shift_rearm_pending
-            and self._back_movement_active
-            and not self._heel_y_history
-            and self._direction_zone == "UP"
-            and self._direction_zone_frames >= 3
-        ):
-            self._shift_rearm_pending = True
-            self._back_movement_active = False
-
-            return "SHIFT_UP"
-
-        # ---------------------------------------------------------
-        # Direction tracking
-        # ---------------------------------------------------------
-
-        if self._forward_movement_active:
-            self._update_direction_zone(
-                zone
-            )
-
-        foot_moved_forward = (
-            self._is_foot_moved_forward(
-                left_foot_forward
-            )
-        )
-
-        # ---------------------------------------------------------
-        # Debug output
-        # ---------------------------------------------------------
-
-        print(
-            f"GEAR: drop={left_foot_drop} "
-            f"angle={left_foot_angle} "
-            f"zone={zone} "
-            f"trend={trend} "
-            f"state={self._state} "
-            f"history={self._zone_history} "
-            f"pending={self._pending_zones} "
-            f"outside={self._outside_footpeg_frames} "
-            f"forward={left_foot_forward} "
-            f"moved_forward={self._forward_movement_active}"
-            f"back={self._back_movement_active} "
-            f"rearm={self._shift_rearm_pending}"
-            f"baseline={self._forward_baseline} "
-            f"offset={self._forward_offset(left_foot_forward)} "
-            f"offset_history={self._forward_offset_history} "
-        )
-
-        if zone is None:
-            return None
-
-        # ---------------------------------------------------------
-        # READY state
-        # ---------------------------------------------------------
-
-        if self._state == "READY":
-
-            # -----------------------------------------------------
-            # Rearm after detected shift
-            # -----------------------------------------------------
-
-            if self._shift_rearm_pending:
-                print(
-                    "REARM:",
-                    "on_footpeg=", on_footpeg,
-                    "frames=",
-                    self._rearm_footpeg_frames,
-                    "drop=", left_foot_drop,
-                    "angle=", left_foot_angle,
-                )
-
-                if on_footpeg:
-                    self._rearm_footpeg_frames += 1
-                else:
-                    self._rearm_footpeg_frames = 0
-
-                if (
-                    self._rearm_footpeg_frames
-                    >= 3
-                ):
-                    self._shift_rearm_pending = False
-                    self._forward_movement_active = False
-                    self._back_movement_active = False
-
-                    self._forward_offset_history.clear()
-
-                    self._rearm_footpeg_frames = 0
-
-                return None
-
-            # -----------------------------------------------------
-            # Foot returned to footpeg after shift attempt
-            # -----------------------------------------------------
-
-            if (
-                was_forward_active
-                and self._is_footpeg_stay_position(
-                    left_foot_drop,
-                    left_foot_angle,
-                )
-                and self._back_movement_active
-            ):
-                self._reset_forward_movement()
-                self._outside_footpeg_frames = 0
-                self._pending_zones.clear()
-
-                if self._zone_history == ["UP"]:
-                    self._zone_history.clear()
-                    self._shift_rearm_pending = True
-
-                    return "SHIFT_UP"
-
-                if self._zone_history == ["DOWN"]:
-                    self._zone_history.clear()
-                    self._shift_rearm_pending = True
-
-                    return "SHIFT_DOWN"
-
-                self._zone_history.clear()
-
-                return None
-
-            # -----------------------------------------------------
-            # No shift attempt
-            # -----------------------------------------------------
-
-            if not self._forward_movement_active:
-                self._outside_footpeg_frames = 0
-                self._pending_zones.clear()
-
-                return None
-
-            if (
-                on_footpeg
-                and trend in (None, "STABLE")
-            ):
-                return None
-
-            self._outside_footpeg_frames += 1
-
-            # -----------------------------------------------------
-            # Shift attempt timeout
-            # -----------------------------------------------------
-
-            if (
-                self._outside_footpeg_frames
-                >= self.MAX_SHIFT_ATTEMPT_FRAMES
-            ):
-                if self._zone_history == ["UP"]:
-                    self._reset_stale_shift_attempt()
-                    self._shift_rearm_pending = True
-
-                    return "SHIFT_UP"
-
-                if self._zone_history == ["DOWN"]:
-                    self._reset_stale_shift_attempt()
-                    self._shift_rearm_pending = True
-
-                    return "SHIFT_DOWN"
-
-                self._reset_stale_shift_attempt()
-
-                return None
-
-            # -----------------------------------------------------
-            # Shift direction candidate
-            # -----------------------------------------------------
-
-            candidate = None
-
-            if trend == "RISING":
-                candidate = "UP"
-
-            elif trend == "FALLING":
-                candidate = "DOWN"
-
-            if candidate is not None:
-                self._add_shift_candidate(
-                    candidate
-                )
-
-            if (
-                self._outside_footpeg_frames
-                < self.FOOTPEG_EXIT_CONFIRM_FRAMES
-            ):
-                return None
-
-            return None
-
-        return None
+    
 
     @classmethod
     def _drop_zone(cls, left_foot_drop):
@@ -519,11 +522,18 @@ class GearShiftDetector:
             or left_foot_angle is None
         ):
             return False
-
         return (
-            0.050 <= left_foot_drop <= 0.135
-            and 150.0 <= left_foot_angle <= 180.0
-        )
+            (
+                0.050 <= left_foot_drop <= 0.135
+                and 150.0 <= left_foot_angle <= 180.0
+            )
+            or
+            (
+                -0.060 <= left_foot_drop <= -0.040
+                and 160.0 <= left_foot_angle <= 175.0
+            )
+        )        
+        
 
     @staticmethod
     def _is_footpeg_stay_position(
@@ -535,10 +545,32 @@ class GearShiftDetector:
             or left_foot_angle is None
         ):
             return False
-
+   
         return (
-            0.090 <= left_foot_drop <= 0.140
-            and 150.0 <= left_foot_angle <= 158.0
+            (
+                0.090 <= left_foot_drop <= 0.140
+                and 150.0 <= left_foot_angle <= 158.0
+            )
+            or
+            (
+                0.040 <= left_foot_drop <= 0.060
+                and 90.0 <= left_foot_angle <= 110.0
+            )
+            or
+            (
+                0.040 <= left_foot_drop <= 0.060
+                and 160.0 <= left_foot_angle <= 175.0
+            )
+            or
+            (
+                -0.140 <= left_foot_drop <= -0.090
+                and 150.0 <= left_foot_angle <= 158.0
+            )
+            or
+            (
+                -0.060 <= left_foot_drop <= -0.040
+                and 160.0 <= left_foot_angle <= 175.0
+            )
         )
     @classmethod
     def _movement_zone(
@@ -653,13 +685,24 @@ class GearShiftDetector:
             recent = self._forward_offset_history[-5:]
 
             moved_outward = (
-                max(recent) - recent[0] >= 0.004
+                max(recent) - recent[0] >= 0.003
+            )
+            
+            recent_steps = [
+                abs(recent[index] - recent[index - 1])
+                for index in range(1, len(recent))
+            ]
+
+            smooth_outward_movement = (
+                max(recent_steps) <= 0.005
             )
 
             if (
-                all(offset >= 0.008 for offset in recent)
+                all(offset > 0.0 for offset in recent)
+                and recent[-1] >= 0.007
                 and moved_outward
-            ):  
+                and smooth_outward_movement
+            ): 
                 print("FORWARD BRANCH: two negative")
                 self._forward_movement_active = True
                 self._back_movement_active = False
