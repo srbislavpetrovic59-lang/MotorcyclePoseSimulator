@@ -181,8 +181,7 @@ class GearShiftDetector:
             ):
                 if on_footpeg:
                     self._startup_footpeg_frames += 1
-                else:
-                    self._startup_footpeg_frames = 0
+                
 
                 if self._startup_footpeg_frames >= 3:
                     self._startup_ready = True
@@ -190,6 +189,13 @@ class GearShiftDetector:
                     self._forward_movement_active = False
                     self._back_movement_active = False
                     self._forward_offset_history.clear()
+
+                print(
+                    "STARTUP:",
+                    "on_footpeg=", on_footpeg,
+                    "frames=", self._startup_footpeg_frames,
+                    "ready=", self._startup_ready,
+                )
 
                 return None
 
@@ -532,6 +538,7 @@ class GearShiftDetector:
                 -0.060 <= left_foot_drop <= -0.040
                 and 160.0 <= left_foot_angle <= 175.0
             )
+            or (0.050 <= left_foot_drop <= 0.060 and 138.0 <= left_foot_angle <= 150.0)
         )        
         
 
@@ -571,6 +578,9 @@ class GearShiftDetector:
                 -0.060 <= left_foot_drop <= -0.040
                 and 160.0 <= left_foot_angle <= 175.0
             )
+            or (0.070 <= left_foot_drop <= 0.085 and 140.0 <= left_foot_angle <= 147.0)
+            or (0.050 <= left_foot_drop <= 0.060 and 138.0 <= left_foot_angle <= 153.0)
+           
         )
     @classmethod
     def _movement_zone(
@@ -708,6 +718,46 @@ class GearShiftDetector:
                 self._back_movement_active = False
                 return
 
+        if len(self._forward_offset_history) >= 4:
+            recent = self._forward_offset_history[-4:]
+
+            outward = recent[:3]
+            returned = recent[-1]
+
+            if (
+                all(0.005 <= offset <= 0.008 for offset in outward)
+                and abs(returned) <= 0.002
+                and max(outward) - returned >= 0.005
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+                
+        if len(self._forward_offset_history) >= 4:
+            recent = self._forward_offset_history[-4:]
+
+            moved_outward = (
+                max(recent) - recent[0] >= 0.003
+            )
+
+            recent_steps = [
+                abs(recent[index] - recent[index - 1])
+                for index in range(1, len(recent))
+            ]
+
+            smooth_outward_movement = (
+                max(recent_steps) <= 0.005
+            )
+
+            if (
+                all(offset > 0.0 for offset in recent)
+                and recent[-1] >= 0.008
+                and moved_outward
+                and smooth_outward_movement
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
 
         if (
             len(self._forward_offset_history) >= 2
@@ -1061,7 +1111,26 @@ class GearShiftDetector:
     def _heel_end_trend(heel_y):
         if heel_y is None or len(heel_y) < 3:
             return None
+        deltas = [
+            heel_y[index] - heel_y[index - 1]
+            for index in range(1, len(heel_y))
+        ]
 
+        sorted_deltas = sorted(
+            deltas,
+            key=abs,
+            reverse=True,
+        )
+
+        if (
+            abs(sorted_deltas[0]) >= 0.030
+            and abs(sorted_deltas[0]) >= 2 * abs(sorted_deltas[1])
+        ):
+            return (
+                "UP"
+                if sorted_deltas[0] < 0
+                else "DOWN"
+            )
         confirmed_directions = set()
 
         current_direction = None
@@ -1125,11 +1194,4 @@ class GearShiftDetector:
             return "STABLE"
 
         return confirmed_direction
-        # ===============================
-
-
-
-        if len(confirmed_directions) != 1:
-            return "STABLE"
-
-        return next(iter(confirmed_directions))
+     

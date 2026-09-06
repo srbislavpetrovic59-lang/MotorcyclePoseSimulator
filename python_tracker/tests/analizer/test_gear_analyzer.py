@@ -3454,3 +3454,203 @@ def test_live_down_forward_sequence_activates_forward_movement():
         )
 
     assert detector._forward_movement_active is True
+def test_live_neutral_position_from_new_log_counts_as_footpeg_stay():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        0.07615432143211365,
+        144.1,
+    ) is True   
+
+def test_live_neutral_position_around_150_degrees_counts_as_footpeg_stay():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        0.05899646878242493,
+        150.7,
+    ) is True
+def test_startup_allows_one_unstable_frame_between_footpeg_frames():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.02
+
+    # True
+    detector.update(
+        0.058,
+        150.7,
+        left_foot_forward=0.02,
+        elapsed_seconds=10.0,
+    )
+
+    # One noisy False frame
+    detector.update(
+        0.061,
+        150.7,
+        left_foot_forward=0.02,
+        elapsed_seconds=10.1,
+    )
+
+    # True
+    detector.update(
+        0.058,
+        150.7,
+        left_foot_forward=0.02,
+        elapsed_seconds=10.2,
+    )
+
+    # True
+    detector.update(
+        0.058,
+        150.7,
+        left_foot_forward=0.02,
+        elapsed_seconds=10.3,
+    )
+
+    assert detector._startup_ready is True
+def test_live_neutral_position_around_140_degrees_counts_as_footpeg_stay():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        0.05682802200317383,
+        140.3,
+    ) is True
+def test_live_fast_down_sequence_activates_forward_movement():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.023890763521194458
+
+    samples = [
+        0.02974599599838257,
+        0.030351191759109497,
+        0.03337454795837402,
+        0.0323127806186676,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(forward)
+
+    assert detector._forward_movement_active is True
+def test_live_ready_position_around_140_degrees_counts_as_footpeg():
+    assert GearShiftDetector._is_footpeg_position(
+        0.056859493255615234,
+        139.8,
+    ) is True
+def test_live_very_fast_down_sequence_activates_forward_movement():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.026013314723968506
+
+    samples = [
+        0.03127223253250122,
+        0.0313984751701355,
+        0.032004863023757935,
+        0.025556623935699463,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(forward)
+
+    assert detector._forward_movement_active is True
+
+def test_live_down_sequence_is_not_classified_as_shift_up():
+    detector = GearShiftDetector()
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = 0.025004643201828002
+
+    samples = [
+        (
+            0.06384605169296265,
+            147.28974323859296,
+            0.02394390106201172,
+            16.297,
+            0.5983,
+            0.63,
+        ),
+        (
+            0.0645642876625061,
+            146.07007515082753,
+            0.02527618408203125,
+            16.453,
+            0.5993,
+            0.63,
+        ),
+        (
+            0.030875802040100098,
+            131.23314004879836,
+            0.035668134689331055,
+            16.593,
+            0.5446641445159912,
+            0.64,
+        ),
+        (
+            0.040640056133270264,
+            132.94783418692668,
+            0.03827747702598572,
+            16.750,
+            0.563506543636322,
+            0.64,
+        ),
+        (
+            0.04732799530029297,
+            138.15340917426465,
+            0.03803050518035889,
+            16.906,
+            0.5719037652015686,
+            0.64,
+        ),
+        (
+            0.03854846954345703,
+            132.78400772750481,
+            0.040779829025268555,
+            17.062,
+            0.5625706911087036,
+            0.65,
+        ),
+        (
+            0.03841686248779297,
+            132.3,
+            0.0386,
+            17.203,
+            0.5673698782920837,
+            0.64,
+        ),
+    ]
+
+    result = None
+
+    for (
+        drop,
+        angle,
+        forward,
+        elapsed,
+        heel_y,
+        heel_visibility,
+    ) in samples:
+        shift = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            elapsed_seconds=elapsed,
+            left_heel_y=heel_y,
+            left_heel_visibility=heel_visibility,
+        )
+
+        if shift is not None:
+            result = shift
+    print(
+        "HEEL TREND:",
+        detector._heel_end_trend(
+            detector._heel_y_history
+        )
+    )
+    assert result != "SHIFT_UP"
+def test_fast_real_down_heel_history_detects_up_trend():
+    heel_y = [
+        0.5983,
+        0.5993,
+        0.5446641445159912,
+        0.563506543636322,
+        0.5719037652015686,
+        0.5625706911087036,
+        0.5673698782920837,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    assert trend == "UP"
