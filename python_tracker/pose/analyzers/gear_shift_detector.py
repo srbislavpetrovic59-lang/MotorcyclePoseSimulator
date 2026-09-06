@@ -1131,6 +1131,26 @@ class GearShiftDetector:
                 if sorted_deltas[0] < 0
                 else "DOWN"
             )
+
+        start = heel_y[0]
+        end = heel_y[-1]
+
+        min_value = min(heel_y)
+        max_value = max(heel_y)
+
+        upward_excursion = start - min_value
+        downward_excursion = max_value - start
+
+        returned_to_start = (
+            abs(end - start) <= 0.005
+        )
+
+        if returned_to_start:
+            if upward_excursion >= 0.020:
+                return "UP"
+
+            if downward_excursion >= 0.020:
+                return "DOWN"
         confirmed_directions = set()
 
         current_direction = None

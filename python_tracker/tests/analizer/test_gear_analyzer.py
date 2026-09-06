@@ -3654,3 +3654,27 @@ def test_fast_real_down_heel_history_detects_up_trend():
     )
 
     assert trend == "UP"
+
+def test_latest_repair_down_heel_history_is_not_shift_up():
+    heel_y = [
+        0.5990299582481384,
+        0.585236132144928,
+        0.5860356688499451,
+        0.5743613839149475,
+        0.5795798301696777,
+        0.5810611844062805,
+        0.5795674920082092,
+        0.5799789428710938,
+        0.5874295830726624,
+        0.5992878675460815,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    shift = GearShiftDetector._shift_from_heel_trend(
+        trend
+    )
+
+    assert shift != "SHIFT_UP"
