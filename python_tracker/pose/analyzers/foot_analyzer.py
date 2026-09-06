@@ -303,8 +303,8 @@ class FootAnalyzer:
     ) -> bool:
         normally_visible = (
             left_heel.visibility >= 0.5
-            and left_ankle.visibility >= 0.40
-            and left_foot.visibility >= 0.5
+            and left_ankle.visibility >= 0.30
+            and left_foot.visibility >= 0.45
         )
 
         if normally_visible:
@@ -315,7 +315,7 @@ class FootAnalyzer:
             self._left_foot_gear_visibility_grace > 0
             and left_heel.visibility >= 0.5
             and left_ankle.visibility >= 0.30
-            and left_foot.visibility >= 0.5
+            and left_foot.visibility >= 0.45
         )
 
         if briefly_degraded:

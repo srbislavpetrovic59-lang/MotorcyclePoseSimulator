@@ -1,6 +1,8 @@
 ﻿from pickle import FALSE
 import pytest
 from pose.analyzers.gear_shift_detector import GearShiftDetector
+from unittest.mock import Mock
+from pose.analyzers.foot_analyzer import FootAnalyzer
 
 
 def test_detector_waits_for_footpeg_before_tracking_shift():
@@ -3678,3 +3680,42 @@ def test_latest_repair_down_heel_history_is_not_shift_up():
     )
 
     assert shift != "SHIFT_UP"
+
+    
+def test_left_foot_live_visibility_is_accepted_for_gear_shift():
+    analyzer = FootAnalyzer()
+    analyzer._left_foot_gear_visibility_grace = 2
+
+    left_heel = Mock()
+    left_heel.visibility = 0.56
+
+    left_ankle = Mock()
+    left_ankle.visibility = 0.31
+
+    left_foot = Mock()
+    left_foot.visibility = 0.45
+
+    assert analyzer._left_foot_visible_for_gear_shift(
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) is True
+
+
+def test_left_foot_live_visibility_can_start_gear_tracking():
+    analyzer = FootAnalyzer()
+
+    left_heel = Mock()
+    left_heel.visibility = 0.56
+
+    left_ankle = Mock()
+    left_ankle.visibility = 0.31
+
+    left_foot = Mock()
+    left_foot.visibility = 0.45
+
+    assert analyzer._left_foot_visible_for_gear_shift(
+        left_heel,
+        left_ankle,
+        left_foot,
+    ) is True
