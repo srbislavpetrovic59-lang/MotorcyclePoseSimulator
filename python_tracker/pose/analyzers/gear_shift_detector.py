@@ -374,8 +374,7 @@ class GearShiftDetector:
 
                     if on_footpeg:
                         self._rearm_footpeg_frames += 1
-                    else:
-                        self._rearm_footpeg_frames = 0
+                   
 
                     if (
                         self._rearm_footpeg_frames
@@ -691,6 +690,90 @@ class GearShiftDetector:
         if len(self._forward_offset_history) > 10:
             self._forward_offset_history.pop(0)
 
+        if len(self._forward_offset_history) >= 5:
+            recent = self._forward_offset_history[-5:]
+
+            starts_near_baseline = (
+                abs(recent[0]) <= 0.002
+                and abs(recent[1]) <= 0.002
+            )
+
+            sudden_forward_jump = (
+                recent[2] >= 0.012
+            )
+
+            stays_forward = (
+                recent[3] >= 0.012
+                and recent[4] >= 0.012
+            )
+
+            if (
+                starts_near_baseline
+                and sudden_forward_jump
+                and stays_forward
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
+
+        if len(self._forward_offset_history) >= 5:
+            recent = self._forward_offset_history[-5:]
+
+            starts_near_baseline = (
+                abs(recent[0]) <= 0.002
+            )
+
+            jumps_forward = (
+                recent[1] >= 0.010
+            )
+
+            stays_forward = (
+                recent[2] >= 0.010
+                and recent[3] >= 0.012
+                and recent[4] >= 0.015
+            )
+
+            overall_forward_progress = (
+                recent[4] - recent[1] >= 0.006
+            )
+
+            if (
+                starts_near_baseline
+                and jumps_forward
+                and stays_forward
+                and overall_forward_progress
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+        #=================================================== korekcija pre smooth grana
+        if len(self._forward_offset_history) >= 3:
+            recent = self._forward_offset_history[-3:]
+
+            small_start = (
+                0.002 <= recent[0] <= 0.005
+            )
+
+            sudden_forward_jump = (
+                recent[1] >= 0.015
+            )
+
+            stays_forward = (
+                recent[2] >= 0.010
+            )
+
+            if (
+                small_start
+                and sudden_forward_jump
+                and stays_forward
+            ):
+                self._forward_movement_active = True
+                self._back_movement_active = False
+                return
+
+
+        #================== smooth grane?
         if len(self._forward_offset_history) >= 5:
             recent = self._forward_offset_history[-5:]
 
@@ -1151,6 +1234,15 @@ class GearShiftDetector:
 
             if downward_excursion >= 0.020:
                 return "DOWN"
+
+
+        total_excursion = max_value - min_value
+
+        if total_excursion < 0.008:
+            return "STABLE"
+
+
+
         confirmed_directions = set()
 
         current_direction = None
@@ -1193,7 +1285,27 @@ class GearShiftDetector:
         confirmed_direction = next(
             iter(confirmed_directions)
         )
+        opposite_tail_movement = 0.0
+        opposite_tail_steps = 0
 
+        for delta in reversed(deltas):
+            direction = (
+                "UP"
+                if delta < 0
+                else "DOWN"
+            )
+
+            if direction == confirmed_direction:
+                break
+
+            opposite_tail_steps += 1
+            opposite_tail_movement += abs(delta)
+
+        if (
+            opposite_tail_steps >= 3
+            and opposite_tail_movement >= 0.003
+        ):
+            return "STABLE"
         last_delta = (
             heel_y[-1]
             - heel_y[-2]
@@ -1215,3 +1327,4 @@ class GearShiftDetector:
 
         return confirmed_direction
      
+

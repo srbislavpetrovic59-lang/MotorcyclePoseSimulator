@@ -3681,7 +3681,7 @@ def test_latest_repair_down_heel_history_is_not_shift_up():
 
     assert shift != "SHIFT_UP"
 
-    
+
 def test_left_foot_live_visibility_is_accepted_for_gear_shift():
     analyzer = FootAnalyzer()
     analyzer._left_foot_gear_visibility_grace = 2
@@ -3719,3 +3719,172 @@ def test_left_foot_live_visibility_can_start_gear_tracking():
         left_ankle,
         left_foot,
     ) is True
+
+
+def test_latest_false_shift_up_heel_history_is_rejected():
+    heel_y = [
+        0.6396052241325378,
+        0.6375576257705688,
+        0.6441642045974731,
+        0.6515506505966187,
+        0.6517672538757324,
+        0.6556767225265503,
+        0.6534960865974426,
+        0.6527405977249146,
+        0.6515498757362366,
+        0.6512840390205383,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    shift = GearShiftDetector._shift_from_heel_trend(
+        trend
+    )
+
+    assert shift != "SHIFT_UP"
+
+
+def test_latest_live_shift_down_activates_forward_movement():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.019330644607543947
+
+    samples = [
+        0.019718647003173828,
+        0.019139856100082397,
+        0.036164283752441406,
+        0.03476029634475708,
+        0.03608408570289612,
+        0.03531569242477417,
+        0.03394526243209839,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+
+
+def test_latest_live_24s_shift_down_activates_forward_movement():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.026718896627426148
+
+    samples = [
+        0.02575165033340454,
+        0.03906288743019104,
+        0.0371817946434021,
+        0.042211294174194336,
+        0.04734903573989868,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+
+
+def test_latest_real_shift_down_is_not_classified_as_shift_up():
+    heel_y = [
+        0.7786632180213928,
+        0.7786627411842346,
+        0.7786521911621094,
+        0.7797143459320068,
+        0.7796898484230042,
+        0.7799405455589294,
+        0.7802597880363464,
+        0.7810264825820923,
+        0.7821398973464966,
+        0.7849261164665222,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    shift = GearShiftDetector._shift_from_heel_trend(
+        trend
+    )
+
+    assert shift != "SHIFT_UP"
+
+def test_first_gear_limited_down_activates_forward_movement():
+    detector = GearShiftDetector()
+    detector._forward_baseline = 0.02050080895423889
+
+    samples = [
+        0.023807257413864136,
+        0.036725014448165894,
+        0.03310626745223999,
+    ]
+
+    for forward in samples:
+        detector._update_forward_movement_from_baseline(
+            forward
+        )
+
+    assert detector._forward_movement_active is True
+
+def test_rearm_tolerates_one_brief_non_footpeg_frame():
+    detector = GearShiftDetector()
+
+    detector._shift_rearm_pending = True
+    detector._rearm_footpeg_frames = 0
+
+    # Foot is back on the footpeg for two frames.
+    detector._rearm_footpeg_frames += 1
+    detector._rearm_footpeg_frames += 1
+
+    # One brief bad frame should not destroy the progress.
+    
+
+    # Then the foot is seen on the footpeg again.
+    detector._rearm_footpeg_frames += 1
+
+    assert detector._rearm_footpeg_frames >= 3
+
+
+def test_rearm_tolerates_one_brief_non_footpeg_frame():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = 0.020
+    detector._shift_rearm_pending = True
+
+    # Two valid footpeg frames.
+    detector.update(
+        left_foot_drop=0.055,
+        left_foot_angle=145.0,
+        left_foot_forward=0.020,
+        elapsed_seconds=10.0,
+    )
+
+    detector.update(
+        left_foot_drop=0.055,
+        left_foot_angle=145.0,
+        left_foot_forward=0.020,
+        elapsed_seconds=10.1,
+    )
+
+    # One brief bad frame.
+    detector.update(
+        left_foot_drop=0.200,
+        left_foot_angle=120.0,
+        left_foot_forward=0.020,
+        elapsed_seconds=10.2,
+    )
+
+    # Footpeg visible again.
+    detector.update(
+        left_foot_drop=0.055,
+        left_foot_angle=145.0,
+        left_foot_forward=0.020,
+        elapsed_seconds=10.3,
+    )
+
+    assert detector._shift_rearm_pending is False
