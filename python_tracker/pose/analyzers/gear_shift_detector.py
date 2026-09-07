@@ -426,7 +426,7 @@ class GearShiftDetector:
                 # No shift attempt
                 # -----------------------------------------------------
 
-                if not self._forward_movement_active:
+                if (not self._forward_movement_active and trend not in ("RISING", "FALLING")):
                     self._outside_footpeg_frames = 0
                     self._pending_zones.clear()
 
@@ -475,7 +475,17 @@ class GearShiftDetector:
 
                 elif trend == "FALLING":
                     candidate = "DOWN"
+                if (
+                    not self._forward_movement_active
+                    and self._zone_history == ["UP"]
+                    and candidate == "DOWN"
+                    and self._pending_zones
+                    and self._pending_zones[-1] == "DOWN"
+                ):
+                    self._reset_stale_shift_attempt()
+                    self._shift_rearm_pending = True
 
+                    return "SHIFT_UP"
                 if candidate is not None:
                     self._add_shift_candidate(
                         candidate

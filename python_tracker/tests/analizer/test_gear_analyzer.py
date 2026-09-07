@@ -3888,3 +3888,67 @@ def test_rearm_tolerates_one_brief_non_footpeg_frame():
     )
 
     assert detector._shift_rearm_pending is False
+
+    def test_latest_live_down_activates_forward_after_sustained_jump():
+        detector = GearShiftDetector()
+        detector._forward_baseline = 0.02658870816230774
+
+        samples = [
+            0.04047846794128418,
+            0.038347482681274414,
+            0.0398406982421875,
+        ]
+
+        for forward in samples:
+            detector._update_forward_movement_from_baseline(
+                forward
+            )
+
+        assert detector._forward_movement_active is True
+
+
+
+
+
+
+def test_latest_live_up_with_small_forward_excursion_is_detected():
+        detector = GearShiftDetector()
+
+        detector._state = "READY"
+        detector._startup_ready = True
+        detector._forward_baseline = 0.030963832139968873
+
+        samples = [
+            (0.0676228404045105, 140.1089341820181, 0.037008196115493774, 0.6628, 19.062),
+            (0.06921440362930298, 141.024291186707, 0.03658890724182129, 0.6611, 19.203),
+            (0.06960225105285645, 141.13860108639003, 0.03654760122299194, 0.6613, 19.328),
+            (0.0703478455543518, 141.72370734003664, 0.03587871789932251, 0.6614, 19.453),
+            (0.07086867094039917, 141.88738540251254, 0.03594893217086792, 0.6619, 19.578),
+            (0.07043862342834473, 141.41512483825755, 0.03622251749038696, 0.6648, 19.734),
+            (0.07530009746551514, 142.5996769152628, 0.03467404842376709, 0.6593, 19.843),
+            (0.07819771766662598, 146.6722115818772, 0.031173110008239746, 0.6481, 19.984),
+            (0.07880234718322754, 147.2993320153034, 0.030526578426361084, 0.6416, 20.109),
+            (0.07960623502731323, 148.9439832409948, 0.030522584915161133, 0.6435, 20.234),
+            (0.0778232216835022, 150.32415066230087, 0.031813740730285645, 0.6402, 20.390),
+            (0.07781392335891724, 151.08104311683542, 0.031201869249343872, 0.6466, 20.500),
+            (0.06582170724868774, 147.86850438785436, 0.03243085741996765, 0.6431, 20.656),
+            (0.06162005662918091, 145.0178674746575, 0.033552318811416626, 0.6454, 20.765),
+            (0.05703294277191162, 141.96693296519626, 0.03410175442695618, 0.6458, 20.906),
+            (0.05026620626449585, 139.66753188139705, 0.033687472343444824, 0.6442, 21.031),
+        ]
+
+        events = []
+
+        for drop, angle, forward, heel_y, elapsed in samples:
+            result = detector.update(
+                left_foot_drop=drop,
+                left_foot_angle=angle,
+                left_foot_forward=forward,
+                left_heel_y=heel_y,
+                elapsed_seconds=elapsed,
+            )
+
+            if result is not None:
+                events.append(result)
+
+        assert "SHIFT_UP" in events   
