@@ -3952,3 +3952,113 @@ def test_latest_live_up_with_small_forward_excursion_is_detected():
                 events.append(result)
 
         assert "SHIFT_UP" in events   
+
+def test_latest_live_startup_footpeg_position_is_accepted():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        0.0823,
+        157.6,
+    ) is True
+
+def test_latest_live_startup_return_position_is_accepted():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        0.0823,
+        150.7,
+    ) is True
+
+def test_latest_live_down_with_existing_up_history_is_not_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = 0.029606306552886964
+    detector._zone_history = ["UP"]
+    detector._pending_zones = ["UP", "UP", "UP"]
+
+    samples = [
+        (0.07593715190887451, 156.5207202110466, 0.028900861740112305, 0.7277, 32.437),
+        (0.07701551914215088, 156.853521986622, 0.028721332550048828, 0.7249, 32.562),
+        (0.06176728010177612, 146.07853558078625, 0.03160989284515381, 0.7076, 32.687),
+        (0.06615698337554932, 144.97669218209472, 0.032877981662750244, 0.6990, 32.859),
+    ]
+
+    events = []
+
+    for drop, angle, forward, heel_y, elapsed in samples:
+        result = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+            elapsed_seconds=elapsed,
+        )
+
+        if result is not None:
+            events.append(result)
+
+    assert "SHIFT_UP" not in events
+
+def test_latest_real_down_is_not_classified_as_shift_up():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = 0.029606306552886964
+    detector._zone_history = ["UP"]
+
+    samples = [
+        (0.05731093883514404, 140.77402309328585, 0.031213819980621338, 0.6720, 31.000),
+        (0.0575067400932312, 140.72566785398027, 0.0313146710395813, 0.6702, 31.125),
+        (0.057897210121154785, 141.2235376049213, 0.0313868522644043, 0.6695, 31.265),
+        (0.05984771251678467, 141.77382841002455, 0.03148007392883301, 0.6732, 31.406),
+        (0.0597991943359375, 141.56549620029398, 0.03149503469467163, 0.6710, 31.531),
+        (0.06540560722351074, 148.02380422349822, 0.03477180004119873, 0.7178, 31.640),
+        (0.06745505332946777, 148.36332895510756, 0.034500718116760254, 0.7242, 31.765),
+        (0.06754398345947266, 151.5371283116519, 0.030720233917236328, 0.7213, 31.922),
+        (0.06940996646881104, 150.84338284217355, 0.03212118148803711, 0.7207, 32.047),
+        (0.07501345872879028, 152.21634739354965, 0.03318887948989868, 0.7212, 32.187),
+        (0.07525002956390381, 154.38829009747192, 0.030959248542785645, 0.7261, 32.328),
+        (0.07593715190887451, 156.5207202110466, 0.028900861740112305, 0.7277, 32.437),
+        (0.07701551914215088, 156.853521986622, 0.028721332550048828, 0.7249, 32.562),
+        (0.06176728010177612, 146.07853558078625, 0.03160989284515381, 0.7076, 32.687),
+        (0.06615698337554932, 144.97669218209472, 0.032877981662750244, 0.6990, 32.859),
+    ]
+
+    events = []
+
+    for drop, angle, forward, heel_y, elapsed in samples:
+        result = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+            elapsed_seconds=elapsed,
+        )
+
+        if result is not None:
+            events.append(result)
+
+    assert "SHIFT_UP" not in events
+
+def test_latest_real_down_heel_history_is_not_shift_up():
+    heel_y = [
+        0.6953310370445251,
+        0.6876307725906372,
+        0.6889886260032654,
+        0.6904263496398926,
+        0.6931622624397278,
+        0.6965805888175964,
+        0.7185996770858765,
+        0.7199110388755798,
+        0.7231569886207581,
+        0.7212486267089844,
+    ]
+
+    trend = GearShiftDetector._heel_end_trend(
+        heel_y
+    )
+
+    shift = GearShiftDetector._shift_from_heel_trend(
+        trend
+    )
+
+    assert shift != "SHIFT_UP"

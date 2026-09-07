@@ -481,6 +481,7 @@ class GearShiftDetector:
                     and candidate == "DOWN"
                     and self._pending_zones
                     and self._pending_zones[-1] == "DOWN"
+                    and left_foot_angle < 144.0
                 ):
                     self._reset_stale_shift_attempt()
                     self._shift_rearm_pending = True
@@ -548,6 +549,7 @@ class GearShiftDetector:
                 and 160.0 <= left_foot_angle <= 175.0
             )
             or (0.050 <= left_foot_drop <= 0.060 and 138.0 <= left_foot_angle <= 150.0)
+           
         )        
         
 
@@ -589,7 +591,8 @@ class GearShiftDetector:
             )
             or (0.070 <= left_foot_drop <= 0.085 and 140.0 <= left_foot_angle <= 147.0)
             or (0.050 <= left_foot_drop <= 0.060 and 138.0 <= left_foot_angle <= 153.0)
-           
+            or (0.081 <= left_foot_drop <= 0.090 and 155.0 <= left_foot_angle <= 159.5)
+            or (0.080 <= left_foot_drop <= 0.085 and 149.0 <= left_foot_angle <= 152.0)
         )
     @classmethod
     def _movement_zone(
@@ -1233,6 +1236,13 @@ class GearShiftDetector:
 
         upward_excursion = start - min_value
         downward_excursion = max_value - start
+
+        if (
+            upward_excursion >= 0.006
+            and downward_excursion >= 0.020
+            and heel_y.index(min_value) < heel_y.index(max_value)
+        ):
+            return "STABLE"
 
         returned_to_start = (
             abs(end - start) <= 0.005
