@@ -101,3 +101,39 @@ def test_cornering_moves_to_exit_on_throttle_and_upright_body():
     )
 
     assert phase == RidingPhase.EXIT
+
+
+def test_exit_moves_back_to_acceleration():
+    detector = RidingPhaseDetector()
+
+    detector.update(
+        throttle_progress=0.40,
+    )
+
+    detector.update(
+        throttle_progress=0.0,
+        front_brake_progress=0.30,
+    )
+
+    detector.update(
+        throttle_progress=0.10,
+        front_brake_progress=0.0,
+        rear_brake_progress=0.0,
+        torso_angle=35.0,
+    )
+
+    detector.update(
+        throttle_progress=0.40,
+        front_brake_progress=0.0,
+        rear_brake_progress=0.0,
+        torso_angle=15.0,
+    )
+
+    phase = detector.update(
+        throttle_progress=0.50,
+        front_brake_progress=0.0,
+        rear_brake_progress=0.0,
+        torso_angle=10.0,
+    )
+
+    assert phase == RidingPhase.ACCELERATION
