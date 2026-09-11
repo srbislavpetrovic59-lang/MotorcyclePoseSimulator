@@ -10,9 +10,9 @@ def main() -> None:
 
     try:
         print("Waiting for Unreal client...")
-        time.sleep(60.0)
+        time.sleep(10.0)
 
-        for gear_shift in ["SHIFT_UP", "SHIFT_DOWN", "SHIFT_UP"]:
+        for gear_shift in ["SHIFT_UP", "SHIFT_UP", "SHIFT_UP","SHIFT_UP", "SHIFT_UP", "SHIFT_UP","SHIFT_DOWN", "SHIFT_DOWN", "SHIFT_DOWN","SHIFT_DOWN", "SHIFT_DOWN", "SHIFT_DOWN"]:
             rider_state = RiderState(
                 gear_shift=gear_shift,
                 pose_confidence=0.98,
