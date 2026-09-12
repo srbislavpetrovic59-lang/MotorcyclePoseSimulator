@@ -48,7 +48,7 @@ class RidingPhaseDetector:
             and throttle_progress is not None
             and throttle_progress >= 0.30
             and torso_angle is not None
-            and torso_angle <= 15.0
+            and torso_angle >= 80.0
         ):
             self._phase = RidingPhase.EXIT
 
