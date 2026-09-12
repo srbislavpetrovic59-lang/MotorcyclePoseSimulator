@@ -14,6 +14,7 @@ class RiderStateMapper:
 
         return RiderState(
             timestamp=time.monotonic(),
+            riding_phase=result["riding_phase"],
 
             head_roll=result["head_roll"],
             head_yaw_ratio = result["head_yaw_ratio"],

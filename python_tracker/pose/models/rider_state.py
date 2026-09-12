@@ -2,11 +2,13 @@
 
 import json
 from dataclasses import asdict, dataclass
+from pose.models.riding_phase import RidingPhase
 
 
 @dataclass(slots=True)
 class RiderState:
     timestamp: float = 0.0
+    riding_phase: str = RidingPhase.IDLE.value
 
     head_roll: float = 0.0
     head_yaw_ratio: float = 0.0

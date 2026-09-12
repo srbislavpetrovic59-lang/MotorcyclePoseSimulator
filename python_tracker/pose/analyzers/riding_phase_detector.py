@@ -41,6 +41,8 @@ class RidingPhaseDetector:
         ):
             self._phase = RidingPhase.CORNERING
         
+        
+        
         elif (
             self._phase == RidingPhase.CORNERING
             and throttle_progress is not None

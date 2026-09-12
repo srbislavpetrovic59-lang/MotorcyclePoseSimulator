@@ -9,6 +9,7 @@ from pose.analyzers.head_analyzer import HeadAnalyzer
 from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
 from pose.models.frame_analysis import FrameAnalysis
 from pose.analyzers.hand_analyzer import HandAnalyzer
+from pose.analyzers.riding_phase_detector import RidingPhaseDetector
 
 
 
@@ -34,6 +35,7 @@ class PoseAnalyzer:
         self._hand_control_analyzer.calibrate_clutch_pulled(
             131.0
         )
+        self._riding_phase_detector = RidingPhaseDetector()
 
 
     def analyze(self, frame_analysis: FrameAnalysis):
@@ -92,7 +94,15 @@ class PoseAnalyzer:
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list
         )
+        
+        riding_phase = self._riding_phase_detector.update(
+            throttle_progress=result["throttle_progress"],
+            front_brake_progress=result["front_brake_progress"],
+            rear_brake_progress=result["rear_brake_progress"],
+            torso_angle=result["torso_angle"],
+        )
 
+        result["riding_phase"] = riding_phase.value
         
 
         result["rider_state"] = self._determine_rider_state(result)
