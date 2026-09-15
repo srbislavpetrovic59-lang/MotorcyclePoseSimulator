@@ -11,10 +11,19 @@ class FootAnalyzer:
         self._rear_brake_active = False
         self._right_foot_was_visible = False
         self._right_foot_seen_once = False
+        self._right_foot_forward_baseline = None
+        self._right_foot_forward_baseline_samples = []
+        self._rear_brake_prepare = False
+        self._right_foot_angle_baseline = None
+        self._right_foot_angle_baseline_samples = []
+        self._right_foot_released_drop_baseline = None
+        self._right_foot_released_drop_baseline_samples = []
         self._start_time = time.monotonic() 
         self._gear_shift_detector = GearShiftDetector()
         self._left_foot_gear_was_visible = 0
         self._left_foot_gear_visibility_grace = 0
+        self._rear_brake_active_frames = 0
+        
         
 
     def analyze(self, landmarks):
@@ -65,6 +74,7 @@ class FootAnalyzer:
         
         
         left_foot_forward = left_foot.x - left_ankle.x  #testnapred nazad
+        
         print(
             "LEFT FOOT FORWARD:",
             f"t={elapsed:.3f}",
@@ -128,21 +138,76 @@ class FootAnalyzer:
                     right_foot_rotation
                 )
 
+            self._reset_rear_brake_prepare_if_not_ready(
+                rear_brake_ready
+            )
+            
             right_foot_drop = (
                 right_foot.y - right_ankle.y
             )
+
+            self._update_rear_brake_released_drop_baseline(
+                right_foot_drop=right_foot_drop,
+                elapsed_seconds=elapsed,
+            )
+
+            right_foot_forward = (
+                right_foot.x - right_ankle.x
+            )
+
+            self._update_rear_brake_angle_baseline(
+                right_foot_angle
+            )
+
+            if (
+                self._right_foot_angle_baseline is not None
+                and self._right_foot_released_drop_baseline is not None
+            ):
+                self._update_rear_brake_motion(
+                    right_foot_angle=right_foot_angle,
+                    baseline_angle=self._right_foot_angle_baseline,
+                    right_foot_drop=right_foot_drop,
+                    released_drop=self._right_foot_released_drop_baseline,
+                )
+
+            self._update_rear_brake_forward_baseline_if_released(
+                right_foot_forward=right_foot_forward,
+                rear_brake_ready=rear_brake_ready,
+            )
+
+
+            print(
+                "RIGHT BRAKE MOTION:",
+                f"forward={right_foot_forward:.4f}",
+                f"baseline={self._right_foot_forward_baseline}",
+                f"drop={right_foot_drop:.4f}",
+                f"ready={rear_brake_ready}",
+                f"angle={right_foot_angle:.1f}",
+                f"prepare={self._rear_brake_prepare}",
+                f"active={self._rear_brake_active}",
+                f"released_drop={self._right_foot_released_drop_baseline}",
+
+            )
+        
         else:
             right_foot_rotation = None
             right_foot_drop = None
             rear_brake_ready = None
+            right_foot_forward = None
         
-        if right_foot_reacquired:
+        if right_foot_reacquired or not right_foot_is_visible:
             rear_brake_progress = None
         else:
-            rear_brake_progress = self._rear_brake_progress(
+            rear_brake_progress = self._rear_brake_progress_from_motion(
+                right_foot_forward=right_foot_forward,
+                right_foot_drop=right_foot_drop,
+                forward_baseline=self._right_foot_forward_baseline,
                 released_drop=0.08,
                 full_drop=0.12,
-                current_drop=right_foot_drop,
+            )
+            print(
+                "REAR BRAKE MOTION PROGRESS:",
+                rear_brake_progress,
             )
 
         rear_brake_active = self._update_rear_brake_active(
@@ -264,10 +329,15 @@ class FootAnalyzer:
 
         if self._rear_brake_active:
             if rear_brake_progress <= 0.10:
-                self._rear_brake_active = False
+                self._rear_brake_active_frames += 1
+
+                if self._rear_brake_active_frames >= 2:
+                    self._rear_brake_active = False
+                    self._rear_brake_active_frames = 0
+            else:
+                self._rear_brake_active_frames = 0
         else:
-            if rear_brake_progress >= 0.20:
-                self._rear_brake_active = True
+            self._rear_brake_active_frames = 0
 
         return self._rear_brake_active
 
@@ -324,3 +394,170 @@ class FootAnalyzer:
 
         self._left_foot_gear_visibility_grace = 0
         return False
+
+
+    def _rear_brake_progress_from_motion(
+        self,
+        right_foot_forward,
+        right_foot_drop,
+        forward_baseline,
+        released_drop,
+        full_drop,
+    ):
+       forward_threshold = 0.0025
+       if forward_baseline is None:
+           return 0.0
+
+
+       if right_foot_forward - forward_baseline < forward_threshold:
+            return 0.0
+
+       drop_range = full_drop - released_drop
+
+       if drop_range <= 0.0:
+           return 0.0
+
+       progress = (right_foot_drop - released_drop) / drop_range
+
+       return max(0.0, min(1.0, progress))
+
+
+    def _update_rear_brake_forward_baseline(
+        self,
+        right_foot_forward,
+    ):
+        if self._right_foot_forward_baseline is None:
+            self._right_foot_forward_baseline_samples.append(
+                right_foot_forward
+            )
+
+            if len(self._right_foot_forward_baseline_samples) >= 5:
+                samples = self._right_foot_forward_baseline_samples[-5:]
+
+                if max(samples) - min(samples) <= 0.01:
+                    self._right_foot_forward_baseline = (
+                        sum(samples) / 5
+                    )
+
+    def _update_rear_brake_forward_baseline_if_released(
+        self,
+        right_foot_forward,
+        rear_brake_ready,
+    ):
+       
+        self._update_rear_brake_forward_baseline(
+            right_foot_forward
+            )
+
+    @staticmethod
+    def _is_rear_brake_prepare(
+        current_angle: float,
+        baseline_angle: float,
+    ) -> bool:
+        return baseline_angle - current_angle >= 4.0
+
+    def _update_rear_brake_prepare(
+        self,
+        current_angle: float,
+        baseline_angle: float,
+    ) -> bool:
+        if self._is_rear_brake_prepare(
+            current_angle,
+            baseline_angle,
+        ):
+            self._rear_brake_prepare = True
+
+        return self._rear_brake_prepare
+
+    def _is_rear_brake_press(
+        self,
+        right_foot_drop: float,
+        released_drop: float,
+    ) -> bool:
+        if not self._rear_brake_prepare:
+            return False
+
+        return right_foot_drop - released_drop >= 0.02
+
+
+    def _update_rear_brake_active_from_press(
+        self,
+        pressing: bool,
+    ) -> bool:
+        if pressing:
+            self._rear_brake_active = True
+
+        return self._rear_brake_active
+
+    def _update_rear_brake_motion(
+        self,
+        right_foot_angle: float,
+        baseline_angle: float,
+        right_foot_drop: float,
+        released_drop: float,
+    ) -> bool:
+        self._update_rear_brake_prepare(
+            current_angle=right_foot_angle,
+            baseline_angle=baseline_angle,
+        )
+
+        pressing = self._is_rear_brake_press(
+            right_foot_drop=right_foot_drop,
+            released_drop=released_drop,
+        )
+
+        return self._update_rear_brake_active_from_press(
+            pressing
+        )
+
+    def _update_rear_brake_angle_baseline(
+        self,
+        right_foot_angle: float,
+    ):
+        if self._right_foot_angle_baseline is None:
+            self._right_foot_angle_baseline_samples.append(
+                right_foot_angle
+            )
+
+            if len(self._right_foot_angle_baseline_samples) >= 5:
+                samples = self._right_foot_angle_baseline_samples[-5:]
+                if max(samples) - min(samples) <= 1.0:
+                    self._right_foot_angle_baseline = (
+                        sum(samples) / 5
+                    )
+
+    def _reset_rear_brake_prepare_if_not_ready(
+        self,
+        rear_brake_ready: bool | None,
+    ):
+        if rear_brake_ready is False:
+            self._rear_brake_prepare = False
+            self._rear_brake_active = False
+
+    def _update_rear_brake_released_drop_baseline(
+        self,
+        right_foot_drop: float,
+        elapsed_seconds=None,
+    ):
+        if (
+            elapsed_seconds is not None
+            and elapsed_seconds < 5.0
+        ):
+            return
+
+        if self._right_foot_released_drop_baseline is None:
+            self._right_foot_released_drop_baseline_samples.append(
+                right_foot_drop
+            )
+
+            if len(self._right_foot_released_drop_baseline_samples) >= 5:
+                samples = (
+                    self._right_foot_released_drop_baseline_samples[-5:]
+                )
+
+                if max(samples) - min(samples) <= 0.01:
+                    self._right_foot_released_drop_baseline = (
+                        sum(samples) / 5
+                    )
+
+   

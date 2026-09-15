@@ -101,14 +101,6 @@ def test_rear_brake_progress_is_one_when_fully_pressed():
 
     assert progress == 1.0
 
-def test_rear_brake_becomes_active_when_progress_is_high():
-    analyzer = FootAnalyzer()
-
-    active = analyzer._update_rear_brake_active(
-        rear_brake_progress=0.5
-    )
-
-    assert active is True
 
 def test_rear_brake_is_inactive_when_released():
     analyzer = FootAnalyzer()
@@ -128,18 +120,7 @@ def test_rear_brake_is_inactive_when_progress_is_none():
 
     assert active is False
 
-def test_rear_brake_hysteresis_keeps_active_state():
-    analyzer = FootAnalyzer()
 
-    analyzer._update_rear_brake_active(
-        rear_brake_progress=0.5
-    )
-
-    active = analyzer._update_rear_brake_active(
-        rear_brake_progress=0.15
-    )
-
-    assert active is True
 
 def test_rear_brake_hysteresis_releases_below_lower_threshold():
     analyzer = FootAnalyzer()
@@ -157,8 +138,8 @@ def test_rear_brake_hysteresis_releases_below_lower_threshold():
 def test_rear_brake_detection_loss_keeps_previous_state():
     analyzer = FootAnalyzer()
 
-    analyzer._update_rear_brake_active(
-        rear_brake_progress=0.5
+    analyzer._update_rear_brake_active_from_press(
+        True
     )
 
     active = analyzer._update_rear_brake_active(
@@ -359,3 +340,892 @@ def test_gear_shift_visibility_survives_two_brief_ankle_visibility_drops():
         Landmark(0.54),
     ) is True
 
+def test_rear_brake_forward_position_without_downward_press_has_zero_progress():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.05,
+        right_foot_drop=0.08,
+        forward_baseline=0.00,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 0.0
+
+
+def test_rear_brake_forward_position_with_downward_press_has_progress():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.05,
+        right_foot_drop=0.10,
+        forward_baseline=0.00,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress > 0.0
+
+
+def test_rear_brake_progress_is_clamped_to_one():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.05,
+        right_foot_drop=0.15,
+        forward_baseline=0.00,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 1.0
+
+
+def test_rear_brake_downward_press_without_forward_position_has_zero_progress():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.00,
+        right_foot_drop=0.10,
+        forward_baseline=0.00,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 0.0
+
+
+def test_rear_brake_tiny_forward_motion_does_not_enable_progress():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.001,
+        right_foot_drop=0.10,
+        forward_baseline=0.00,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 0.0
+
+def test_rear_brake_forward_baseline_starts_unset():
+    analyzer = FootAnalyzer()
+
+    assert analyzer._right_foot_forward_baseline is None
+
+
+def test_rear_brake_forward_baseline_is_not_set_from_first_position():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(
+        right_foot_forward=0.02
+    )
+
+    assert analyzer._right_foot_forward_baseline is None
+
+
+def test_rear_brake_forward_baseline_does_not_follow_foot():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(0.049)
+    analyzer._update_rear_brake_forward_baseline(0.051)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(0.050)
+
+    analyzer._update_rear_brake_forward_baseline(0.080)
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(0.050)
+
+def test_rear_brake_forward_baseline_is_set_after_five_samples():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(0.049)
+    analyzer._update_rear_brake_forward_baseline(0.051)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+    analyzer._update_rear_brake_forward_baseline(0.050)
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(
+        0.050
+    )
+
+def test_rear_brake_progress_is_zero_without_forward_baseline():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.05,
+        right_foot_drop=0.10,
+        forward_baseline=None,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 0.0
+
+def test_forward_baseline_requires_stable_rest_samples():
+    detector = GearShiftDetector()
+
+    # Three samples, but the foot is still moving.
+    detector.update(
+        left_foot_drop=0.080,
+        left_foot_angle=160.0,
+        left_foot_forward=0.040,
+        elapsed_seconds=6.1,
+    )
+    detector.update(
+        left_foot_drop=0.080,
+        left_foot_angle=160.0,
+        left_foot_forward=0.050,
+        elapsed_seconds=6.2,
+    )
+    detector.update(
+        left_foot_drop=0.080,
+        left_foot_angle=160.0,
+        left_foot_forward=0.060,
+        elapsed_seconds=6.3,
+    )
+
+    assert detector._forward_baseline is None
+
+def test_rear_brake_forward_baseline_not_set_from_unstable_samples():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(0.000)
+    analyzer._update_rear_brake_forward_baseline(0.020)
+    analyzer._update_rear_brake_forward_baseline(0.040)
+
+    assert analyzer._right_foot_forward_baseline is None
+
+def test_rear_brake_forward_baseline_set_from_stable_samples():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(0.003)
+    analyzer._update_rear_brake_forward_baseline(0.006)
+    analyzer._update_rear_brake_forward_baseline(0.005)
+    analyzer._update_rear_brake_forward_baseline(0.004)
+    analyzer._update_rear_brake_forward_baseline(0.005)
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(
+        (0.003 + 0.006 + 0.005 + 0.004 + 0.005) / 5
+    )
+
+def test_rear_brake_forward_baseline_recovers_after_unstable_samples():
+    analyzer = FootAnalyzer()
+
+    # Unstable movement first.
+    analyzer._update_rear_brake_forward_baseline(0.000)
+    analyzer._update_rear_brake_forward_baseline(0.020)
+    analyzer._update_rear_brake_forward_baseline(0.040)
+
+    assert analyzer._right_foot_forward_baseline is None
+
+    # Foot then becomes stable.
+    analyzer._update_rear_brake_forward_baseline(0.041)
+    analyzer._update_rear_brake_forward_baseline(0.042)
+    analyzer._update_rear_brake_forward_baseline(0.041)
+    analyzer._update_rear_brake_forward_baseline(0.040)
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(
+        (0.040 + 0.041 + 0.042 + 0.041 + 0.040) / 5
+    )
+
+
+def test_rear_brake_baseline_learned_when_brake_not_ready():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.003,
+        rear_brake_ready=False,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.006,
+        rear_brake_ready=False,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.005,
+        rear_brake_ready=False,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.004,
+        rear_brake_ready=False,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.005,
+        rear_brake_ready=False,
+    )
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(
+        (0.003 + 0.006 + 0.005 + 0.004 + 0.005) / 5
+    )
+
+def test_rear_brake_progress_starts_from_measured_forward_motion():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.043,
+        right_foot_drop=0.110,
+        forward_baseline=0.032,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress > 0.0
+
+def test_rear_brake_baseline_can_learn_from_stable_ready_position():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.037,
+        rear_brake_ready=True,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.038,
+        rear_brake_ready=True,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.037,
+        rear_brake_ready=True,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.038,
+        rear_brake_ready=True,
+    )
+    analyzer._update_rear_brake_forward_baseline_if_released(
+        right_foot_forward=0.037,
+        rear_brake_ready=True,
+    )
+
+    assert analyzer._right_foot_forward_baseline == pytest.approx(
+        (0.037 + 0.038 + 0.037 + 0.038 + 0.037) / 5
+    )
+
+
+def test_rear_brake_not_active_from_single_progress_frame():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_active(
+        0.75
+    )
+
+    assert active is False
+
+def test_rear_brake_forward_baseline_not_learned_too_early():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_forward_baseline(
+        -0.010
+    )
+    analyzer._update_rear_brake_forward_baseline(
+        -0.009
+    )
+    analyzer._update_rear_brake_forward_baseline(
+        -0.008
+    )
+
+    assert analyzer._right_foot_forward_baseline is None
+
+def test_rear_brake_progress_starts_from_latest_measured_forward_motion():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.0509,
+        right_foot_drop=0.110,
+        forward_baseline=0.0475,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress > 0.0
+
+def test_rear_brake_progress_stays_zero_for_latest_stationary_pose():
+    analyzer = FootAnalyzer()
+
+    progress = analyzer._rear_brake_progress_from_motion(
+        right_foot_forward=0.0490,
+        right_foot_drop=0.0851,
+        forward_baseline=0.0475,
+        released_drop=0.08,
+        full_drop=0.12,
+    )
+
+    assert progress == 0.0
+
+
+
+def test_rear_brake_prepare_detected_when_toes_lift():
+    analyzer = FootAnalyzer()
+
+    prepared = analyzer._is_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    assert prepared is True
+
+def test_rear_brake_prepare_not_detected_for_small_angle_change():
+        analyzer = FootAnalyzer()
+
+        prepared = analyzer._is_rear_brake_prepare(
+            current_angle=165.5,
+            baseline_angle=166.7,
+        )
+
+        assert prepared is False
+
+def test_rear_brake_prepare_stays_latched_after_toes_lift():
+        analyzer = FootAnalyzer()
+
+        analyzer._update_rear_brake_prepare(
+            current_angle=162.0,
+            baseline_angle=166.7,
+        )
+
+        prepared = analyzer._update_rear_brake_prepare(
+            current_angle=165.5,
+            baseline_angle=166.7,
+        )
+
+        assert prepared is True
+
+def test_rear_brake_prepare_alone_does_not_activate_brake():
+        analyzer = FootAnalyzer()
+
+        analyzer._update_rear_brake_prepare(
+            current_angle=162.0,
+            baseline_angle=166.7,
+        )
+
+        assert analyzer._rear_brake_active is False
+
+def test_rear_brake_press_detected_after_prepare():
+        analyzer = FootAnalyzer()
+
+        analyzer._update_rear_brake_prepare(
+            current_angle=162.0,
+            baseline_angle=166.7,
+        )
+
+        pressing = analyzer._is_rear_brake_press(
+            right_foot_drop=0.1064,
+            released_drop=0.08,
+        )
+
+        assert pressing is True
+
+def test_rear_brake_press_not_detected_without_prepare():
+    analyzer = FootAnalyzer()
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1064,
+        released_drop=0.08,
+    )
+
+    assert pressing is False
+
+def test_rear_brake_press_not_detected_before_sufficient_drop():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.095,
+        released_drop=0.08,
+    )
+
+    assert pressing is False
+
+def test_rear_brake_press_can_activate_brake():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1064,
+        released_drop=0.08,
+    )
+
+    active = analyzer._update_rear_brake_active_from_press(
+        pressing
+    )
+
+    assert active is True
+
+def test_rear_brake_active_survives_single_non_press_frame():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active_from_press(True)
+
+    active = analyzer._update_rear_brake_active_from_press(False)
+
+    assert active is True
+
+
+
+
+def test_rear_brake_not_active_without_press():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_active_from_press(False)
+
+    assert active is False
+
+def test_rear_brake_press_matches_live_measured_sequence():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1104,
+        released_drop=0.08,
+    )
+
+    assert pressing is True
+
+def test_rear_brake_motion_sequence_activates_brake():
+    analyzer = FootAnalyzer()
+
+    active = analyzer._update_rear_brake_motion(
+        right_foot_angle=162.0,
+        baseline_angle=166.7,
+        right_foot_drop=0.0771,
+        released_drop=0.08,
+    )
+
+    assert active is False
+
+    active = analyzer._update_rear_brake_motion(
+        right_foot_angle=167.2,
+        baseline_angle=166.7,
+        right_foot_drop=0.1104,
+        released_drop=0.08,
+    )
+
+    assert active is True
+
+def test_rear_brake_angle_baseline_not_learned_too_early():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_angle_baseline(166.7)
+    analyzer._update_rear_brake_angle_baseline(166.5)
+    analyzer._update_rear_brake_angle_baseline(166.8)
+
+    assert analyzer._right_foot_angle_baseline is None
+
+def test_rear_brake_angle_baseline_set_after_five_stable_samples():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        166.7,
+        166.5,
+        166.8,
+        166.6,
+        166.7,
+    ]
+
+    for angle in samples:
+        analyzer._update_rear_brake_angle_baseline(angle)
+
+    assert analyzer._right_foot_angle_baseline == pytest.approx(
+        sum(samples) / 5
+    )
+
+def test_rear_brake_angle_baseline_not_set_from_unstable_samples():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        166.7,
+        165.5,
+        164.0,
+        162.0,
+        167.2,
+    ]
+
+    for angle in samples:
+        analyzer._update_rear_brake_angle_baseline(angle)
+
+    assert analyzer._right_foot_angle_baseline is None
+def test_rear_brake_can_be_pressed_again_without_new_prepare():
+    analyzer = FootAnalyzer()
+
+    # Foot moves over the brake.
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    first_press = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1104,
+        released_drop=0.08,
+    )
+
+    assert first_press is True
+
+    # Rider eases pressure but keeps the foot over the brake.
+    partial_release = analyzer._is_rear_brake_press(
+        right_foot_drop=0.095,
+        released_drop=0.08,
+    )
+
+    assert partial_release is False
+
+    # Rider applies the rear brake again.
+    second_press = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1104,
+        released_drop=0.08,
+    )
+
+    assert second_press is True
+
+def test_rear_brake_angle_baseline_recovers_after_unstable_samples():
+    analyzer = FootAnalyzer()
+
+    unstable = [
+        166.7,
+        164.0,
+        162.0,
+        165.0,
+        167.2,
+    ]
+
+    for angle in unstable:
+        analyzer._update_rear_brake_angle_baseline(angle)
+
+    stable = [
+        166.6,
+        166.7,
+        166.5,
+        166.6,
+        166.7,
+    ]
+
+    for angle in stable:
+        analyzer._update_rear_brake_angle_baseline(angle)
+
+    assert analyzer._right_foot_angle_baseline is not None
+
+def test_rear_brake_prepare_not_updated_without_angle_baseline():
+    analyzer = FootAnalyzer()
+
+    assert analyzer._right_foot_angle_baseline is None
+    assert analyzer._rear_brake_prepare is False
+
+def test_rear_brake_motion_uses_learned_angle_baseline():
+    analyzer = FootAnalyzer()
+
+    for angle in [
+        166.7,
+        166.5,
+        166.8,
+        166.6,
+        166.7,
+    ]:
+        analyzer._update_rear_brake_angle_baseline(angle)
+
+    active = analyzer._update_rear_brake_motion(
+        right_foot_angle=162.0,
+        baseline_angle=analyzer._right_foot_angle_baseline,
+        right_foot_drop=0.0771,
+        released_drop=0.08,
+    )
+
+    assert active is False
+    assert analyzer._rear_brake_prepare is True
+
+def test_rear_brake_motion_not_used_before_angle_baseline_exists():
+    analyzer = FootAnalyzer()
+
+    assert analyzer._right_foot_angle_baseline is None
+    assert analyzer._rear_brake_prepare is False
+    assert analyzer._rear_brake_active is False
+
+def test_rear_brake_progress_alone_does_not_activate_brake():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active(0.50)
+    active = analyzer._update_rear_brake_active(0.50)
+
+    assert active is False
+
+def test_rear_brake_stays_active_after_single_low_progress_frame():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active_from_press(
+        True
+    )
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.0
+    )
+
+    assert active is True
+
+def test_rear_brake_releases_after_two_low_progress_frames():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_active_from_press(
+        True
+    )
+
+    analyzer._update_rear_brake_active(
+        rear_brake_progress=0.0
+    )
+
+    active = analyzer._update_rear_brake_active(
+        rear_brake_progress=0.0
+    )
+
+    assert active is False
+
+def test_rear_brake_can_reactivate_after_release_without_new_prepare():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    analyzer._update_rear_brake_active_from_press(True)
+
+    analyzer._update_rear_brake_active(0.0)
+    analyzer._update_rear_brake_active(0.0)
+
+    assert analyzer._rear_brake_active is False
+    assert analyzer._rear_brake_prepare is True
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.1104,
+        released_drop=0.08,
+    )
+
+    active = analyzer._update_rear_brake_active_from_press(
+        pressing
+    )
+
+    assert active is True
+
+def test_rear_brake_prepare_resets_when_foot_returns_to_footpeg():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    assert analyzer._rear_brake_prepare is True
+
+    analyzer._reset_rear_brake_prepare_if_not_ready(
+        rear_brake_ready=False
+    )
+
+    assert analyzer._rear_brake_prepare is False
+
+def test_rear_brake_prepare_not_reset_when_ready_is_unknown():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    analyzer._reset_rear_brake_prepare_if_not_ready(
+        rear_brake_ready=None
+    )
+
+    assert analyzer._rear_brake_prepare is True
+
+def test_rear_brake_return_to_footpeg_deactivates_brake():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_prepare(
+        current_angle=162.0,
+        baseline_angle=166.7,
+    )
+
+    analyzer._update_rear_brake_active_from_press(
+        True
+    )
+
+    assert analyzer._rear_brake_active is True
+
+    analyzer._reset_rear_brake_prepare_if_not_ready(
+        rear_brake_ready=False
+    )
+
+    assert analyzer._rear_brake_active is False
+
+def test_rear_brake_released_drop_baseline_not_learned_from_single_frame():
+    analyzer = FootAnalyzer()
+
+    analyzer._update_rear_brake_released_drop_baseline(
+        right_foot_drop=0.135
+    )
+
+    assert analyzer._right_foot_released_drop_baseline is None
+
+def test_rear_brake_released_drop_baseline_learned_from_five_stable_frames():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        0.135,
+        0.136,
+        0.134,
+        0.135,
+        0.135,
+    ]
+
+    for drop in samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop
+        )
+
+    assert analyzer._right_foot_released_drop_baseline is not None
+
+def test_rear_brake_released_drop_baseline_not_learned_from_unstable_frames():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        0.135,
+        0.150,
+        0.120,
+        0.145,
+        0.130,
+    ]
+
+    for drop in samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop
+        )
+
+    assert analyzer._right_foot_released_drop_baseline is None
+
+def test_rear_brake_released_drop_baseline_recovers_after_unstable_frames():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        0.120,
+        0.150,
+        0.110,
+        0.160,
+        0.140,
+        0.135,
+        0.136,
+        0.134,
+        0.135,
+        0.135,
+    ]
+
+    for drop in samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop
+        )
+
+    assert analyzer._right_foot_released_drop_baseline is not None
+
+def test_rear_brake_press_uses_learned_released_drop_baseline():
+    analyzer = FootAnalyzer()
+
+    analyzer._right_foot_released_drop_baseline = 0.135
+    analyzer._rear_brake_prepare = True
+
+    pressing = analyzer._is_rear_brake_press(
+        right_foot_drop=0.145,
+        released_drop=analyzer._right_foot_released_drop_baseline,
+    )
+
+    assert pressing is False
+
+def test_rear_brake_motion_uses_learned_released_drop_baseline():
+    analyzer = FootAnalyzer()
+
+    analyzer._rear_brake_prepare = True
+    analyzer._right_foot_released_drop_baseline = 0.135
+
+    active = analyzer._update_rear_brake_motion(
+        right_foot_angle=166.7,
+        baseline_angle=166.7,
+        right_foot_drop=0.145,
+        released_drop=analyzer._right_foot_released_drop_baseline,
+    )
+
+    assert active is False
+
+def test_rear_brake_motion_not_evaluated_without_released_drop_baseline():
+    analyzer = FootAnalyzer()
+
+    analyzer._rear_brake_prepare = True
+
+    assert analyzer._right_foot_released_drop_baseline is None
+
+    active = analyzer._rear_brake_active
+
+    assert active is False
+
+def test_rear_brake_released_drop_baseline_matches_stable_rest_position():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        0.1393,
+        0.1377,
+        0.1385,
+        0.1390,
+        0.1382,
+    ]
+
+    for drop in samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop
+        )
+
+    assert analyzer._right_foot_released_drop_baseline == pytest.approx(
+        0.13854
+    )
+
+def test_rear_brake_released_drop_baseline_not_locked_from_early_stable_frames():
+    analyzer = FootAnalyzer()
+
+    early_samples = [
+        0.1439,
+        0.1382,
+        0.1493,
+        0.1436,
+        0.1379,
+    ]
+
+    for drop in early_samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop
+        )
+
+    assert analyzer._right_foot_released_drop_baseline is None
+
+def test_rear_brake_released_drop_baseline_not_learned_before_five_seconds():
+    analyzer = FootAnalyzer()
+
+    samples = [
+        0.0723,
+        0.0724,
+        0.0725,
+        0.0724,
+        0.0723,
+    ]
+
+    for drop in samples:
+        analyzer._update_rear_brake_released_drop_baseline(
+            right_foot_drop=drop,
+            elapsed_seconds=4.9,
+        )
+
+    assert analyzer._right_foot_released_drop_baseline is None
