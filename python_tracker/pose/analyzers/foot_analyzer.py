@@ -2,6 +2,7 @@ import time
 from pose.geometry import Geometry
 from pose.landmarks import PoseLandmark
 from pose.analyzers.gear_shift_detector import GearShiftDetector
+from statistics import median
 
 
 class FootAnalyzer:
@@ -13,6 +14,8 @@ class FootAnalyzer:
         self._right_foot_seen_once = False
         self._right_foot_forward_baseline = None
         self._right_foot_forward_baseline_samples = []
+        self._right_ankle_depth_baseline = None
+        self._right_ankle_depth_baseline_samples = []
         self._rear_brake_prepare = False
         self._right_foot_angle_baseline = None
         self._right_foot_angle_baseline_samples = []
@@ -23,6 +26,8 @@ class FootAnalyzer:
         self._left_foot_gear_was_visible = 0
         self._left_foot_gear_visibility_grace = 0
         self._rear_brake_active_frames = 0
+        self._depth_displacement_samples = []
+        self._rear_brake_not_ready_frames = 0
         
         
 
@@ -120,6 +125,37 @@ class FootAnalyzer:
             right_ankle,
             right_foot,
         )
+
+        # Privremena kalibracija za kontrolisani test.
+        if 5.0 <= elapsed < 10.0 and right_foot_is_visible:
+            self._update_right_ankle_depth_baseline(
+                right_ankle.z
+            )
+        # kraj privremene kalibracije
+        if right_foot_is_visible:
+            baseline = self._right_ankle_depth_baseline
+
+            displacement = (
+                self._right_ankle_depth_displacement(
+                    right_ankle.z,
+                    baseline,
+                )
+                if baseline is not None
+                else None
+            )
+            filtered_displacement = (
+                self._filter_depth_displacement(displacement)
+                if displacement is not None
+                else None
+            )
+            print(
+                "RIGHT ANKLE DEPTH:",
+                f"t={elapsed:.3f}",
+                f"z={right_ankle.z:.4f}",
+                f"baseline={baseline}",
+                f"displacement={displacement}",
+                f"filtered={filtered_displacement}",
+            )
         right_foot_reacquired = (
             right_foot_is_visible
             and self._right_foot_seen_once
@@ -127,6 +163,16 @@ class FootAnalyzer:
         )
 
         if right_foot_is_visible:
+            #================ samo za test
+            print(
+                "RIGHT FOOT XYZ:",
+                f"t={elapsed:.3f}",
+                f"heel=({right_heel.x:.4f}, {right_heel.y:.4f}, {right_heel.z:.4f})",
+                f"ankle=({right_ankle.x:.4f}, {right_ankle.y:.4f}, {right_ankle.z:.4f})",
+                f"toe=({right_foot.x:.4f}, {right_foot.y:.4f}, {right_foot.z:.4f})",
+            )
+            #+++++++++++++++ kraj testa           
+            
             right_foot_rotation = self._right_foot_rotation(
                 landmarks
             )
@@ -186,6 +232,11 @@ class FootAnalyzer:
                 f"prepare={self._rear_brake_prepare}",
                 f"active={self._rear_brake_active}",
                 f"released_drop={self._right_foot_released_drop_baseline}",
+                f"rotation={right_foot_rotation} ",
+                f"RIGHT FOOT POSITION: "
+                f"t={elapsed:.3f} "
+                f"ankle_y={right_ankle.y:.4f} "
+                f"toe_y={right_foot.y:.4f}"
 
             )
         
@@ -219,7 +270,7 @@ class FootAnalyzer:
             self._right_foot_seen_once = True
 
         self._right_foot_was_visible = right_foot_is_visible
-
+       
         return {
             "left_knee_angle": left_knee_angle,
             "right_knee_angle": right_knee_angle,
@@ -288,12 +339,21 @@ class FootAnalyzer:
         right_foot_rotation: float | None,
     ) -> bool:
         if right_foot_rotation is None:
+            self._rear_brake_not_ready_frames = 0
             return self._rear_brake_ready
 
         if right_foot_rotation < 80.0:
             self._rear_brake_ready = True
+            self._rear_brake_not_ready_frames = 0
+
         elif right_foot_rotation > 110.0:
-            self._rear_brake_ready = False
+            self._rear_brake_not_ready_frames += 1
+
+            if self._rear_brake_not_ready_frames >= 2:
+                self._rear_brake_ready = False
+
+        else:
+            self._rear_brake_not_ready_frames = 0
 
         return self._rear_brake_ready
 
@@ -496,6 +556,9 @@ class FootAnalyzer:
         right_foot_drop: float,
         released_drop: float,
     ) -> bool:
+        if not self._rear_brake_ready:
+            self._rear_brake_prepare = False
+            return False
         self._update_rear_brake_prepare(
             current_angle=right_foot_angle,
             baseline_angle=baseline_angle,
@@ -560,4 +623,41 @@ class FootAnalyzer:
                         sum(samples) / 5
                     )
 
-   
+
+    @staticmethod
+    def _right_ankle_depth_displacement(
+        current_z: float,
+        baseline_z: float,
+    ) -> float:
+        return current_z - baseline_z
+
+    def _update_right_ankle_depth_baseline(
+        self,
+        right_ankle_z: float,
+    ) -> None:
+        if self._right_ankle_depth_baseline is None:
+            self._right_ankle_depth_baseline_samples.append(
+                right_ankle_z
+            )
+
+            if len(self._right_ankle_depth_baseline_samples) >= 5:
+                samples = self._right_ankle_depth_baseline_samples[-5:]
+
+                if max(samples) - min(samples) <= 0.01:
+                    self._right_ankle_depth_baseline = (
+                        sum(samples) / 5
+                    )
+
+    @staticmethod
+    def _depth_median(samples):
+        if not samples:
+            return None
+
+        return median(samples[-5:])
+
+    def _filter_depth_displacement(self, displacement):
+        self._depth_displacement_samples.append(displacement)
+
+        return self._depth_median(
+            self._depth_displacement_samples
+        )

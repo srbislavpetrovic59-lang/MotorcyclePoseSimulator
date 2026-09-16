@@ -31,7 +31,7 @@ def test_rear_brake_ready_uses_hysteresis():
 
     # Measurement enters the uncertain area.
     # Previous READY state must be preserved.
-    assert analyzer._update_rear_brake_ready(95.0) is True
+    assert analyzer._update_rear_brake_ready(120.0) is True
 
     # Foot clearly returns to the footpeg.
     assert analyzer._update_rear_brake_ready(120.0) is False
@@ -796,6 +796,7 @@ def test_rear_brake_press_matches_live_measured_sequence():
 
 def test_rear_brake_motion_sequence_activates_brake():
     analyzer = FootAnalyzer()
+    analyzer._rear_brake_ready = True
 
     active = analyzer._update_rear_brake_motion(
         right_foot_angle=162.0,
@@ -924,6 +925,7 @@ def test_rear_brake_prepare_not_updated_without_angle_baseline():
 
 def test_rear_brake_motion_uses_learned_angle_baseline():
     analyzer = FootAnalyzer()
+    analyzer._rear_brake_ready = True
 
     for angle in [
         166.7,
@@ -1229,3 +1231,98 @@ def test_rear_brake_released_drop_baseline_not_learned_before_five_seconds():
         )
 
     assert analyzer._right_foot_released_drop_baseline is None
+
+def test_rear_brake_motion_does_not_prepare_when_not_ready():
+    analyzer = FootAnalyzer()
+
+    analyzer._rear_brake_ready = False
+    analyzer._rear_brake_prepare = False
+
+    analyzer._update_rear_brake_motion(
+        right_foot_angle=160.0,
+        baseline_angle=170.0,
+        right_foot_drop=0.12,
+        released_drop=0.10,
+    )
+
+    assert analyzer._rear_brake_prepare is False
+
+def test_right_ankle_depth_displacement_from_footpeg():
+    baseline_z = -0.26
+    current_z = -0.31
+
+    displacement = FootAnalyzer._right_ankle_depth_displacement(
+        current_z,
+        baseline_z,
+    )
+
+    assert displacement == pytest.approx(-0.05)
+
+def test_right_ankle_depth_baseline_requires_five_stable_samples():
+    analyzer = FootAnalyzer()
+
+    for z in [-0.260, -0.261, -0.259, -0.260]:
+        analyzer._update_right_ankle_depth_baseline(z)
+
+    assert analyzer._right_ankle_depth_baseline is None
+
+    analyzer._update_right_ankle_depth_baseline(-0.260)
+
+    assert analyzer._right_ankle_depth_baseline == pytest.approx(-0.260)
+
+def test_rear_brake_depth_median_uses_last_five_samples():
+    samples = [
+        -0.01,
+        -0.02,
+        -0.03,
+        -0.04,
+        -0.05,
+        -0.06,
+    ]
+
+    result = FootAnalyzer._depth_median(samples)
+
+    assert result == -0.04
+
+def test_rear_brake_depth_median_ignores_old_outlier():
+    samples = [
+        -100.0,
+        -0.01,
+        -0.02,
+        -0.03,
+        -0.04,
+        -0.05,
+    ]
+
+    assert FootAnalyzer._depth_median(samples) == -0.03
+
+def test_rear_brake_depth_median_with_three_samples():
+    samples = [-0.01, -0.03, -0.02]
+
+    assert FootAnalyzer._depth_median(samples) == -0.02
+
+def test_rear_brake_depth_median_with_four_samples():
+    samples = [-0.01, -0.02, -0.03, -0.04]
+
+    assert FootAnalyzer._depth_median(samples) == -0.025
+
+def test_rear_brake_depth_median_without_samples():
+    assert FootAnalyzer._depth_median([]) is None
+
+def test_rear_brake_depth_displacement_uses_median():
+    analyzer = FootAnalyzer()
+
+    samples = [-0.01, -0.02, -0.08, -0.03, -0.04]
+
+    for value in samples:
+        result = analyzer._filter_depth_displacement(value)
+
+    assert result == -0.03
+
+def test_rear_brake_ready_ignores_single_frame_rotation_spike():
+    analyzer = FootAnalyzer()
+
+    assert analyzer._update_rear_brake_ready(70.0) is True
+
+    # Jedan šumni kadar ne sme da poništi READY.
+    assert analyzer._update_rear_brake_ready(120.0) is True
