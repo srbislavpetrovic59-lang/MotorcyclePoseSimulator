@@ -1326,3 +1326,55 @@ def test_rear_brake_ready_ignores_single_frame_rotation_spike():
 
     # Jedan šumni kadar ne sme da poništi READY.
     assert analyzer._update_rear_brake_ready(120.0) is True
+
+def test_rear_brake_ready_requires_depth_confirmation():
+    analyzer = FootAnalyzer()
+
+    result = analyzer._update_rear_brake_ready(
+        right_foot_rotation=70.0,
+        filtered_depth_displacement=0.0,
+    )
+
+    assert result is False
+
+def test_analyze_passes_filtered_depth_to_rear_brake_ready(monkeypatch):
+    from pose.analyzers.foot_analyzer import PoseLandmark
+
+    analyzer = FootAnalyzer()
+
+    landmarks = [
+        SimpleNamespace(
+            x=0.1 * (i % 3),
+            y=0.1 * (i // 3),
+            z=0.0,
+            visibility=0.9,
+        )
+        for i in range(33)
+    ]
+
+    # Dubinska kalibracija je već završena.
+    analyzer._right_ankle_depth_baseline = 0.0
+
+    received = []
+
+    def capture_ready(rotation, depth=None):
+        received.append(depth)
+        return False
+
+    monkeypatch.setattr(
+        analyzer,
+        "_update_rear_brake_ready",
+        capture_ready,
+    )
+
+    # Izolujemo test od detektora promene brzine.
+    monkeypatch.setattr(
+        analyzer._gear_shift_detector,
+        "update",
+        lambda *args, **kwargs: None,
+    )
+
+    analyzer.analyze(landmarks)
+
+    assert len(received) == 1
+    assert received[0] is not None

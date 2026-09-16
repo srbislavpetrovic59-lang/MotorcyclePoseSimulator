@@ -131,7 +131,10 @@ class FootAnalyzer:
             self._update_right_ankle_depth_baseline(
                 right_ankle.z
             )
-        # kraj privremene kalibracije
+        # Kraj privremene kalibracije.
+
+        filtered_displacement = None
+
         if right_foot_is_visible:
             baseline = self._right_ankle_depth_baseline
 
@@ -143,11 +146,13 @@ class FootAnalyzer:
                 if baseline is not None
                 else None
             )
+
             filtered_displacement = (
                 self._filter_depth_displacement(displacement)
                 if displacement is not None
                 else None
             )
+
             print(
                 "RIGHT ANKLE DEPTH:",
                 f"t={elapsed:.3f}",
@@ -181,7 +186,8 @@ class FootAnalyzer:
                 rear_brake_ready = None
             else:
                 rear_brake_ready = self._update_rear_brake_ready(
-                    right_foot_rotation
+                    right_foot_rotation,
+                    filtered_displacement,
                 )
 
             self._reset_rear_brake_prepare_if_not_ready(
@@ -337,13 +343,24 @@ class FootAnalyzer:
     def _update_rear_brake_ready(
         self,
         right_foot_rotation: float | None,
+        filtered_depth_displacement: float | None = None,
     ) -> bool:
         if right_foot_rotation is None:
             self._rear_brake_not_ready_frames = 0
             return self._rear_brake_ready
 
         if right_foot_rotation < 80.0:
-            self._rear_brake_ready = True
+            depth_confirmed = (
+                filtered_depth_displacement is None
+                or (
+                    filtered_depth_displacement is not None
+                    and filtered_depth_displacement < -0.025
+                )
+            )
+
+            if depth_confirmed:
+                self._rear_brake_ready = True
+
             self._rear_brake_not_ready_frames = 0
 
         elif right_foot_rotation > 110.0:
