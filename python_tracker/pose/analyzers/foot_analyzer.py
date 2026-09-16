@@ -184,6 +184,8 @@ class FootAnalyzer:
 
             if right_foot_reacquired:
                 rear_brake_ready = None
+            elif elapsed < 10.0:
+                rear_brake_ready = False
             else:
                 rear_brake_ready = self._update_rear_brake_ready(
                     right_foot_rotation,
@@ -351,17 +353,25 @@ class FootAnalyzer:
 
         if right_foot_rotation < 80.0:
             depth_confirmed = (
-                filtered_depth_displacement is None
-                or (
-                    filtered_depth_displacement is not None
-                    and filtered_depth_displacement < -0.025
-                )
+                filtered_depth_displacement is not None
+                and filtered_depth_displacement < -0.025
             )
 
             if depth_confirmed:
                 self._rear_brake_ready = True
+                self._rear_brake_not_ready_frames = 0
 
-            self._rear_brake_not_ready_frames = 0
+            elif (
+                filtered_depth_displacement is not None
+                and filtered_depth_displacement >= 0.0
+            ):
+                self._rear_brake_not_ready_frames += 1
+
+                if self._rear_brake_not_ready_frames >= 2:
+                    self._rear_brake_ready = False
+
+            else:
+                self._rear_brake_not_ready_frames = 0
 
         elif right_foot_rotation > 110.0:
             self._rear_brake_not_ready_frames += 1

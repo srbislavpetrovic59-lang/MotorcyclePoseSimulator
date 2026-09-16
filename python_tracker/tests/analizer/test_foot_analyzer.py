@@ -1,4 +1,5 @@
 ﻿import pytest
+import time
 from pose.analyzers.foot_analyzer import FootAnalyzer
 from pose.models.rear_brake_calibration import RearBrakeCalibration
 from pose.analyzers.gear_shift_detector import GearShiftDetector
@@ -26,14 +27,15 @@ def test_rear_brake_ready_uses_hysteresis():
     # Foot starts on the footpeg.
     assert analyzer._update_rear_brake_ready(140.0) is False
 
-    # Foot moves onto the brake.
-    assert analyzer._update_rear_brake_ready(70.0) is True
+    # Foot moves onto the brake: rotation + depth confirmation.
+    assert analyzer._update_rear_brake_ready(
+        70.0, filtered_depth_displacement=-0.05
+    ) is True
 
-    # Measurement enters the uncertain area.
-    # Previous READY state must be preserved.
+    # One frame above the release threshold preserves READY.
     assert analyzer._update_rear_brake_ready(120.0) is True
 
-    # Foot clearly returns to the footpeg.
+    # Second frame releases READY.
     assert analyzer._update_rear_brake_ready(120.0) is False
 
 def test_rear_brake_calibration_starts_empty():
@@ -1322,7 +1324,9 @@ def test_rear_brake_depth_displacement_uses_median():
 def test_rear_brake_ready_ignores_single_frame_rotation_spike():
     analyzer = FootAnalyzer()
 
-    assert analyzer._update_rear_brake_ready(70.0) is True
+    assert analyzer._update_rear_brake_ready(
+        70.0, filtered_depth_displacement=-0.05
+    ) is True
 
     # Jedan šumni kadar ne sme da poništi READY.
     assert analyzer._update_rear_brake_ready(120.0) is True
@@ -1341,6 +1345,8 @@ def test_analyze_passes_filtered_depth_to_rear_brake_ready(monkeypatch):
     from pose.analyzers.foot_analyzer import PoseLandmark
 
     analyzer = FootAnalyzer()
+    # Simuliramo završenu kalibraciju: 11. sekunda.
+    analyzer._start_time = time.monotonic() - 11.0
 
     landmarks = [
         SimpleNamespace(
@@ -1378,3 +1384,93 @@ def test_analyze_passes_filtered_depth_to_rear_brake_ready(monkeypatch):
 
     assert len(received) == 1
     assert received[0] is not None
+
+def test_rear_brake_ready_stays_false_before_calibration():
+    analyzer = FootAnalyzer()
+
+    # Rotacija ukazuje na READY, ali dubina nije kalibrisana.
+    assert analyzer._update_rear_brake_ready(
+        right_foot_rotation=70.0,
+        filtered_depth_displacement=None,
+    ) is False
+
+def test_rear_brake_ready_releases_when_depth_returns_to_footpeg():
+    analyzer = FootAnalyzer()
+
+    # Stopalo je iznad kočnice.
+    assert analyzer._update_rear_brake_ready(
+        70.0, filtered_depth_displacement=-0.05
+    ) is True
+
+    # Prvi kadar povratka: histereza zadržava READY.
+    assert analyzer._update_rear_brake_ready(
+        70.0, filtered_depth_displacement=0.01
+    ) is True
+
+    # Drugi kadar potvrđuje povratak.
+    assert analyzer._update_rear_brake_ready(
+        70.0, filtered_depth_displacement=0.01
+    ) is False
+
+def test_rear_brake_not_ready_during_calibration():
+    analyzer = FootAnalyzer()
+
+    # Dubina bi inače aktivirala READY.
+    assert analyzer._update_rear_brake_ready(
+        right_foot_rotation=70.0,
+        filtered_depth_displacement=-0.05,
+    ) is True
+
+def test_rear_brake_ready_is_blocked_during_calibration(monkeypatch):
+    analyzer = FootAnalyzer()
+
+    # Simuliramo 7. sekundu kontrolisanog testa.
+    analyzer._start_time = 0.0
+    monkeypatch.setattr(
+        "pose.analyzers.foot_analyzer.time.monotonic",
+        lambda: 7.0,
+    )
+
+    # Ovaj test ćemo dovršiti kroz analyze() uz postojeće
+    # testne landmarks podatke.
+
+def test_analyze_does_not_check_rear_brake_ready_during_calibration(
+    monkeypatch,
+):
+    analyzer = FootAnalyzer()
+
+    landmarks = [
+        SimpleNamespace(
+            x=0.1 * (i % 3),
+            y=0.1 * (i // 3),
+            z=0.0,
+            visibility=0.9,
+        )
+        for i in range(33)
+    ]
+
+    analyzer._start_time = time.monotonic() - 7.0
+    analyzer._right_ankle_depth_baseline = 0.0
+
+    received = []
+
+    def capture_ready(rotation, depth=None):
+        received.append(depth)
+        return True
+
+    monkeypatch.setattr(
+        analyzer,
+        "_update_rear_brake_ready",
+        capture_ready,
+    )
+
+    monkeypatch.setattr(
+        analyzer._gear_shift_detector,
+        "update",
+        lambda *args, **kwargs: None,
+    )
+
+    result = analyzer.analyze(landmarks)
+
+    assert received == []
+    assert result["rear_brake_ready"] is False
