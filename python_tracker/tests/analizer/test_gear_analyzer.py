@@ -4062,3 +4062,64 @@ def test_latest_real_down_heel_history_is_not_shift_up():
     )
 
     assert shift != "SHIFT_UP"
+
+def test_heel_trend_rejects_extreme_single_frame_spike():
+    heel_y = [
+        0.6949,
+        0.6902,
+        0.6926,
+        0.7489,
+        0.8451,
+        0.9380,
+        0.9629,
+        0.9574,
+        0.8828,
+        2.8634,
+    ]
+
+    assert GearShiftDetector._heel_end_trend(heel_y) == "STABLE"
+
+def test_two_shift_up_events_with_rearm():
+    detector = GearShiftDetector()
+
+    def shift_up():
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=0.015,
+        )
+
+        for angle, drop in [
+            (159.0, 0.120),
+            (161.0, 0.130),
+            (160.0, 0.125),
+            (166.0, 0.125),
+        ]:
+            detector.update(
+                left_foot_drop=drop,
+                left_foot_angle=angle,
+                left_foot_forward=0.040,
+            )
+
+        return detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=0.015,
+        )
+
+    # First gear change.
+    assert shift_up() == "SHIFT_UP"
+    assert detector._shift_rearm_pending is True
+
+    # Return to footpeg and complete rearming.
+    for _ in range(4):
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=0.015,
+        )
+
+    assert detector._shift_rearm_pending is False
+
+    # Second gear change.
+    assert shift_up() == "SHIFT_UP"
