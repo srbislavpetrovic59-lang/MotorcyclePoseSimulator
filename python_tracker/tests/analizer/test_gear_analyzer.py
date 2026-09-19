@@ -1468,6 +1468,7 @@ def test_forward_up_back_emits_shift_up():
     )
 
     assert result == "SHIFT_UP"
+
 def test_real_shift_up_is_not_classified_as_down_from_down_zones():
     detector = GearShiftDetector()
 
@@ -1509,6 +1510,80 @@ def test_real_shift_up_is_not_classified_as_down_from_down_zones():
     )
 
     assert result == "SHIFT_UP"
+def test_two_consecutive_shift_up_events_from_heel():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._forward_baseline = 0.033
+
+    # Real SHIFT_UP sample:
+    # forward movement followed by several DOWN geometry zones.
+    detector.update(
+        0.1064,
+        148.4,
+        left_foot_forward=0.0524,
+    )
+    detector.update(
+        0.1017,
+        146.1,
+        left_foot_forward=0.0553,
+        left_heel_y=0.7296,
+    )
+    detector.update(
+        0.1001,
+        145.4,
+        left_foot_forward=0.0559,
+        left_heel_y=0.7327,
+    )
+    detector.update(
+        0.1004,
+        145.1,
+        left_foot_forward=0.0563,
+        left_heel_y=0.7377,
+    )
+
+    # Foot starts returning.
+    result = detector.update(
+        0.1016,
+        148.9,
+        left_foot_forward=0.0478,
+        left_heel_y=0.7409,
+    )
+
+    assert result == "SHIFT_UP"
+    assert detector._shift_rearm_pending is True
+    assert detector._back_movement_active is False
+    # Return to footpeg and complete rearm.
+    for _ in range(3):
+        detector.update(
+            left_foot_drop=0.100,
+            left_foot_angle=155.0,
+            left_foot_forward=0.033,
+        )
+
+    assert detector._shift_rearm_pending is False
+    # Second shift attempt — same detector.
+    second_results = []
+
+    samples = [
+        (0.1064, 148.4, 0.0524, None),
+        (0.1017, 146.1, 0.0553, 0.7296),
+        (0.1001, 145.4, 0.0559, 0.7327),
+        (0.1004, 145.1, 0.0563, 0.7377),
+        (0.1016, 148.9, 0.0478, 0.7409),
+    ]
+
+    for drop, angle, forward, heel_y in samples:
+        shift = detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+            left_heel_y=heel_y,
+        )
+        if shift is not None:
+            second_results.append(shift)
+
+    assert second_results == ["SHIFT_UP"]
 
 def test_heel_end_trend_detects_upward_movement():
     heel_y = [
@@ -4123,3 +4198,44 @@ def test_two_shift_up_events_with_rearm():
 
     # Second gear change.
     assert shift_up() == "SHIFT_UP"
+
+def test_heel_down_trend_produces_shift_up():
+    heel_y = [0.700, 0.710, 0.720, 0.730]
+
+    trend = GearShiftDetector._heel_end_trend(heel_y)
+
+    assert trend == "DOWN"
+    assert GearShiftDetector._shift_from_heel_trend(trend) == "SHIFT_UP"
+
+
+def test_rearm_resets_after_two_consecutive_bad_frames():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.015
+
+    def update(drop, angle):
+        detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=0.015,
+        )
+
+    # Two good frames.
+    update(0.100, 155.0)
+    update(0.100, 155.0)
+
+    assert detector._rearm_footpeg_frames == 2
+
+    # Two consecutive bad frames.
+    update(0.200, 120.0)
+    update(0.200, 120.0)
+
+    # One new good frame must not complete rearm.
+    update(0.100, 155.0)
+
+    assert detector._shift_rearm_pending is True
+    assert detector._rearm_footpeg_frames == 1
+

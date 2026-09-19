@@ -37,6 +37,7 @@ class GearShiftDetector:
         self._baseline_settle_frames = 0
         self._startup_ready = False
         self._startup_footpeg_frames = 0
+        self._rearm_bad_frames = 0
       
    
     def update(
@@ -309,7 +310,6 @@ class GearShiftDetector:
             ):
                 self._shift_rearm_pending = True
                 self._back_movement_active = False
-
                 return "SHIFT_UP"
 
             # ---------------------------------------------------------
@@ -373,9 +373,15 @@ class GearShiftDetector:
                     )
 
                     if on_footpeg:
+                        self._rearm_bad_frames = 0
                         self._rearm_footpeg_frames += 1
-                   
+                    else:
+                        self._rearm_bad_frames += 1
 
+                        if self._rearm_bad_frames >= 2:
+                            self._rearm_footpeg_frames = 0
+                    
+                   
                     if (
                         self._rearm_footpeg_frames
                         >= 3
@@ -387,6 +393,7 @@ class GearShiftDetector:
                         self._forward_offset_history.clear()
 
                         self._rearm_footpeg_frames = 0
+                        self._rearm_bad_frames = 0
 
                     return None
 
@@ -409,9 +416,8 @@ class GearShiftDetector:
                     if self._zone_history == ["UP"]:
                         self._zone_history.clear()
                         self._shift_rearm_pending = True
-
+                      
                         return "SHIFT_UP"
-
                     if self._zone_history == ["DOWN"]:
                         self._zone_history.clear()
                         self._shift_rearm_pending = True
@@ -451,17 +457,14 @@ class GearShiftDetector:
                     if self._zone_history == ["UP"]:
                         self._reset_stale_shift_attempt()
                         self._shift_rearm_pending = True
-
+                   
                         return "SHIFT_UP"
-
                     if self._zone_history == ["DOWN"]:
                         self._reset_stale_shift_attempt()
                         self._shift_rearm_pending = True
-
+                       
                         return "SHIFT_DOWN"
-
                     self._reset_stale_shift_attempt()
-
                     return None
 
                 # -----------------------------------------------------
@@ -485,7 +488,7 @@ class GearShiftDetector:
                 ):
                     self._reset_stale_shift_attempt()
                     self._shift_rearm_pending = True
-
+                 
                     return "SHIFT_UP"
                 if candidate is not None:
                     self._add_shift_candidate(
@@ -607,6 +610,7 @@ class GearShiftDetector:
             return None
 
         if left_foot_angle >= 158.0:
+           
             return "UP"
 
         if left_foot_angle <= 150.0:
@@ -683,12 +687,13 @@ class GearShiftDetector:
             self._baseline_settle_frames += 1
         else:
             self._baseline_settle_frames = 0
+        
 
+       
         if self._baseline_settle_frames >= 3:
             self._forward_offset_history.clear()
             self._baseline_settle_frames = 0
             return
-
         if self._rearm_footpeg_frames >= 3:
             self._shift_rearm_pending = False
             self._forward_movement_active = False
@@ -1145,17 +1150,17 @@ class GearShiftDetector:
     @staticmethod
     def _shift_from_heel_trend(heel_trend):
         if heel_trend == "UP":
+           
             return "SHIFT_DOWN"
 
         if heel_trend == "DOWN":
+      
             return "SHIFT_UP"
-
         return None
 
     def _update_heel_history(self, heel_y):
         if heel_y is None:
             return
-
         self._heel_y_history.append(heel_y)
 
     def _update_heel_history(self, heel_y):
@@ -1211,7 +1216,9 @@ class GearShiftDetector:
             heel_y[index] - heel_y[index - 1]
             for index in range(1, len(heel_y))
         ]
-
+        # Reject an extreme single-frame tracking spike.
+        if abs(deltas[-1]) > 0.5:
+            return "STABLE"
         sorted_deltas = sorted(
             deltas,
             key=abs,
@@ -1221,19 +1228,18 @@ class GearShiftDetector:
         if (
             abs(sorted_deltas[0]) >= 0.030
             and abs(sorted_deltas[0]) >= 2 * abs(sorted_deltas[1])
-        ):
+        ):  
+         
             return (
+               
                 "UP"
                 if sorted_deltas[0] < 0
                 else "DOWN"
             )
-
         start = heel_y[0]
         end = heel_y[-1]
-
         min_value = min(heel_y)
         max_value = max(heel_y)
-
         upward_excursion = start - min_value
         downward_excursion = max_value - start
 
@@ -1250,6 +1256,7 @@ class GearShiftDetector:
 
         if returned_to_start:
             if upward_excursion >= 0.020:
+               
                 return "UP"
 
             if downward_excursion >= 0.020:
@@ -1260,11 +1267,7 @@ class GearShiftDetector:
 
         if total_excursion < 0.008:
             return "STABLE"
-
-
-
         confirmed_directions = set()
-
         current_direction = None
         current_steps = 0
         current_movement = 0.0
