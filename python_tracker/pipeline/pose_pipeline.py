@@ -114,6 +114,8 @@ class PosePipeline:
                     frame,
                     frame_analysis,
                 )
+            else:
+                self._last_analysis_result = None
 
             cv2.imshow(
                 config.WINDOW_TITLE,
@@ -205,7 +207,28 @@ class PosePipeline:
         metrics = self._analyzer.analyze(
             frame_analysis
         )
-      
+        print(
+            "POSE CONFIDENCE:",
+            metrics.get("pose_confidence")
+        )
+        lm = frame_analysis.pose_landmarks.landmark
+
+        left_shoulder = lm[11]
+        right_shoulder = lm[12]
+        left_hip = lm[23]
+        right_hip = lm[24]
+
+        shoulder_width = abs(left_shoulder.x - right_shoulder.x)
+
+        shoulder_y = (left_shoulder.y + right_shoulder.y) / 2
+        hip_y = (left_hip.y + right_hip.y) / 2
+
+        torso_height = abs(hip_y - shoulder_y)
+
+        print(
+            f"GEOMETRY: shoulders={shoulder_width:.3f}, "
+            f"torso={torso_height:.3f}"
+        )
         self._last_analysis_result = metrics
 
         rider_state = self._rider_state_mapper.from_analysis(

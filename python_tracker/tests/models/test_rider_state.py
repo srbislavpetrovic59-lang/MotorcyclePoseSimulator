@@ -47,3 +47,20 @@ def test_rider_state_to_json_without_gear_shift():
     data = json.loads(rider_state.to_json())
 
     assert data["gear_shift"] is None    
+
+def test_rider_state_contains_riding_phase():
+    state = RiderState(
+        riding_phase="ACCELERATION"
+    )
+
+    assert state.riding_phase == "ACCELERATION"
+    assert state.to_dict()["riding_phase"] == "ACCELERATION"
+
+def test_rider_state_serializes_riding_phase():
+    state = RiderState(
+        riding_phase="CORNERING"
+    )
+
+    data = json.loads(state.to_json())
+
+    assert data["riding_phase"] == "CORNERING"

@@ -4238,4 +4238,54 @@ def test_rearm_resets_after_two_consecutive_bad_frames():
 
     assert detector._shift_rearm_pending is True
     assert detector._rearm_footpeg_frames == 1
+def test_live_footpeg_position_at_45_degree_camera_angle():
+    detector = GearShiftDetector()
+
+    assert detector._is_footpeg_stay_position(
+        left_foot_drop=0.066,
+        left_foot_angle=136.0,
+    ) is True
+
+def test_live_final_shift_position_is_footpeg_stay():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=0.12357717752456665,
+        left_foot_angle=151.14961369848834,
+    ) is True
+
+def test_single_small_offset_reversal_does_not_activate_back_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.06121604442596436
+    detector._forward_movement_active = True
+
+    detector._forward_offset_history = [
+        -0.01535313129425049,
+        -0.01405982971191406,
+    ]
+
+    detector._update_back_movement(
+        left_foot_forward=0.04715621471405029,
+    )
+
+    assert detector._back_movement_active is False
+
+def test_back_movement_activates_after_two_steps_toward_baseline():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.06121604442596436
+    detector._forward_movement_active = True
+
+    detector._forward_offset_history = [
+        -0.018,
+        -0.016,
+        -0.014,
+    ]
+
+    detector._update_back_movement(
+        left_foot_forward=0.04721604442596436,
+    )
+
+    assert detector._back_movement_active is True
+
+
 

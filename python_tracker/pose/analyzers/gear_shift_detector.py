@@ -278,6 +278,12 @@ class GearShiftDetector:
                 heel_shift = self._shift_from_heel_trend(
                     heel_trend
                 )
+                print(
+                    "HEEL RESULT:",
+                    f"trend={heel_trend}",
+                    f"shift={heel_shift}",
+                    f"back={self._back_movement_active}",
+                )
 
                 if heel_shift is not None:
                     self._shift_rearm_pending = True
@@ -391,7 +397,9 @@ class GearShiftDetector:
                         self._back_movement_active = False
 
                         self._forward_offset_history.clear()
-
+                        self._zone_history.clear()
+                        self._pending_zones.clear()
+                        self._outside_footpeg_frames = 0
                         self._rearm_footpeg_frames = 0
                         self._rearm_bad_frames = 0
 
@@ -564,6 +572,7 @@ class GearShiftDetector:
         if (
             left_foot_drop is None
             or left_foot_angle is None
+
         ):
             return False
    
@@ -596,6 +605,7 @@ class GearShiftDetector:
             or (0.050 <= left_foot_drop <= 0.060 and 138.0 <= left_foot_angle <= 153.0)
             or (0.081 <= left_foot_drop <= 0.090 and 155.0 <= left_foot_angle <= 159.5)
             or (0.080 <= left_foot_drop <= 0.085 and 149.0 <= left_foot_angle <= 152.0)
+            or (0.060 <= left_foot_drop <= 0.070 and 132.0 <= left_foot_angle <= 140.0)
         )
     @classmethod
     def _movement_zone(
@@ -1111,22 +1121,30 @@ class GearShiftDetector:
             self._back_movement_active = True
             return
 
-        if len(self._forward_offset_history) < 2:
+        if len(self._forward_offset_history) < 3:
             return
 
-        previous = self._forward_offset_history[-2]
-        current = self._forward_offset_history[-1]
+        prior, previous, current = (
+            self._forward_offset_history[-3:]
+        )
 
         moving_toward_baseline = (
-            abs(current) < abs(previous)
+            abs(current) < abs(previous) < abs(prior)
+            or (
+                abs(previous) - abs(current) >= 0.005
+            )
         )
 
         if (
             moving_toward_baseline
-            and self._is_foot_moved_back(
-                left_foot_forward
-            )
+            and self._is_foot_moved_back(left_foot_forward)
         ):
+            print(
+                "BACK ACTIVATED:",
+                f"previous={previous:.4f}",
+                f"current={current:.4f}",
+                f"offset={offset:.4f}",
+            )
             self._back_movement_active = True
 
     def _update_direction_zone(

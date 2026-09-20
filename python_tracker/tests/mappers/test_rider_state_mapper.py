@@ -30,6 +30,7 @@ def test_from_analysis():
         "clutch_progress": 0.61,
         "rear_brake_progress": 0.65,
         "rear_brake_active": True,
+        "riding_phase": "BRAKING",
        
     }
     
@@ -63,3 +64,4 @@ def test_from_analysis():
     assert state.right_foot_angle == 94.0
     assert state.torso_angle == 45.0
     assert state.clutch_progress == 0.61
+    assert state.riding_phase == "BRAKING"
