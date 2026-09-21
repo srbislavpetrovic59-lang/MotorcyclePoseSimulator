@@ -38,6 +38,8 @@ class GearShiftDetector:
         self._startup_ready = False
         self._startup_footpeg_frames = 0
         self._rearm_bad_frames = 0
+        self._rearm_previous_forward = None
+        self._rearm_forward_history = []
       
    
     def update(
@@ -119,7 +121,8 @@ class GearShiftDetector:
                         sum(recent)
                         / len(recent)
                     )
-
+                    self._startup_ready = True
+                    self._startup_footpeg_frames = 3
                     print(
                         "LIVE BASELINE SET:",
                         self._forward_baseline,
@@ -150,7 +153,12 @@ class GearShiftDetector:
                         self._set_forward_baseline(
                             left_foot_forward
                         )
-
+                print(
+                    f"GEAR EXIT 01: IDLE "
+                    f"t={elapsed_seconds} "
+                    f"state={self._state} "
+                    f"baseline={self._forward_baseline}"
+                )
                 return None
 
             # ---------------------------------------------------------
@@ -378,6 +386,10 @@ class GearShiftDetector:
                         "angle=", left_foot_angle,
                     )
 
+                    if on_footpeg and left_foot_forward is not None:
+                        self._rearm_forward_history.append(left_foot_forward)
+                        self._rearm_forward_history = self._rearm_forward_history[-3:]
+
                     if on_footpeg:
                         self._rearm_bad_frames = 0
                         self._rearm_footpeg_frames += 1
@@ -386,11 +398,14 @@ class GearShiftDetector:
 
                         if self._rearm_bad_frames >= 2:
                             self._rearm_footpeg_frames = 0
+                            self._rearm_forward_history.clear()
                     
                    
                     if (
-                        self._rearm_footpeg_frames
-                        >= 3
+                        self._rearm_footpeg_frames >= 3
+                        and self._is_rearm_forward_stable(
+                            self._rearm_forward_history
+                        )
                     ):
                         self._shift_rearm_pending = False
                         self._forward_movement_active = False
@@ -402,6 +417,7 @@ class GearShiftDetector:
                         self._outside_footpeg_frames = 0
                         self._rearm_footpeg_frames = 0
                         self._rearm_bad_frames = 0
+                        self._rearm_forward_history.clear()
 
                     return None
 
@@ -1367,5 +1383,24 @@ class GearShiftDetector:
             return "STABLE"
 
         return confirmed_direction
+
+    @staticmethod
+    def _is_rearm_forward_stable(history):
+        if len(history) < 3:
+            return False
+
+        prior, previous, current = history[-3:]
+
+        direction_changed = (
+            (previous - prior) * (current - previous) <= 0
+        )
+
+        stable_range = (
+            max(prior, previous, current)
+            - min(prior, previous, current)
+            <= 0.008
+        )
+
+        return direction_changed and stable_range
      
 

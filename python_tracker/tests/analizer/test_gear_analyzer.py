@@ -3904,24 +3904,6 @@ def test_first_gear_limited_down_activates_forward_movement():
 
     assert detector._forward_movement_active is True
 
-def test_rearm_tolerates_one_brief_non_footpeg_frame():
-    detector = GearShiftDetector()
-
-    detector._shift_rearm_pending = True
-    detector._rearm_footpeg_frames = 0
-
-    # Foot is back on the footpeg for two frames.
-    detector._rearm_footpeg_frames += 1
-    detector._rearm_footpeg_frames += 1
-
-    # One brief bad frame should not destroy the progress.
-    
-
-    # Then the foot is seen on the footpeg again.
-    detector._rearm_footpeg_frames += 1
-
-    assert detector._rearm_footpeg_frames >= 3
-
 
 def test_rearm_tolerates_one_brief_non_footpeg_frame():
     detector = GearShiftDetector()
@@ -4286,6 +4268,126 @@ def test_back_movement_activates_after_two_steps_toward_baseline():
     )
 
     assert detector._back_movement_active is True
+
+def test_startup_does_not_block_shift_detection_indefinitely():
+    detector = GearShiftDetector()
+
+    # Stabilan položaj stopala tokom početne kalibracije.
+    for t in (5.5, 5.6, 5.7, 5.8, 5.9):
+        detector.update(
+            left_foot_drop=0.100,
+            left_foot_angle=154.0,
+            left_foot_forward=0.060,
+            elapsed_seconds=t,
+        )
+
+    # Posle kalibracije položaj izlazi iz uskih
+    # opsega prepoznavanja oslonca.
+    for t in (6.1, 7.0, 10.0, 15.0, 20.0, 30.0):
+        detector.update(
+            left_foot_drop=0.0736,
+            left_foot_angle=138.5,
+            left_foot_forward=0.060,
+            elapsed_seconds=t,
+        )
+
+    assert detector._startup_ready is True
+
+def test_rearm_does_not_complete_while_foot_is_still_returning():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.060
+
+    detector._forward_movement_active = True
+    detector._back_movement_active = True
+
+    # Foot briefly passes through the footpeg position,
+    # but its forward coordinate is still changing.
+    for forward in (0.045, 0.050, 0.055):
+        detector.update(
+            left_foot_drop=0.075,
+            left_foot_angle=143.0,
+            left_foot_forward=forward,
+        )
+
+    assert detector._shift_rearm_pending is True
+
+def test_rearm_does_not_complete_after_small_continuous_movement():
+    detector = GearShiftDetector()
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.050
+
+    for forward in (0.045, 0.048, 0.051):
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=forward,
+        )
+
+    assert detector._shift_rearm_pending is True
+
+def test_rearm_does_not_complete_from_large_direction_reversal():
+    detector = GearShiftDetector()
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.050
+
+    for forward in (0.040, 0.060, 0.040):
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=155.0,
+            left_foot_forward=forward,
+        )
+
+    assert detector._shift_rearm_pending is True
+
+@pytest.mark.parametrize(
+    "history, expected",
+    [
+        ([0.038, 0.039, 0.038], True),
+        ([0.024, 0.024, 0.024], True),
+        ([0.045, 0.050, 0.055], False),
+        ([0.045, 0.048, 0.051], False),
+        ([0.040, 0.060, 0.040], False),
+    ],
+)
+def test_rearm_forward_stability(history, expected):
+    assert (
+        GearShiftDetector._is_rearm_forward_stable(history)
+        is expected
+    )
+def test_rearm_clears_forward_history_after_two_bad_frames():
+    detector = GearShiftDetector()
+    detector._state = "READY"
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.020
+
+    def update(drop, angle, forward):
+        detector.update(
+            left_foot_drop=drop,
+            left_foot_angle=angle,
+            left_foot_forward=forward,
+        )
+
+    update(0.120, 155.0, 0.020)
+    update(0.120, 155.0, 0.021)
+
+    assert len(detector._rearm_forward_history) == 2
+
+    update(0.200, 120.0, 0.030)
+    update(0.200, 120.0, 0.035)
+
+    assert detector._rearm_forward_history == []
+    assert detector._rearm_footpeg_frames == 0
+
+    update(0.120, 155.0, 0.020)
+
+    assert detector._rearm_forward_history == [0.020]
+    assert detector._rearm_footpeg_frames == 1
+    assert detector._shift_rearm_pending is True
 
 
 
