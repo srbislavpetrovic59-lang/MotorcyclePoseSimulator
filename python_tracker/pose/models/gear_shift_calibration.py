@@ -3,8 +3,11 @@ class GearShiftCalibration:
         self.rest_forward = None
         self.rest_drop = None
         self.rest_angle = None
-
+        self.shift_up_forward = None
+        self.shift_up_drop = None
+        self.shift_up_angle = None
         self._rest_samples = []
+        self.shift_up_sequence = []
 
     def add_rest_sample(self, forward, drop, angle):
         self._rest_samples.append(
@@ -29,6 +32,24 @@ class GearShiftCalibration:
             sample[2] for sample in self._rest_samples
         ) / len(self._rest_samples)
 
+    def movement_from_rest(self, forward, drop, angle):
+        return {
+            "forward": forward - self.rest_forward,
+            "drop": drop - self.rest_drop,
+            "angle": angle - self.rest_angle,
+        }
+
+    def add_shift_up_sample(self, forward, drop, angle):
+        movement = self.movement_from_rest(
+            forward=forward,
+            drop=drop,
+            angle=angle,
+        )
+
+        self.shift_up_forward = movement["forward"]
+        self.shift_up_drop = movement["drop"]
+        self.shift_up_angle = movement["angle"]
+
     def _is_rest_window_stable(self):
         samples = self._rest_samples[-5:]
 
@@ -50,3 +71,23 @@ class GearShiftCalibration:
             and drop_range <= 0.005
             and angle_range <= 2.0
         )
+    
+    def add_shift_up_sequence(self, samples):
+        self.shift_up_sequence = [
+            self.movement_from_rest(
+                forward=forward,
+                drop=drop,
+                angle=angle,
+            )
+            for forward, drop, angle in samples
+        ]
+
+    def shift_up_distances_from_rest(self):
+        return [
+            (
+                movement["forward"] ** 2
+                + movement["drop"] ** 2
+                + movement["angle"] ** 2
+            ) ** 0.5
+            for movement in self.shift_up_sequence
+        ]
