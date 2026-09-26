@@ -595,6 +595,102 @@ def test_calibration_stores_multiple_shift_up_attempts():
 
     assert len(calibration.shift_up_sequences) == 2
 
+def test_shift_up_typical_forward_range_uses_median_of_attempts():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.096, 164.0),  # forward range 0.004
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.026, 0.095, 163.0),  # forward range 0.006
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.040, 0.090, 160.0),  # outlier: 0.020
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    ranges = calibration.shift_up_typical_ranges()
+
+    assert ranges["forward"] == pytest.approx(0.006)
+
+def test_shift_up_typical_drop_range_uses_median_of_attempts():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.096, 164.0),  # drop range 0.004
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.092, 163.0),  # drop range 0.008
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.026, 0.070, 162.0),  # outlier: 0.030
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    ranges = calibration.shift_up_typical_ranges()
+
+    assert ranges["drop"] == pytest.approx(0.008)
+
+def test_shift_up_typical_angle_range_uses_median_of_attempts():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.096, 163.0),  # angle range 2.0
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.094, 162.0),  # angle range 3.0
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.026, 0.092, 150.0),  # outlier: 15.0
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    ranges = calibration.shift_up_typical_ranges()
+
+    assert ranges["angle"] == pytest.approx(3.0)
+
 
 
 

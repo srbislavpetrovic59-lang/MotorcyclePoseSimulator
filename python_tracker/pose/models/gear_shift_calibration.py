@@ -1,3 +1,5 @@
+from statistics import median
+
 class GearShiftCalibration:
     def __init__(self):
         self.rest_forward = None
@@ -172,4 +174,35 @@ class GearShiftCalibration:
             ) ** 0.5
             for movement in self.shift_up_sequence
         ]
-            
+
+
+    def shift_up_typical_ranges(self):
+        forward_ranges = [
+            max(
+                abs(movement["forward"])
+                for movement in sequence
+            )
+            for sequence in self.shift_up_sequences
+        ]
+
+        drop_ranges = [
+            max(
+                abs(movement["drop"])
+                for movement in sequence
+            )
+            for sequence in self.shift_up_sequences
+        ]
+
+        angle_ranges = [
+            max(
+                abs(movement["angle"])
+                for movement in sequence
+            )
+            for sequence in self.shift_up_sequences
+        ]
+
+        return {
+            "forward": median(forward_ranges),
+            "drop": median(drop_ranges),
+            "angle": median(angle_ranges),
+        }        
