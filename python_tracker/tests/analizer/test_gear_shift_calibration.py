@@ -550,4 +550,25 @@ def test_rest_uses_only_latest_stable_window():
         sum(sample[0] for sample in stable_samples) / 5
     )
 
+def test_normalized_movement_ignores_zero_range_signal():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    calibration.shift_up_sequence = [
+        {"forward": 0.000, "drop": -0.008, "angle": -2.0},
+    ]
+
+    normalized = calibration.normalized_movement_from_rest(
+        forward=0.020,
+        drop=0.096,
+        angle=164.0,
+    )
+
+    assert normalized["forward"] == pytest.approx(0.0)
+    assert normalized["drop"] == pytest.approx(-0.5)
+    assert normalized["angle"] == pytest.approx(-0.5)
+
 

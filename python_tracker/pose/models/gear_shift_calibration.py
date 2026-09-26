@@ -134,10 +134,21 @@ class GearShiftCalibration:
 
         ranges = self.shift_up_ranges()
 
+        def normalized(value, range_value):
+            if range_value == 0:
+                return 0.0
+            return value / range_value
+
         return {
-            "forward": movement["forward"] / ranges["forward"],
-            "drop": movement["drop"] / ranges["drop"],
-            "angle": movement["angle"] / ranges["angle"],
+            "forward": normalized(
+                movement["forward"], ranges["forward"]
+            ),
+            "drop": normalized(
+                movement["drop"], ranges["drop"]
+            ),
+            "angle": normalized(
+                movement["angle"], ranges["angle"]
+            ),
         }
 
     def shift_up_normalized_distances_from_rest(self):
