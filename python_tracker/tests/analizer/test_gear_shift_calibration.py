@@ -527,4 +527,27 @@ def test_normalized_shift_up_distance_ignores_zero_range_signal():
     assert distances[1] > distances[0]
     assert distances[2] > distances[1]
 
+def test_rest_uses_only_latest_stable_window():
+    calibration = GearShiftCalibration()
+
+    # Earlier movement / unstable samples.
+    calibration.add_rest_sample(0.010, 0.080, 150.0)
+    calibration.add_rest_sample(0.030, 0.120, 175.0)
+
+    # Stable REST window.
+    stable_samples = [
+        (0.0200, 0.1000, 165.0),
+        (0.0201, 0.1005, 165.2),
+        (0.0202, 0.1010, 165.4),
+        (0.0201, 0.1008, 165.3),
+        (0.0200, 0.1004, 165.1),
+    ]
+
+    for forward, drop, angle in stable_samples:
+        calibration.add_rest_sample(forward, drop, angle)
+
+    assert calibration.rest_forward == pytest.approx(
+        sum(sample[0] for sample in stable_samples) / 5
+    )
+
 

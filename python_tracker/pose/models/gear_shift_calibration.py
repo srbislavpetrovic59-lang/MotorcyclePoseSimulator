@@ -20,17 +20,18 @@ class GearShiftCalibration:
         if not self._is_rest_window_stable():
             return
 
-        self.rest_forward = sum(
-            sample[0] for sample in self._rest_samples
-        ) / len(self._rest_samples)
+        stable_samples = self._rest_samples[-5:]
 
+        self.rest_forward = sum(
+            sample[0] for sample in stable_samples
+        ) / len(stable_samples)
         self.rest_drop = sum(
-            sample[1] for sample in self._rest_samples
-        ) / len(self._rest_samples)
+            sample[1] for sample in stable_samples
+        ) / len(stable_samples)
 
         self.rest_angle = sum(
-            sample[2] for sample in self._rest_samples
-        ) / len(self._rest_samples)
+            sample[2] for sample in stable_samples
+        ) / len(stable_samples)
 
     def movement_from_rest(self, forward, drop, angle):
         return {
