@@ -93,7 +93,7 @@ class GearShiftCalibration:
         ]
 
     def shift_up_has_away_and_return_pattern(self):
-        distances = self.shift_up_distances_from_rest()
+        distances = self.shift_up_normalized_distances_from_rest()
 
         if len(distances) < 3:
             return False
@@ -142,11 +142,17 @@ class GearShiftCalibration:
     def shift_up_normalized_distances_from_rest(self):
         ranges = self.shift_up_ranges()
 
+        def normalized(value, range_value):
+            if range_value == 0:
+                return 0.0
+            return value / range_value
+
         return [
             (
-                (movement["forward"] / ranges["forward"]) ** 2
-                + (movement["drop"] / ranges["drop"]) ** 2
-                + (movement["angle"] / ranges["angle"]) ** 2
+                normalized(movement["forward"], ranges["forward"]) ** 2
+                + normalized(movement["drop"], ranges["drop"]) ** 2
+                + normalized(movement["angle"], ranges["angle"]) ** 2
             ) ** 0.5
             for movement in self.shift_up_sequence
         ]
+            

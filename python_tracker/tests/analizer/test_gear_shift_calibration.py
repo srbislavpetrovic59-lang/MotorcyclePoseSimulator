@@ -485,3 +485,46 @@ def test_shift_up_normalized_distances_move_away_and_return():
 
     assert distances[0] < distances[2]
     assert distances[4] < distances[2]
+
+def test_shift_up_pattern_uses_normalized_distances(monkeypatch):
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    calibration.shift_up_sequence = [
+        {"forward": 0.000, "drop": 0.000, "angle": 0.0},
+        {"forward": 0.002, "drop": -0.004, "angle": -1.0},
+        {"forward": 0.004, "drop": -0.008, "angle": -2.0},
+        {"forward": 0.002, "drop": -0.004, "angle": -1.0},
+        {"forward": 0.000, "drop": 0.000, "angle": 0.0},
+    ]
+
+    def fail_if_old_distances_are_used():
+        raise AssertionError("old unnormalized distances were used")
+
+        monkeypatch.setattr(
+        calibration,
+        "shift_up_distances_from_rest",
+        fail_if_old_distances_are_used,
+        )
+
+        assert calibration.shift_up_has_away_and_return_pattern() is True
+
+def test_normalized_shift_up_distance_ignores_zero_range_signal():
+    calibration = GearShiftCalibration()
+
+    calibration.shift_up_sequence = [
+        {"forward": 0.000, "drop": 0.000, "angle": 0.0},
+        {"forward": 0.000, "drop": -0.004, "angle": -1.0},
+        {"forward": 0.000, "drop": -0.008, "angle": -2.0},
+    ]
+
+    distances = calibration.shift_up_normalized_distances_from_rest()
+
+    assert distances[0] == pytest.approx(0.0)
+    assert distances[1] > distances[0]
+    assert distances[2] > distances[1]
+
+
