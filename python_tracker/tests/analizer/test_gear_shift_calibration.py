@@ -571,4 +571,30 @@ def test_normalized_movement_ignores_zero_range_signal():
     assert normalized["drop"] == pytest.approx(-0.5)
     assert normalized["angle"] == pytest.approx(-0.5)
 
+def test_calibration_stores_multiple_shift_up_attempts():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    first_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.094, 163.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    second_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.023, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(first_attempt)
+    calibration.add_shift_up_sequence(second_attempt)
+
+    assert len(calibration.shift_up_sequences) == 2
+
+
+
 

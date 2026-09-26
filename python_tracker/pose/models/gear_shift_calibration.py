@@ -8,6 +8,7 @@ class GearShiftCalibration:
         self.shift_up_angle = None
         self._rest_samples = []
         self.shift_up_sequence = []
+        self.shift_up_sequences = []
 
     def add_rest_sample(self, forward, drop, angle):
         self._rest_samples.append(
@@ -82,6 +83,10 @@ class GearShiftCalibration:
             )
             for forward, drop, angle in samples
         ]
+
+        self.shift_up_sequences.append(
+            self.shift_up_sequence
+        )
 
     def shift_up_distances_from_rest(self):
         return [
