@@ -91,3 +91,19 @@ class GearShiftCalibration:
             ) ** 0.5
             for movement in self.shift_up_sequence
         ]
+
+    def shift_up_has_away_and_return_pattern(self):
+        distances = self.shift_up_distances_from_rest()
+
+        if len(distances) < 3:
+            return False
+
+        peak_index = distances.index(max(distances))
+
+        if peak_index == 0 or peak_index == len(distances) - 1:
+            return False
+
+        return (
+            distances[peak_index] > distances[0]
+            and distances[-1] < distances[peak_index]
+        )

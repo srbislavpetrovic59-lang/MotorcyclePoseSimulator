@@ -402,3 +402,22 @@ def test_shift_up_sequence_moves_away_and_returns_toward_rest():
 
     assert distances[0] < distances[2]
     assert distances[4] < distances[2]
+
+def test_shift_up_sequence_has_movement_away_from_rest_and_return():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.0210
+    calibration.rest_drop = 0.1040
+    calibration.rest_angle = 165.0
+
+    shift_up_samples = [
+        (0.0210, 0.1040, 165.0),  # REST
+        (0.0220, 0.1020, 164.5),  # moving away
+        (0.0235, 0.0980, 163.2),  # active movement
+        (0.0225, 0.1000, 164.0),  # returning
+        (0.0211, 0.1035, 164.9),  # near REST
+    ]
+
+    calibration.add_shift_up_sequence(shift_up_samples)
+
+    assert calibration.shift_up_has_away_and_return_pattern() is True
