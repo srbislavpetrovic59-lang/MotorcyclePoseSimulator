@@ -691,6 +691,188 @@ def test_shift_up_typical_angle_range_uses_median_of_attempts():
 
     assert ranges["angle"] == pytest.approx(3.0)
 
+def test_shift_up_attempt_has_normalized_distance_trajectory():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempt = [
+        (0.020, 0.100, 165.0),  # REST
+        (0.022, 0.096, 164.0),  # away
+        (0.024, 0.092, 162.0),  # farther away
+        (0.022, 0.096, 164.0),  # returning
+        (0.020, 0.100, 165.0),  # REST
+    ]
+
+    calibration.add_shift_up_sequence(attempt)
+
+    trajectory = calibration.shift_up_normalized_trajectory(
+        calibration.shift_up_sequences[0]
+    )
+
+    assert trajectory[0] == pytest.approx(0.0)
+    assert trajectory[0] < trajectory[1] < trajectory[2]
+    assert trajectory[2] > trajectory[3] > trajectory[4]
+    assert trajectory[4] == pytest.approx(0.0)
+
+def test_shift_up_attempt_has_normalized_component_trajectory():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.096, 164.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(attempt)
+
+    trajectory = calibration.shift_up_normalized_component_trajectory(
+        calibration.shift_up_sequences[0]
+    )
+
+    assert trajectory[0] == {
+        "forward": pytest.approx(0.0),
+        "drop": pytest.approx(0.0),
+        "angle": pytest.approx(0.0),
+    }
+
+    assert trajectory[2] == {
+        "forward": pytest.approx(1.0),
+        "drop": pytest.approx(-1.0),
+        "angle": pytest.approx(-1.0),
+    }
+
+    assert trajectory[-1] == {
+        "forward": pytest.approx(0.0),
+        "drop": pytest.approx(0.0),
+        "angle": pytest.approx(0.0),
+    }
+
+def test_typical_shift_up_trajectory_uses_median_per_component():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.096, 163.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.026, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.040, 0.070, 150.0),  # outlier
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    trajectory = calibration.shift_up_typical_trajectory()
+
+    assert trajectory[0] == {
+        "forward": pytest.approx(0.0),
+        "drop": pytest.approx(0.0),
+        "angle": pytest.approx(0.0),
+    }
+
+    assert trajectory[1] == {
+        "forward": pytest.approx(1.0),
+        "drop": pytest.approx(-1.0),
+        "angle": pytest.approx(-1.0),
+    }
+
+    assert trajectory[2] == {
+        "forward": pytest.approx(0.0),
+        "drop": pytest.approx(0.0),
+        "angle": pytest.approx(0.0),
+    }
+
+def test_typical_shift_up_trajectory_handles_attempts_with_different_lengths():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    short_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    long_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.096, 164.0),
+        (0.024, 0.092, 162.0),
+        (0.022, 0.096, 164.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(short_attempt)
+    calibration.add_shift_up_sequence(long_attempt)
+
+    trajectory = calibration.shift_up_typical_trajectory()
+
+    assert len(trajectory) == 5
+
+def test_shift_up_trajectory_can_be_resampled_to_five_points():
+    calibration = GearShiftCalibration()
+
+    trajectory = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    resampled = calibration.resample_shift_up_trajectory(
+        trajectory,
+        target_length=5,
+    )
+
+    assert resampled == [
+        {
+            "forward": pytest.approx(0.0),
+            "drop": pytest.approx(0.0),
+            "angle": pytest.approx(0.0),
+        },
+        {
+            "forward": pytest.approx(0.5),
+            "drop": pytest.approx(-0.5),
+            "angle": pytest.approx(-0.5),
+        },
+        {
+            "forward": pytest.approx(1.0),
+            "drop": pytest.approx(-1.0),
+            "angle": pytest.approx(-1.0),
+        },
+        {
+            "forward": pytest.approx(0.5),
+            "drop": pytest.approx(-0.5),
+            "angle": pytest.approx(-0.5),
+        },
+        {
+            "forward": pytest.approx(0.0),
+            "drop": pytest.approx(0.0),
+            "angle": pytest.approx(0.0),
+        },
+    ]
+
 
 
 

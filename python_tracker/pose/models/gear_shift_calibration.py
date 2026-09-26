@@ -205,4 +205,113 @@ class GearShiftCalibration:
             "forward": median(forward_ranges),
             "drop": median(drop_ranges),
             "angle": median(angle_ranges),
-        }        
+        }     
+    
+    def shift_up_normalized_trajectory(self, sequence):
+        ranges = self.shift_up_typical_ranges()
+
+        def normalized(value, range_value):
+            if range_value == 0:
+                return 0.0
+            return value / range_value
+
+        return [
+            (
+                normalized(movement["forward"], ranges["forward"]) ** 2
+                + normalized(movement["drop"], ranges["drop"]) ** 2
+                + normalized(movement["angle"], ranges["angle"]) ** 2
+            ) ** 0.5
+            for movement in sequence
+        ]
+
+
+    def shift_up_normalized_component_trajectory(self, sequence):
+        ranges = self.shift_up_typical_ranges()
+
+        def normalized(value, range_value):
+            if range_value == 0:
+                return 0.0
+            return value / range_value
+
+        return [
+            {
+                "forward": normalized(
+                    movement["forward"],
+                    ranges["forward"],
+                ),
+                "drop": normalized(
+                    movement["drop"],
+                    ranges["drop"],
+                ),
+                "angle": normalized(
+                    movement["angle"],
+                    ranges["angle"],
+                ),
+            }
+            for movement in sequence
+        ]
+
+    def shift_up_typical_trajectory(self):
+        trajectories = [
+            self.shift_up_normalized_component_trajectory(sequence)
+            for sequence in self.shift_up_sequences
+        ]
+
+        target_length = max(
+            len(trajectory)
+            for trajectory in trajectories
+        )
+
+        trajectories = [
+            self.resample_shift_up_trajectory(
+                trajectory,
+                target_length,
+            )
+            for trajectory in trajectories
+        ]
+
+        return [
+            {
+                "forward": median(
+                    trajectory[index]["forward"]
+                    for trajectory in trajectories
+                ),
+                "drop": median(
+                    trajectory[index]["drop"]
+                    for trajectory in trajectories
+                ),
+                "angle": median(
+                    trajectory[index]["angle"]
+                    for trajectory in trajectories
+                ),
+            }
+            for index in range(len(trajectories[0]))
+        ]
+
+    def resample_shift_up_trajectory(self, trajectory, target_length):
+        result = []
+
+        for target_index in range(target_length):
+            position = (
+                target_index
+                * (len(trajectory) - 1)
+                / (target_length - 1)
+            )
+
+            left_index = int(position)
+            right_index = min(left_index + 1, len(trajectory) - 1)
+            fraction = position - left_index
+
+            result.append({
+                key: (
+                    trajectory[left_index][key]
+                    + (
+                        trajectory[right_index][key]
+                        - trajectory[left_index][key]
+                    )
+                    * fraction
+                )
+                for key in ("forward", "drop", "angle")
+            })
+
+        return result
