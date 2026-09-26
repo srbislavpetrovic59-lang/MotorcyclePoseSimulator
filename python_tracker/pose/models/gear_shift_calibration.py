@@ -107,3 +107,46 @@ class GearShiftCalibration:
             distances[peak_index] > distances[0]
             and distances[-1] < distances[peak_index]
         )
+
+    def shift_up_ranges(self):
+        return {
+            "forward": max(
+                abs(movement["forward"])
+                for movement in self.shift_up_sequence
+            ),
+            "drop": max(
+                abs(movement["drop"])
+                for movement in self.shift_up_sequence
+            ),
+            "angle": max(
+                abs(movement["angle"])
+                for movement in self.shift_up_sequence
+            ),
+        }
+
+    def normalized_movement_from_rest(self, forward, drop, angle):
+        movement = self.movement_from_rest(
+            forward=forward,
+            drop=drop,
+            angle=angle,
+        )
+
+        ranges = self.shift_up_ranges()
+
+        return {
+            "forward": movement["forward"] / ranges["forward"],
+            "drop": movement["drop"] / ranges["drop"],
+            "angle": movement["angle"] / ranges["angle"],
+        }
+
+    def shift_up_normalized_distances_from_rest(self):
+        ranges = self.shift_up_ranges()
+
+        return [
+            (
+                (movement["forward"] / ranges["forward"]) ** 2
+                + (movement["drop"] / ranges["drop"]) ** 2
+                + (movement["angle"] / ranges["angle"]) ** 2
+            ) ** 0.5
+            for movement in self.shift_up_sequence
+        ]

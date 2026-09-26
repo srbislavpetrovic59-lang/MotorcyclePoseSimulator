@@ -421,3 +421,67 @@ def test_shift_up_sequence_has_movement_away_from_rest_and_return():
     calibration.add_shift_up_sequence(shift_up_samples)
 
     assert calibration.shift_up_has_away_and_return_pattern() is True
+
+def test_shift_up_ranges_use_each_signals_own_extreme():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    samples = [
+        (0.020, 0.100, 165.0),  # REST
+        (0.024, 0.098, 164.0),  # forward extreme
+        (0.023, 0.092, 163.5),  # drop extreme
+        (0.022, 0.096, 162.0),  # angle extreme
+        (0.020, 0.100, 165.0),  # REST
+    ]
+
+    calibration.add_shift_up_sequence(samples)
+
+    ranges = calibration.shift_up_ranges()
+
+    assert ranges["forward"] == 0.004
+    assert ranges["drop"] == pytest.approx(0.008)
+    assert ranges["angle"] == 3.0
+
+def test_shift_up_movement_is_normalized_by_calibrated_ranges():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    calibration.shift_up_sequence = [
+        {"forward": 0.004, "drop": -0.008, "angle": -2.0},
+    ]
+
+    normalized = calibration.normalized_movement_from_rest(
+        forward=0.022,
+        drop=0.096,
+        angle=164.0,
+    )
+
+    assert normalized["forward"] == pytest.approx(0.5)
+    assert normalized["drop"] == pytest.approx(-0.5)
+    assert normalized["angle"] == pytest.approx(-0.5)
+
+def test_shift_up_normalized_distances_move_away_and_return():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    calibration.shift_up_sequence = [
+        {"forward": 0.000, "drop": 0.000, "angle": 0.0},
+        {"forward": 0.002, "drop": -0.004, "angle": -1.0},
+        {"forward": 0.004, "drop": -0.008, "angle": -2.0},
+        {"forward": 0.002, "drop": -0.004, "angle": -1.0},
+        {"forward": 0.000, "drop": 0.000, "angle": 0.0},
+    ]
+
+    distances = calibration.shift_up_normalized_distances_from_rest()
+
+    assert distances[0] < distances[2]
+    assert distances[4] < distances[2]
