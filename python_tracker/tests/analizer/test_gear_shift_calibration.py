@@ -1060,3 +1060,46 @@ def test_new_shift_up_trajectory_can_be_compared_with_learned_typical_trajectory
     )
 
     assert distance == pytest.approx(0.0)
+
+def test_similar_new_attempt_is_closer_to_learned_shift_up_than_different_attempt():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    learned_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.096, 164.0),
+        (0.024, 0.092, 162.0),
+        (0.022, 0.096, 164.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(learned_attempt)
+
+    similar_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.095, 164.0),
+        (0.024, 0.091, 162.0),
+        (0.022, 0.095, 164.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    different_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.018, 0.104, 166.0),
+        (0.016, 0.108, 168.0),
+        (0.018, 0.104, 166.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    similar_distance = calibration.shift_up_distance_from_typical(
+        similar_attempt
+    )
+
+    different_distance = calibration.shift_up_distance_from_typical(
+        different_attempt
+    )
+
+    assert similar_distance < different_distance
