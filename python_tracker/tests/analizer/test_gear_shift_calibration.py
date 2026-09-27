@@ -990,3 +990,73 @@ def test_longer_similar_trajectory_matches_after_resampling():
     )
 
     assert distance == pytest.approx(0.0)
+
+def test_opposite_trajectory_is_farther_than_similar_shift_up():
+    calibration = GearShiftCalibration()
+
+    typical = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    similar = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.45, "drop": -0.45, "angle": -0.45},
+        {"forward": 0.9, "drop": -0.9, "angle": -0.9},
+        {"forward": 0.45, "drop": -0.45, "angle": -0.45},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    opposite = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": -0.5, "drop": 0.5, "angle": 0.5},
+        {"forward": -1.0, "drop": 1.0, "angle": 1.0},
+        {"forward": -0.5, "drop": 0.5, "angle": 0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    similar_distance = calibration.shift_up_trajectory_distance(
+        typical,
+        similar,
+    )
+
+    opposite_distance = calibration.shift_up_trajectory_distance(
+        typical,
+        opposite,
+    )
+
+    assert opposite_distance > similar_distance
+
+def test_new_shift_up_trajectory_can_be_compared_with_learned_typical_trajectory():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    learned_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.096, 164.0),
+        (0.024, 0.092, 162.0),
+        (0.022, 0.096, 164.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(learned_attempt)
+
+    new_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.022, 0.096, 164.0),
+        (0.024, 0.092, 162.0),
+        (0.022, 0.096, 164.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    distance = calibration.shift_up_distance_from_typical(
+        new_attempt
+    )
+
+    assert distance == pytest.approx(0.0)

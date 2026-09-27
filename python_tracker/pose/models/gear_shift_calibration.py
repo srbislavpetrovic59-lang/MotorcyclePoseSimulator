@@ -327,3 +327,29 @@ class GearShiftCalibration:
             )
 
         return total ** 0.5
+
+    def shift_up_distance_from_typical(self, samples):
+        typical = self.shift_up_typical_trajectory()
+
+        trajectory = [
+            self.movement_from_rest(
+                forward=forward,
+                drop=drop,
+                angle=angle,
+            )
+            for forward, drop, angle in samples
+        ]
+
+        trajectory = self.shift_up_normalized_component_trajectory(
+            trajectory
+        )
+
+        trajectory = self.resample_shift_up_trajectory(
+            trajectory,
+            target_length=len(typical),
+        )
+
+        return self.shift_up_trajectory_distance(
+            typical,
+            trajectory,
+        )
