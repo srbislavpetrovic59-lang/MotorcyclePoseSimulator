@@ -890,3 +890,103 @@ def test_identical_shift_up_trajectories_have_zero_distance():
     )
 
     assert distance == pytest.approx(0.0)
+
+def test_different_shift_up_trajectories_have_nonzero_distance():
+    calibration = GearShiftCalibration()
+
+    typical = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    different = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.2, "drop": -0.1, "angle": -0.2},
+        {"forward": 0.3, "drop": -0.2, "angle": -0.1},
+        {"forward": 0.1, "drop": -0.1, "angle": -0.1},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    distance = calibration.shift_up_trajectory_distance(
+        typical,
+        different,
+    )
+
+    assert distance > 0.0
+
+def test_more_similar_shift_up_trajectory_has_smaller_distance():
+    calibration = GearShiftCalibration()
+
+    typical = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    similar = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.45, "drop": -0.45, "angle": -0.45},
+        {"forward": 0.9, "drop": -0.9, "angle": -0.9},
+        {"forward": 0.45, "drop": -0.45, "angle": -0.45},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    different = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.1, "drop": -0.1, "angle": -0.1},
+        {"forward": 0.2, "drop": -0.2, "angle": -0.2},
+        {"forward": 0.1, "drop": -0.1, "angle": -0.1},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    similar_distance = calibration.shift_up_trajectory_distance(
+        typical,
+        similar,
+    )
+
+    different_distance = calibration.shift_up_trajectory_distance(
+        typical,
+        different,
+    )
+
+    assert similar_distance < different_distance
+
+def test_longer_similar_trajectory_matches_after_resampling():
+    calibration = GearShiftCalibration()
+
+    typical = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    longer = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.25, "drop": -0.25, "angle": -0.25},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.75, "drop": -0.75, "angle": -0.75},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.75, "drop": -0.75, "angle": -0.75},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.25, "drop": -0.25, "angle": -0.25},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
+
+    resampled = calibration.resample_shift_up_trajectory(
+        longer,
+        target_length=len(typical),
+    )
+
+    distance = calibration.shift_up_trajectory_distance(
+        typical,
+        resampled,
+    )
+
+    assert distance == pytest.approx(0.0)
