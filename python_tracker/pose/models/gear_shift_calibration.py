@@ -315,3 +315,15 @@ class GearShiftCalibration:
             })
 
         return result
+
+    def shift_up_trajectory_distance(self, first, second):
+        total = 0.0
+
+        for first_point, second_point in zip(first, second):
+            total += (
+                (first_point["forward"] - second_point["forward"]) ** 2
+                + (first_point["drop"] - second_point["drop"]) ** 2
+                + (first_point["angle"] - second_point["angle"]) ** 2
+            )
+
+        return total ** 0.5

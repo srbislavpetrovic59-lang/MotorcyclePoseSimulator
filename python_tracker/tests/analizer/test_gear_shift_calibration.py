@@ -873,6 +873,20 @@ def test_shift_up_trajectory_can_be_resampled_to_five_points():
         },
     ]
 
+def test_identical_shift_up_trajectories_have_zero_distance():
+    calibration = GearShiftCalibration()
 
+    trajectory = [
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 1.0, "drop": -1.0, "angle": -1.0},
+        {"forward": 0.5, "drop": -0.5, "angle": -0.5},
+        {"forward": 0.0, "drop": 0.0, "angle": 0.0},
+    ]
 
+    distance = calibration.shift_up_trajectory_distance(
+        trajectory,
+        trajectory,
+    )
 
+    assert distance == pytest.approx(0.0)
