@@ -1,7 +1,7 @@
 ﻿import pytest
 from pose.models.gear_shift_calibration import GearShiftCalibration
 from pose.analyzers.gear_shift_detector import GearShiftDetector
-
+from statistics import median
 
 def test_learns_rest_position_from_stable_samples():
     calibration = GearShiftCalibration()
@@ -1103,3 +1103,334 @@ def test_similar_new_attempt_is_closer_to_learned_shift_up_than_different_attemp
     )
 
     assert similar_distance < different_distance
+
+def test_learned_shift_up_attempts_have_distances_from_typical():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    distances = calibration.shift_up_calibration_distances()
+
+    assert len(distances) == 3
+    assert all(distance >= 0.0 for distance in distances)
+
+def test_shift_up_calibration_max_distance_comes_from_learned_attempts():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    distances = calibration.shift_up_calibration_distances()
+
+    max_distance = calibration.shift_up_calibration_max_distance()
+
+    assert max_distance == pytest.approx(max(distances))
+
+def test_shift_up_calibration_max_distance_grows_with_outlier_attempt():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    normal_attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in normal_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    normal_max_distance = (
+        calibration.shift_up_calibration_max_distance()
+    )
+
+    outlier_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.040, 0.070, 150.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(outlier_attempt)
+
+    outlier_max_distance = (
+        calibration.shift_up_calibration_max_distance()
+    )
+
+    assert outlier_max_distance > normal_max_distance
+
+def test_shift_up_calibration_typical_distance_is_median():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    distances = calibration.shift_up_calibration_distances()
+
+    typical_distance = (
+        calibration.shift_up_calibration_typical_distance()
+    )
+
+    assert typical_distance == pytest.approx(
+        median(distances)
+    )
+
+def test_shift_up_calibration_typical_distance_is_robust_to_outlier():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    normal_attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in normal_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    typical_before = (
+        calibration.shift_up_calibration_typical_distance()
+    )
+    max_before = (
+        calibration.shift_up_calibration_max_distance()
+    )
+
+    outlier_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.040, 0.070, 150.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(outlier_attempt)
+
+    typical_after = (
+        calibration.shift_up_calibration_typical_distance()
+    )
+    max_after = (
+        calibration.shift_up_calibration_max_distance()
+    )
+
+    typical_change = abs(typical_after - typical_before)
+    max_change = abs(max_after - max_before)
+
+    assert typical_change < max_change
+
+def test_shift_up_calibration_distance_deviation_is_median_absolute_deviation():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    distances = calibration.shift_up_calibration_distances()
+    typical = median(distances)
+
+    expected_deviation = median(
+        abs(distance - typical)
+        for distance in distances
+    )
+
+    deviation = (
+        calibration.shift_up_calibration_distance_deviation()
+    )
+
+    assert deviation == pytest.approx(expected_deviation)
+
+def test_shift_up_calibration_distances_can_be_expressed_in_mad_units():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    distances = calibration.shift_up_calibration_distances()
+    typical = calibration.shift_up_calibration_typical_distance()
+    deviation = calibration.shift_up_calibration_distance_deviation()
+
+    mad_units = (
+        [
+            abs(distance - typical) / deviation
+            for distance in distances
+        ]
+        if deviation > 0.0
+        else None
+    )
+
+    print("distances:", distances)
+    print("typical:", typical)
+    print("MAD:", deviation)
+    print("MAD units:", mad_units)
+
+    assert deviation == 0.0
+    assert mad_units is None
+
+def test_shift_up_calibration_tiny_distance_deviation_is_treated_as_zero():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    deviation = (
+        calibration.shift_up_calibration_distance_deviation()
+    )
+
+    assert deviation == 0.0

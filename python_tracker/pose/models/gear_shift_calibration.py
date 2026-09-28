@@ -353,3 +353,51 @@ class GearShiftCalibration:
             typical,
             trajectory,
         )
+
+    def shift_up_calibration_distances(self):
+        typical = self.shift_up_typical_trajectory()
+
+        distances = []
+
+        for sequence in self.shift_up_sequences:
+            trajectory = self.shift_up_normalized_component_trajectory(
+                sequence
+            )
+
+            trajectory = self.resample_shift_up_trajectory(
+                trajectory,
+                target_length=len(typical),
+            )
+
+            distances.append(
+                self.shift_up_trajectory_distance(
+                    typical,
+                    trajectory,
+                )
+            )
+
+        return distances
+
+    def shift_up_calibration_max_distance(self):
+        distances = self.shift_up_calibration_distances()
+
+        return max(distances)
+
+    def shift_up_calibration_typical_distance(self):
+        distances = self.shift_up_calibration_distances()
+
+        return median(distances)
+
+    def shift_up_calibration_distance_deviation(self):
+        distances = self.shift_up_calibration_distances()
+        typical = median(distances)
+
+        deviation = median(
+            abs(distance - typical)
+            for distance in distances
+        )
+
+        if abs(deviation) < 1e-12:
+            return 0.0
+
+        return deviation
