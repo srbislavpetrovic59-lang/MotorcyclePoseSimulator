@@ -401,3 +401,37 @@ class GearShiftCalibration:
             return 0.0
 
         return deviation
+
+    def shift_up_calibration_attempt_count(self):
+        return len(self.shift_up_sequences)
+
+    def shift_up_distance_ratio(self, samples):
+        distance = self.shift_up_distance_from_typical(
+            samples
+        )
+
+        typical_distance = (
+            self.shift_up_calibration_typical_distance()
+        )
+
+        if typical_distance == 0.0:
+            return None
+
+        return distance / typical_distance
+
+    def shift_up_trajectory_deltas(self, trajectory):
+        deltas = []
+
+        for previous, current in zip(
+            trajectory,
+            trajectory[1:],
+        ):
+            deltas.append(
+                {
+                    "forward": current["forward"] - previous["forward"],
+                    "drop": current["drop"] - previous["drop"],
+                    "angle": current["angle"] - previous["angle"],
+                }
+            )
+
+        return deltas

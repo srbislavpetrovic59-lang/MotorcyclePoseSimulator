@@ -1434,3 +1434,1159 @@ def test_shift_up_calibration_tiny_distance_deviation_is_treated_as_zero():
     )
 
     assert deviation == 0.0
+
+def test_shift_up_calibration_attempt_count():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(attempt)
+    calibration.add_shift_up_sequence(attempt)
+    calibration.add_shift_up_sequence(attempt)
+
+    assert calibration.shift_up_calibration_attempt_count() == 3
+
+def test_shift_up_distance_ratio_compares_new_attempt_with_calibration():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    new_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    distance = calibration.shift_up_distance_from_typical(
+        new_attempt
+    )
+
+    typical_distance = (
+        calibration.shift_up_calibration_typical_distance()
+    )
+
+    ratio = calibration.shift_up_distance_ratio(
+        new_attempt
+    )
+
+    assert ratio == pytest.approx(
+        distance / typical_distance
+    )
+
+def test_shift_up_distance_ratio_is_none_when_typical_distance_is_zero():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    calibration.add_shift_up_sequence(attempt)
+    calibration.add_shift_up_sequence(attempt)
+    calibration.add_shift_up_sequence(attempt)
+
+    new_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.092, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    assert calibration.shift_up_calibration_typical_distance() == 0.0
+
+    assert calibration.shift_up_distance_ratio(
+        new_attempt
+    ) is None
+
+def test_similar_shift_up_attempt_has_smaller_distance_ratio_than_different_attempt():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.100
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.020, 0.100, 165.0),
+            (0.024, 0.092, 162.0),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.025, 0.091, 161.5),
+            (0.020, 0.100, 165.0),
+        ],
+        [
+            (0.020, 0.100, 165.0),
+            (0.023, 0.093, 162.5),
+            (0.020, 0.100, 165.0),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    similar_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.024, 0.091, 162.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    different_attempt = [
+        (0.020, 0.100, 165.0),
+        (0.016, 0.108, 168.0),
+        (0.020, 0.100, 165.0),
+    ]
+
+    similar_ratio = calibration.shift_up_distance_ratio(
+        similar_attempt
+    )
+
+    different_ratio = calibration.shift_up_distance_ratio(
+        different_attempt
+    )
+
+    assert similar_ratio < different_ratio
+
+def test_real_held_out_shift_up_attempt_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    held_out_attempt = [
+        (0.0228, 0.10337, 164.2),
+        (0.0235, 0.09916, 163.2),
+        (0.0218, 0.10075, 164.7),
+        (0.0212, 0.09872, 164.9),
+        (0.0229, 0.10338, 164.0),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        held_out_attempt
+    )
+
+    print("real held-out SHIFT_UP ratio:", ratio)
+
+    assert ratio is not None
+
+def test_real_non_shift_segment_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    non_shift_segment = [
+        (0.0193, 0.11182, 166.8),
+        (0.0194, 0.10847, 166.5),
+        (0.0196, 0.10762, 166.3),
+        (0.0197, 0.10728, 166.1),
+        (0.0196, 0.10717, 166.1),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        non_shift_segment
+    )
+
+    print("real NON-SHIFT ratio:", ratio)
+
+    assert ratio is not None
+
+def test_second_real_non_shift_segment_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    non_shift_segment = [
+        (0.0192, 0.09952, 165.1),
+        (0.0193, 0.09968, 165.0),
+        (0.0193, 0.09952, 165.0),
+        (0.0194, 0.09935, 164.9),
+        (0.0195, 0.09934, 164.9),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        non_shift_segment
+    )
+
+    print("second real NON-SHIFT ratio:", ratio)
+
+    assert ratio is not None
+
+def test_second_real_held_out_shift_up_attempt_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+        [
+            (0.0228, 0.10337, 164.2),
+            (0.0235, 0.09916, 163.2),
+            (0.0218, 0.10075, 164.7),
+            (0.0212, 0.09872, 164.9),
+            (0.0229, 0.10338, 164.0),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    held_out_attempt = [
+        (0.0206, 0.10295, 165.6),
+        (0.0233, 0.09721, 163.3),
+        (0.0233, 0.09722, 163.6),
+        (0.0211, 0.10351, 164.8),
+        (0.0206, 0.10479, 165.2),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        held_out_attempt
+    )
+
+    print("second real held-out SHIFT_UP ratio:", ratio)
+
+    assert ratio is not None
+
+def test_moving_non_shift_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    # Noga se stvarno pomera, ali putanja nije SHIFT_UP:
+    # napred + nadole + promena ugla, pa povratak u REST.
+    non_shift_movement = [
+        (0.0200, 0.1030, 165.0),
+        (0.0215, 0.1060, 166.0),
+        (0.0230, 0.1100, 168.0),
+        (0.0215, 0.1060, 166.0),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        non_shift_movement
+    )
+
+    print("moving NON-SHIFT ratio:", ratio)
+
+    assert ratio is not None
+
+def test_shift_up_like_movement_with_wrong_timing_has_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    # Slične amplitude kao SHIFT_UP,
+    # ali namerno pogrešan vremenski redosled komponenti.
+    shift_up_like_non_shift = [
+        (0.0200, 0.1030, 165.0),
+        (0.0205, 0.1025, 163.5),  # ugao se menja prerano
+        (0.0230, 0.0980, 164.5),  # forward/drop dolaze kasnije
+        (0.0215, 0.1015, 164.8),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        shift_up_like_non_shift
+    )
+
+    print("SHIFT_UP-like wrong-timing ratio:", ratio)
+
+    assert ratio is not None
+
+def test_correct_shift_up_timing_is_closer_than_wrong_timing():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    correct_timing = [
+        (0.0200, 0.1030, 165.0),
+        (0.0215, 0.1015, 164.8),
+        (0.0230, 0.0980, 164.5),
+        (0.0205, 0.1025, 163.5),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    wrong_timing = [
+        (0.0200, 0.1030, 165.0),
+        (0.0205, 0.1025, 163.5),
+        (0.0230, 0.0980, 164.5),
+        (0.0215, 0.1015, 164.8),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    correct_ratio = calibration.shift_up_distance_ratio(
+        correct_timing
+    )
+
+    wrong_ratio = calibration.shift_up_distance_ratio(
+        wrong_timing
+    )
+
+    print("correct timing ratio:", correct_ratio)
+    print("wrong timing ratio:", wrong_ratio)
+
+    assert correct_ratio < wrong_ratio
+
+def test_shift_up_trajectory_deltas_preserve_movement_order():
+    calibration = GearShiftCalibration()
+
+    trajectory = [
+        {
+            "forward": 0.000,
+            "drop": 0.000,
+            "angle": 0.0,
+        },
+        {
+            "forward": 0.002,
+            "drop": -0.001,
+            "angle": -0.5,
+        },
+        {
+            "forward": 0.005,
+            "drop": -0.004,
+            "angle": -1.5,
+        },
+    ]
+
+    deltas = calibration.shift_up_trajectory_deltas(
+        trajectory
+    )
+
+    assert deltas == [
+        {
+            "forward": 0.002,
+            "drop": -0.001,
+            "angle": -0.5,
+        },
+        {
+            "forward": 0.003,
+            "drop": -0.003,
+            "angle": -1.0,
+        },
+    ]
+
+def test_shift_up_delta_distance_distinguishes_timing():
+    calibration = GearShiftCalibration()
+
+    typical = [
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+        {"forward": 0.0015, "drop": -0.0015, "angle": -0.2},
+        {"forward": 0.0030, "drop": -0.0050, "angle": -0.5},
+        {"forward": 0.0005, "drop": -0.0005, "angle": -1.5},
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+    ]
+
+    correct_timing = [
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+        {"forward": 0.0015, "drop": -0.0015, "angle": -0.2},
+        {"forward": 0.0030, "drop": -0.0050, "angle": -0.5},
+        {"forward": 0.0005, "drop": -0.0005, "angle": -1.5},
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+    ]
+
+    wrong_timing = [
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+        {"forward": 0.0005, "drop": -0.0005, "angle": -1.5},
+        {"forward": 0.0030, "drop": -0.0050, "angle": -0.5},
+        {"forward": 0.0015, "drop": -0.0015, "angle": -0.2},
+        {"forward": 0.0000, "drop": 0.0000, "angle": 0.0},
+    ]
+
+    typical_deltas = calibration.shift_up_trajectory_deltas(
+        typical
+    )
+
+    correct_deltas = calibration.shift_up_trajectory_deltas(
+        correct_timing
+    )
+
+    wrong_deltas = calibration.shift_up_trajectory_deltas(
+        wrong_timing
+    )
+
+    correct_distance = calibration.shift_up_trajectory_distance(
+        typical_deltas,
+        correct_deltas,
+    )
+
+    wrong_distance = calibration.shift_up_trajectory_distance(
+        typical_deltas,
+        wrong_deltas,
+    )
+
+    print("correct delta distance:", correct_distance)
+    print("wrong delta distance:", wrong_distance)
+
+    assert correct_distance < wrong_distance
+
+def test_real_calibration_delta_distance_prefers_correct_timing():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    correct_timing = [
+        (0.0200, 0.1030, 165.0),
+        (0.0215, 0.1015, 164.8),
+        (0.0230, 0.0980, 164.5),
+        (0.0205, 0.1025, 163.5),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    wrong_timing = [
+        (0.0200, 0.1030, 165.0),
+        (0.0205, 0.1025, 163.5),
+        (0.0230, 0.0980, 164.5),
+        (0.0215, 0.1015, 164.8),
+        (0.0200, 0.1030, 165.0),
+    ]
+
+    typical = calibration.shift_up_typical_trajectory()
+
+    correct = [
+        calibration.movement_from_rest(
+            forward=forward,
+            drop=drop,
+            angle=angle,
+        )
+        for forward, drop, angle in correct_timing
+    ]
+
+    wrong = [
+        calibration.movement_from_rest(
+            forward=forward,
+            drop=drop,
+            angle=angle,
+        )
+        for forward, drop, angle in wrong_timing
+    ]
+
+    correct = calibration.shift_up_normalized_component_trajectory(
+        correct
+    )
+
+    wrong = calibration.shift_up_normalized_component_trajectory(
+        wrong
+    )
+
+    correct = calibration.resample_shift_up_trajectory(
+        correct,
+        target_length=len(typical),
+    )
+
+    wrong = calibration.resample_shift_up_trajectory(
+        wrong,
+        target_length=len(typical),
+    )
+
+    typical_deltas = calibration.shift_up_trajectory_deltas(
+        typical
+    )
+
+    correct_deltas = calibration.shift_up_trajectory_deltas(
+        correct
+    )
+
+    wrong_deltas = calibration.shift_up_trajectory_deltas(
+        wrong
+    )
+
+    correct_distance = calibration.shift_up_trajectory_distance(
+        typical_deltas,
+        correct_deltas,
+    )
+
+    wrong_distance = calibration.shift_up_trajectory_distance(
+        typical_deltas,
+        wrong_deltas,
+    )
+
+    print("real correct delta distance:", correct_distance)
+    print("real wrong delta distance:", wrong_distance)
+
+    assert correct_distance < wrong_distance
+
+def test_print_real_shift_up_typical_trajectory():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    typical = calibration.shift_up_typical_trajectory()
+
+    print("\nREAL SHIFT_UP TYPICAL TRAJECTORY")
+
+    for index, point in enumerate(typical):
+        print(
+            index,
+            "forward=", point["forward"],
+            "drop=", point["drop"],
+            "angle=", point["angle"],
+        )
+
+    assert typical
+
+def test_print_real_shift_up_attempt_end_points_from_rest():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    print("\nREAL SHIFT_UP END POINTS FROM REST")
+
+    for index, attempt in enumerate(learned_attempts, start=1):
+        forward, drop, angle = attempt[-1]
+
+        end_point = calibration.movement_from_rest(
+            forward=forward,
+            drop=drop,
+            angle=angle,
+        )
+
+        print(
+            index,
+            "forward=", end_point["forward"],
+            "drop=", end_point["drop"],
+            "angle=", end_point["angle"],
+        )
+
+    assert len(learned_attempts) == 3
+
+def test_print_real_shift_up_normalized_trajectories():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+    
+    print("\nREAL SHIFT_UP NORMALIZED TRAJECTORIES")
+
+    for attempt_index, attempt in enumerate(
+        learned_attempts,
+        start=1,
+    ):
+        trajectory = [
+            calibration.movement_from_rest(
+                forward=forward,
+                drop=drop,
+                angle=angle,
+            )
+            for forward, drop, angle in attempt
+        ]
+
+        normalized = (
+            calibration.shift_up_normalized_component_trajectory(
+                trajectory
+            )
+        )
+
+        print(f"\nATTEMPT {attempt_index}")
+
+        for point_index, point in enumerate(normalized):
+            print(
+                point_index,
+                "forward=", round(point["forward"], 3),
+                "drop=", round(point["drop"], 3),
+                "angle=", round(point["angle"], 3),
+            )
+
+    assert len(learned_attempts) == 3
+
+def test_print_real_shift_up_middle_activity_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    print("\nREAL SHIFT_UP MIDDLE ACTIVITY")
+
+    for index, sequence in enumerate(
+        calibration.shift_up_sequences,
+        start=1,
+    ):
+        normalized = (
+            calibration.shift_up_normalized_component_trajectory(
+                sequence
+            )
+        )
+
+        activity = [
+            (
+                point["forward"] ** 2
+                + point["drop"] ** 2
+                + point["angle"] ** 2
+            ) ** 0.5
+            for point in normalized
+        ]
+
+        total_activity = sum(activity)
+        middle_activity = activity[1] + activity[2]
+
+        ratio = middle_activity / total_activity
+
+        print(
+            f"attempt {index}:",
+            "activity=",
+            [round(value, 3) for value in activity],
+            "middle_ratio=",
+            round(ratio, 3),
+        )
+
+    assert len(calibration.shift_up_sequences) == 3
+
+def test_print_non_shift_middle_activity_ratios():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    non_shift_movements = {
+        "moving NON-SHIFT": [
+            (0.0200, 0.1030, 165.0),
+            (0.0215, 0.1060, 166.0),
+            (0.0230, 0.1100, 168.0),
+            (0.0215, 0.1060, 166.0),
+            (0.0200, 0.1030, 165.0),
+        ],
+        "wrong-timing NON-SHIFT": [
+            (0.0200, 0.1030, 165.0),
+            (0.0205, 0.1025, 163.5),
+            (0.0230, 0.0980, 164.5),
+            (0.0215, 0.1015, 164.8),
+            (0.0200, 0.1030, 165.0),
+        ],
+    }
+
+    print("\nNON-SHIFT MIDDLE ACTIVITY")
+
+    for name, samples in non_shift_movements.items():
+        trajectory = [
+            calibration.movement_from_rest(
+                forward=forward,
+                drop=drop,
+                angle=angle,
+            )
+            for forward, drop, angle in samples
+        ]
+
+        normalized = (
+            calibration.shift_up_normalized_component_trajectory(
+                trajectory
+            )
+        )
+
+        activity = [
+            (
+                point["forward"] ** 2
+                + point["drop"] ** 2
+                + point["angle"] ** 2
+            ) ** 0.5
+            for point in normalized
+        ]
+
+        total_activity = sum(activity)
+        middle_activity = activity[1] + activity[2]
+
+        ratio = middle_activity / total_activity
+
+        print(
+            name,
+            "activity=",
+            [round(value, 3) for value in activity],
+            "middle_ratio=",
+            round(ratio, 3),
+        )
+
+    assert len(non_shift_movements) == 2
+
+def test_print_real_moving_non_shift_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    real_moving_non_shift = [
+        (-0.0014, 0.12917, 176.2),
+        (-0.0109, 0.15191, 178.4),
+        (-0.0132, 0.16061, 177.0),
+        (-0.0111, 0.12927, 177.0),
+        (-0.0102, 0.18014, 178.4),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        real_moving_non_shift
+    )
+
+    print(
+        "\nREAL MOVING NON-SHIFT DISTANCE RATIO:",
+        ratio,
+    )
+
+    assert ratio is not None
+
+def test_print_real_clean_SHIFT_UP_distance_ratio():
+    calibration = GearShiftCalibration()
+
+    calibration.rest_forward = 0.020
+    calibration.rest_drop = 0.103
+    calibration.rest_angle = 165.0
+
+    learned_attempts = [
+        [
+            (0.0208, 0.10250, 165.1),
+            (0.0220, 0.10239, 164.6),
+            (0.0229, 0.09980, 163.6),
+            (0.0219, 0.10229, 164.5),
+            (0.0221, 0.10295, 164.3),
+        ],
+        [
+            (0.0206, 0.10295, 165.6),
+            (0.0233, 0.09721, 163.3),
+            (0.0233, 0.09722, 163.6),
+            (0.0211, 0.10351, 164.8),
+            (0.0206, 0.10479, 165.2),
+        ],
+        [
+            (0.0218, 0.10787, 165.2),
+            (0.0232, 0.09798, 163.6),
+            (0.0217, 0.09711, 164.5),
+            (0.0212, 0.10222, 165.1),
+            (0.0217, 0.10225, 164.5),
+        ],
+    ]
+
+    for attempt in learned_attempts:
+        calibration.add_shift_up_sequence(attempt)
+
+    real_clean_non_shift = [
+        (0.0229, 0.10126, 164.0),
+        (0.0230, 0.10127, 164.1),
+        (0.0231, 0.10105, 164.1),
+        (0.0235, 0.10085, 163.7),
+        (0.0233, 0.10044, 163.7),
+    ]
+
+    ratio = calibration.shift_up_distance_ratio(
+        real_clean_non_shift
+    )
+
+    print(
+        "\nREAL CLEAN NON-SHIFT DISTANCE RATIO:",
+        ratio,
+    )
+
+    assert ratio is not None
