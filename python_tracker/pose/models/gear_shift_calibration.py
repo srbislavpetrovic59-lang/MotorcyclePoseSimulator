@@ -1,3 +1,4 @@
+import math
 from statistics import median
 
 class GearShiftCalibration:
@@ -435,3 +436,177 @@ class GearShiftCalibration:
             )
 
         return deltas
+
+    @staticmethod
+    def is_shift_up_angular_excursion(
+        angular_excursion: float | None,
+    ) -> bool:
+        if angular_excursion is None:
+            return False
+
+        return angular_excursion >= 3.5
+
+
+    @staticmethod
+    def calculate_angular_excursion(
+        before_angle: float,
+        peak_angle: float,
+    ) -> float:
+        return max(0.0, before_angle - peak_angle)
+
+    @staticmethod
+    def smooth_3d_foot_angles(
+        angles: list[float],
+    ) -> float:
+        return sum(angles[-5:]) / len(angles[-5:])
+
+    @staticmethod
+    def calculate_angle_history_excursion(
+        angles: list[float],
+    ) -> float:
+        if not angles:
+            return 0.0
+
+        return max(0.0, angles[0] - min(angles))
+
+    @staticmethod
+    def smooth_3d_angle_history(
+        angles: list[float],
+    ) -> list[float]:
+        window_size = 5
+
+        if len(angles) < window_size:
+            return []
+
+        return [
+            sum(angles[i:i + window_size]) / window_size
+            for i in range(len(angles) - window_size + 1)
+        ]
+    @staticmethod
+    def find_rotation_start(
+        angles: list[float],
+    ) -> int | None:
+        if len(angles) < 4:
+            return None
+
+        min_rotation = 0.3
+
+        for i in range(len(angles) - 3):
+            if (
+                angles[i + 1] < angles[i]
+                and angles[i + 2] < angles[i + 1]
+                and angles[i + 3] < angles[i + 2]
+                and angles[i] - angles[i + 3] >= min_rotation
+            ):
+                return i + 1
+
+        return None
+
+    @staticmethod
+    def calculate_rotation_duration(
+        timestamps: list[float],
+        start_index: int,
+        minimum_index: int,
+    ) -> float:
+        return timestamps[minimum_index] - timestamps[start_index]
+
+    @staticmethod
+    def is_shift_up_rotation_duration(
+        duration: float | None,
+    ) -> bool:
+        if duration is None:
+            return False
+
+        return duration >= 1.5
+
+    @staticmethod
+    def is_shift_up_motion(
+        angular_excursion: float | None,
+        rotation_duration: float | None,
+    ) -> bool:
+        return (
+            GearShiftCalibration.is_shift_up_angular_excursion(
+                angular_excursion
+            )
+            and GearShiftCalibration.is_shift_up_rotation_duration(
+                rotation_duration
+            )
+        )
+
+    @staticmethod
+    def find_rotation_minimum(
+        angles: list[float],
+        start_index: int,
+    ) -> int:
+        return min(
+            range(start_index, len(angles)),
+            key=angles.__getitem__,
+        )
+
+    @staticmethod
+    def analyze_shift_up_rotation(
+        angles: list[float],
+        timestamps: list[float],
+    ) -> bool:
+        start_index = GearShiftCalibration.find_rotation_start(
+            angles
+        )
+
+        if start_index is None:
+            return False
+
+        minimum_index = GearShiftCalibration.find_rotation_minimum(
+            angles,
+            start_index,
+        )
+
+        angular_excursion = GearShiftCalibration.calculate_angular_excursion(
+            angles[start_index],
+            angles[minimum_index],
+        )
+
+        rotation_duration = GearShiftCalibration.calculate_rotation_duration(
+            timestamps,
+            start_index,
+            minimum_index,
+        )
+
+        return GearShiftCalibration.is_shift_up_motion(
+            angular_excursion,
+            rotation_duration,
+        )
+    @staticmethod
+    def calculate_3d_foot_angle(
+        heel: tuple[float, float, float],
+        ankle: tuple[float, float, float],
+        toe: tuple[float, float, float],
+    ) -> float:
+        ankle_to_heel = (
+            heel[0] - ankle[0],
+            heel[1] - ankle[1],
+            heel[2] - ankle[2],
+        )
+
+        ankle_to_toe = (
+            toe[0] - ankle[0],
+            toe[1] - ankle[1],
+            toe[2] - ankle[2],
+        )
+
+        dot = sum(
+            a * b
+            for a, b in zip(ankle_to_heel, ankle_to_toe)
+        )
+
+        heel_length = math.sqrt(
+            sum(value * value for value in ankle_to_heel)
+        )
+
+        toe_length = math.sqrt(
+            sum(value * value for value in ankle_to_toe)
+        )
+
+        cos_angle = dot / (heel_length * toe_length)
+        cos_angle = max(-1.0, min(1.0, cos_angle))
+
+        return math.degrees(math.acos(cos_angle))
