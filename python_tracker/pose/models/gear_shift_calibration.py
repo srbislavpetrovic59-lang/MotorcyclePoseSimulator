@@ -14,6 +14,10 @@ class GearShiftCalibration:
         self.shift_up_sequences = []
 
     def add_rest_sample(self, forward, drop, angle):
+        
+        if forward is None:
+            return
+        
         self._rest_samples.append(
             (forward, drop, angle)
         )

@@ -4389,5 +4389,176 @@ def test_rearm_clears_forward_history_after_two_bad_frames():
     assert detector._rearm_footpeg_frames == 1
     assert detector._shift_rearm_pending is True
 
+def test_rearm_does_not_finish_on_brief_direction_change():
+    history = [0.050, 0.047, 0.049]
+
+    assert GearShiftDetector._is_rearm_forward_stable(
+        history
+    ) is False
+def test_return_after_shift_does_not_activate_branch_6():
+    detector = GearShiftDetector()
+
+    detector._forward_baseline = 0.05954034328460693
+    detector._shift_rearm_pending = False
+
+    offsets = [
+        -0.004009974002838132,
+        -0.004383218288421628,
+        -0.004932177066802976,
+        -0.005401861667633054,
+        -0.007395040988922116,
+        -0.0065666556358337375,
+        -0.008369159698486325,
+        -0.007765126228332517,
+        -0.010978531837463376,
+        -0.01038415431976318,
+    ]
+
+    for offset in offsets:
+        detector._update_forward_movement_from_baseline(
+            detector._forward_baseline + offset
+        )
+
+    assert detector._forward_movement_active is False
+
+def test_rearm_return_does_not_activate_new_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = True
+    detector._forward_baseline = 0.05954034328460693
+
+    # Stvarni uzorci tokom završetka REARM-a.
+    for forward in [
+        0.0604667067527771,
+        0.05700385570526123,
+        0.05701333284378052,
+    ]:
+        detector.update(
+            left_foot_drop=0.062,
+            left_foot_angle=136.0,
+            left_foot_forward=forward,
+        )
+
+    assert detector._shift_rearm_pending is False
+
+    # Stvarni offseti koji su aktivirali granu 6.
+    offsets = [
+        -0.004009974002838132,
+        -0.004383218288421628,
+        -0.004932177066802976,
+        -0.005401861667633054,
+        -0.007395040988922116,
+        -0.0065666556358337375,
+        -0.008369159698486325,
+        -0.007765126228332517,
+        -0.010978531837463376,
+        -0.01038415431976318,
+    ]
+
+    for offset in offsets:
+        detector.update(
+            left_foot_drop=0.078,
+            left_foot_angle=146.0,
+            left_foot_forward=detector._forward_baseline + offset,
+        )
+
+    assert detector._forward_movement_active is False
+def test_live_baseline_learns_from_stable_forward_values():
+    detector = GearShiftDetector()
+
+    samples = [
+        0.0410,
+        0.0415,
+        0.0412,
+        0.0414,
+        0.0413,
+    ]
+
+    for index, forward in enumerate(samples):
+        detector.update(
+            left_foot_drop=0.120,
+            left_foot_angle=169.0,
+            left_foot_forward=forward,
+            elapsed_seconds=6.1 + index * 0.05,
+        )
+
+    assert detector._forward_baseline == pytest.approx(
+        sum(samples) / len(samples)
+    )
+
+def test_detector_does_not_learn_rest_while_foot_is_moving():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = True
+
+    detector.update(
+        left_foot_drop=0.098,
+        left_foot_angle=163.0,
+        left_foot_forward=0.024,
+    )
+
+    assert detector._calibration._rest_samples == []
+
+def test_gear_shift_detector_detects_shift_up_from_3d_rotation():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.4,
+        165.8,
+        164.5,
+        163.0,
+    ]
+
+    timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+    ]
+
+    result = detector._is_shift_up_3d_rotation(
+        angles,
+        timestamps,
+    )
+
+    assert result is True
+
+def test_gear_shift_detector_rejects_non_shift_3d_rotation():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.6,
+        166.3,
+        165.9,
+        165.5,
+    ]
+
+    timestamps = [
+        0.0,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.2,
+    ]
+
+    result = detector._is_shift_up_3d_rotation(
+        angles,
+        timestamps,
+    )
+
+    assert result is False
 
 

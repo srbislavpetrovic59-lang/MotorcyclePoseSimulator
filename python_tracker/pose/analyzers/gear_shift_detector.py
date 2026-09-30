@@ -1,3 +1,5 @@
+from pose.models.gear_shift_calibration import GearShiftCalibration
+
 class GearShiftDetector:
    
     LOW_THRESHOLD = 0.045
@@ -40,8 +42,18 @@ class GearShiftDetector:
         self._rearm_bad_frames = 0
         self._rearm_previous_forward = None
         self._rearm_forward_history = []
+        self._calibration = GearShiftCalibration()
       
-   
+    def _is_shift_up_3d_rotation(
+        self,
+        angles: list[float],
+        timestamps: list[float],
+    ) -> bool:
+        return self._calibration.analyze_shift_up_rotation(
+            angles,
+            timestamps,
+        )
+
     def update(
         self,
         left_foot_drop,
@@ -71,6 +83,14 @@ class GearShiftDetector:
                 left_foot_angle,
             )
 
+            
+            if not self._forward_movement_active:
+                self._calibration.add_rest_sample(
+                    forward=left_foot_forward,
+                    drop=left_foot_drop,
+                    angle=left_foot_angle,
+                )
+
             zone = self._movement_zone(
                 left_foot_drop,
                 left_foot_angle,
@@ -83,7 +103,7 @@ class GearShiftDetector:
             if elapsed_seconds is not None:
                 if (
                     self._forward_baseline is None
-                    and on_footpeg
+                    and left_foot_forward is not None      # # and on_footpeg
                 ):
                     self._live_forward_baseline_samples.append(
                         left_foot_forward
@@ -96,37 +116,24 @@ class GearShiftDetector:
                         self._live_forward_baseline_samples,
                     )
 
-                    if (
-                        len(
-                            self._live_forward_baseline_samples
-                        )
-                        < 5
-                    ):
-                        return None
+                    if len(self._live_forward_baseline_samples) >= 5:
+                        recent = self._live_forward_baseline_samples[-5:]
 
-                    recent = (
-                        self._live_forward_baseline_samples[-5:]
-                    )
+                        if max(recent) - min(recent) > 0.008:
+                            self._live_forward_baseline_samples.pop(0)
+                        else:
+                            self._forward_baseline = (
+                                sum(recent)
+                                / len(recent)
+                            )
+                            self._startup_ready = True
+                            self._startup_footpeg_frames = 3
 
-                    if (
-                        max(recent) - min(recent)
-                        > 0.008
-                    ):
-                        self._live_forward_baseline_samples.pop(
-                            0
-                        )
-                        return None
-
-                    self._forward_baseline = (
-                        sum(recent)
-                        / len(recent)
-                    )
-                    self._startup_ready = True
-                    self._startup_footpeg_frames = 3
-                    print(
-                        "LIVE BASELINE SET:",
-                        self._forward_baseline,
-                    )
+                            print(
+                                "LIVE BASELINE SET:",
+                                self._forward_baseline,
+                            )
+                  
 
             # Unit-test / non-live baseline handling
             if elapsed_seconds is None:
@@ -591,7 +598,8 @@ class GearShiftDetector:
 
         ):
             return False
-   
+       # return (left_foot_drop,
+       #     left_foot_angle)
         return (
             (
                 0.090 <= left_foot_drop <= 0.140
@@ -991,6 +999,14 @@ class GearShiftDetector:
             current_step = abs(current - previous)
 
             recent_offsets = self._forward_offset_history[-4:]
+            
+            progressive_negative_path = all(
+                current <= previous + 0.0005
+                for previous, current in zip(
+                    recent_offsets,
+                    recent_offsets[1:],
+                )
+            )
 
             recent_steps = [
                 abs(recent_offsets[index] - recent_offsets[index - 1])
@@ -1021,6 +1037,7 @@ class GearShiftDetector:
                 and previous <= -0.008
                 and current <= -0.008
                 and settling_negative_path
+                and progressive_negative_path
             ):
                 print("FORWARD BRANCH: 6 recent positive")
                 self._forward_movement_active = True
@@ -1400,7 +1417,15 @@ class GearShiftDetector:
             - min(prior, previous, current)
             <= 0.008
         )
+        settled = abs(current - previous) <= 0.0015
 
-        return direction_changed and stable_range
+        return (
+            direction_changed
+            and stable_range
+            and settled
+        )
+
+
      
+   
 
