@@ -56,6 +56,41 @@ class GearShiftDetector:
             timestamps,
         )
 
+    def _has_shift_up_3d_rotation(
+        self,
+    ) -> bool:
+        return self._is_shift_up_3d_rotation(
+            self._foot_3d_angle_history,
+            self._foot_3d_angle_timestamps,
+        )
+
+    def _shift_up_3d_candidate(
+        self,
+    ) -> bool | None:
+        if not self._foot_3d_angle_history:
+            return None
+
+        return self._has_shift_up_3d_rotation()
+    
+    def _can_shift_up_from_3d(
+        self,
+        candidate: bool,
+    ) -> bool:
+        return (
+            candidate
+            and self._back_movement_active
+        )
+    
+    def _can_emit_shift_up_from_3d(
+        self,
+    ) -> bool:
+        return (
+            not self._shift_rearm_pending
+            and self._can_shift_up_from_3d(
+                self._shift_up_3d_candidate()
+            )
+        )
+
     def _record_3d_rotation_sample(
         self,
         angle: float,
@@ -317,7 +352,15 @@ class GearShiftDetector:
                 left_heel_y,
                 left_heel_visibility,
             )
+            # ---------------------------------------------------------
+            # 3D rotation shift-up confirmation
+            # ---------------------------------------------------------
 
+            if self._can_emit_shift_up_from_3d():
+                self._shift_rearm_pending = True
+                self._back_movement_active = False
+
+                return "SHIFT_UP"
             # ---------------------------------------------------------
             # Heel-based shift decision
             # ---------------------------------------------------------
@@ -379,6 +422,7 @@ class GearShiftDetector:
             ):
                 self._shift_rearm_pending = True
                 self._back_movement_active = False
+                
                 return "SHIFT_UP"
 
             # ---------------------------------------------------------
@@ -493,10 +537,18 @@ class GearShiftDetector:
                     self._pending_zones.clear()
 
                     if self._zone_history == ["UP"]:
-                        self._zone_history.clear()
-                        self._shift_rearm_pending = True
-                      
-                        return "SHIFT_UP"
+                        
+                        shift = self._confirm_shift_up(
+                            shift="SHIFT_UP",
+                            candidate=self._shift_up_3d_candidate(),
+                        )
+
+                        if shift is not None:
+                            self._zone_history.clear()
+                            self._shift_rearm_pending = True
+
+                            return shift
+
                     if self._zone_history == ["DOWN"]:
                         self._zone_history.clear()
                         self._shift_rearm_pending = True
@@ -536,7 +588,7 @@ class GearShiftDetector:
                     if self._zone_history == ["UP"]:
                         self._reset_stale_shift_attempt()
                         self._shift_rearm_pending = True
-                   
+                       
                         return "SHIFT_UP"
                     if self._zone_history == ["DOWN"]:
                         self._reset_stale_shift_attempt()
@@ -567,7 +619,7 @@ class GearShiftDetector:
                 ):
                     self._reset_stale_shift_attempt()
                     self._shift_rearm_pending = True
-                 
+                    
                     return "SHIFT_UP"
                 if candidate is not None:
                     self._add_shift_candidate(
@@ -1472,6 +1524,18 @@ class GearShiftDetector:
             and stable_range
             and settled
         )
+    def _confirm_shift_up(
+        self,
+        shift: str | None,
+        candidate: bool | None
+    ) -> str | None:
+        if shift != "SHIFT_UP":
+            return shift
+
+        if candidate is False:
+            return None
+
+        return "SHIFT_UP"
 
 
      

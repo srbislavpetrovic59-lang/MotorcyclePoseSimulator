@@ -4651,4 +4651,341 @@ def test_gear_shift_detector_update_records_3d_rotation():
     )
     assert detector._foot_3d_angle_timestamps == [10.25]
 
+def test_gear_shift_detector_detects_shift_up_from_recorded_3d_history():
+    detector = GearShiftDetector()
 
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.4,
+        165.8,
+        164.5,
+        163.0,
+    ]
+
+    timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+    ]
+
+    for angle, timestamp in zip(angles, timestamps):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=timestamp,
+        )
+
+    assert detector._has_shift_up_3d_rotation() is True
+
+def test_gear_shift_detector_rejects_non_shift_from_recorded_3d_history():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.6,
+        166.3,
+        165.9,
+        165.5,
+    ]
+
+    timestamps = [
+        0.0,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.2,
+    ]
+
+    for angle, timestamp in zip(angles, timestamps):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=timestamp,
+        )
+
+    assert detector._has_shift_up_3d_rotation() is False
+
+def test_gear_shift_detector_3d_candidate_is_shift_up():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.4,
+        165.8,
+        164.5,
+        163.0,
+    ]
+
+    timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+    ]
+
+    for angle, timestamp in zip(angles, timestamps):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=timestamp,
+        )
+
+    assert detector._shift_up_3d_candidate() is True
+
+def test_3d_shift_up_candidate_alone_does_not_emit_shift_up():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        166.9,
+        166.8,
+        166.4,
+        165.8,
+        164.5,
+        163.0,
+    ]
+
+    timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+    ]
+
+    for angle, timestamp in zip(angles, timestamps):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=timestamp,
+        )
+
+    assert detector._shift_up_3d_candidate() is True
+    assert detector._shift_rearm_pending is False
+
+def test_shift_up_3d_candidate_requires_back_movement():
+    detector = GearShiftDetector()
+
+    detector._back_movement_active = False
+
+    assert detector._can_shift_up_from_3d(
+        candidate=True
+    ) is False
+
+def test_shift_up_3d_candidate_with_back_movement_is_allowed():
+    detector = GearShiftDetector()
+
+    detector._back_movement_active = True
+
+    assert detector._can_shift_up_from_3d(
+        candidate=True
+    ) is True
+
+def test_3d_candidate_emits_shift_up_when_back_movement_is_active(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._back_movement_active = True
+    detector._shift_rearm_pending = False
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        lambda: True,
+    )
+
+    assert detector._can_emit_shift_up_from_3d() is True
+
+def test_live_3d_candidate_can_confirm_shift_up(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = -0.060
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        lambda: True,
+    )
+
+    sequence = [
+        (0.0404, 99.0, -0.060),
+        (0.0373, 107.2, -0.058),
+
+        # forward movement
+        (0.0330, 109.5, -0.045),
+        (0.0342, 109.0, -0.030),
+        (0.0096, 127.0, -0.015),
+        (-0.0150, 154.9, -0.010),
+
+        # return
+        (0.0400, 105.0, -0.040),
+        (0.0480, 100.0, -0.058),
+    ]
+
+    events = []
+
+    for drop, angle, forward in sequence:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+
+        if event is not None:
+            events.append(event)
+
+    assert "SHIFT_UP" in events
+
+def test_live_3d_candidate_emits_shift_up_without_direction_fallback(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+    calls = []
+
+    def three_d_candidate():
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        three_d_candidate,
+    )
+    
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = -0.060
+
+    # Disable the old direction-zone fallback.
+    monkeypatch.setattr(
+        detector,
+        "_update_direction_zone",
+        lambda zone: None,
+    )
+
+    sequence = [
+        (0.0404, 99.0, -0.060),
+        (0.0373, 107.2, -0.058),
+        (0.0330, 109.5, -0.045),
+        (0.0342, 109.0, -0.030),
+        (0.0096, 127.0, -0.015),
+        (-0.0150, 154.9, -0.010),
+        (0.0400, 105.0, -0.040),
+        (0.0480, 100.0, -0.058),
+    ]
+
+    events = []
+
+    for drop, angle, forward in sequence:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+
+        if event is not None:
+            events.append(event)
+
+    assert events == ["SHIFT_UP"]
+    assert calls
+
+def test_live_3d_non_candidate_does_not_confirm_shift_up(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = -0.060
+
+    calls = []
+
+    def three_d_candidate():
+        calls.append(True)
+        return False
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        three_d_candidate,
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_update_direction_zone",
+        lambda zone: None,
+    )
+
+    sequence = [
+        (0.0404, 99.0, -0.060),
+        (0.0373, 107.2, -0.058),
+        (0.0330, 109.5, -0.045),
+        (0.0342, 109.0, -0.030),
+        (0.0096, 127.0, -0.015),
+        (-0.0150, 154.9, -0.010),
+        (0.0400, 105.0, -0.040),
+        (0.0480, 100.0, -0.058),
+    ]
+
+    events = []
+
+    for drop, angle, forward in sequence:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+
+        if event is not None:
+            events.append(event)
+
+    assert calls
+    assert "SHIFT_UP" not in events
+
+def test_shift_up_event_requires_3d_confirmation():
+    detector = GearShiftDetector()
+
+    assert detector._confirm_shift_up(
+        shift="SHIFT_UP",
+        candidate=False,
+    ) is None
+
+def test_shift_up_event_passes_with_3d_confirmation():
+    detector = GearShiftDetector()
+
+    assert detector._confirm_shift_up(
+        shift="SHIFT_UP",
+        candidate=True,
+    ) == "SHIFT_UP"
+
+def test_shift_up_3d_candidate_is_none_without_3d_history():
+    detector = GearShiftDetector()
+
+    assert detector._shift_up_3d_candidate() is None
+
+def test_shift_up_event_passes_without_3d_data():
+    detector = GearShiftDetector()
+
+    assert detector._confirm_shift_up(
+        shift="SHIFT_UP",
+        candidate=None,
+    ) == "SHIFT_UP"
