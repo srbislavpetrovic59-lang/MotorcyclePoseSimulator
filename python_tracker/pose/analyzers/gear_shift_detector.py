@@ -43,6 +43,8 @@ class GearShiftDetector:
         self._rearm_previous_forward = None
         self._rearm_forward_history = []
         self._calibration = GearShiftCalibration()
+        self._foot_3d_angle_history = []
+        self._foot_3d_angle_timestamps = []
       
     def _is_shift_up_3d_rotation(
         self,
@@ -54,6 +56,42 @@ class GearShiftDetector:
             timestamps,
         )
 
+    def _record_3d_rotation_sample(
+        self,
+        angle: float,
+        timestamp: float,
+    ) -> None:
+        if angle is None:
+            return
+
+        self._foot_3d_angle_history.append(angle)
+        self._foot_3d_angle_timestamps.append(timestamp)
+
+        if len(self._foot_3d_angle_history) > 100:
+            self._foot_3d_angle_history.pop(0)
+            self._foot_3d_angle_timestamps.pop(0)
+
+    def _record_3d_rotation_from_landmarks(
+        self,
+        heel: tuple[float, float, float],
+        ankle: tuple[float, float, float],
+        toe: tuple[float, float, float],
+        timestamp: float,
+    ) -> None:
+        if heel is None or ankle is None or toe is None:
+            return
+
+        angle = self._calibration.calculate_3d_foot_angle(
+            heel,
+            ankle,
+            toe,
+        )
+
+        self._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=timestamp,
+        )
+
     def update(
         self,
         left_foot_drop,
@@ -62,6 +100,9 @@ class GearShiftDetector:
         elapsed_seconds=None,
         left_heel_y=None,
         left_heel_visibility=None,
+        left_heel_3d: tuple[float, float, float] | None = None,
+        left_ankle_3d: tuple[float, float, float] | None = None,
+        left_toe_3d: tuple[float, float, float] | None = None,
         ):
             if (
                 elapsed_seconds is not None
@@ -142,6 +183,13 @@ class GearShiftDetector:
                     on_footpeg=on_footpeg,
                 )
 
+            if elapsed_seconds is not None:
+                self._record_3d_rotation_from_landmarks(
+                    heel=left_heel_3d,
+                    ankle=left_ankle_3d,
+                    toe=left_toe_3d,
+                    timestamp=elapsed_seconds,
+                )
             # ---------------------------------------------------------
             # State initialization
             # ---------------------------------------------------------

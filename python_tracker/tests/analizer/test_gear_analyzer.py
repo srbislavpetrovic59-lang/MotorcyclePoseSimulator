@@ -4561,4 +4561,94 @@ def test_gear_shift_detector_rejects_non_shift_3d_rotation():
 
     assert result is False
 
+def test_gear_shift_detector_starts_with_empty_3d_rotation_history():
+    detector = GearShiftDetector()
+
+    assert detector._foot_3d_angle_history == []
+    assert detector._foot_3d_angle_timestamps == []
+
+def test_gear_shift_detector_records_3d_rotation_sample():
+    detector = GearShiftDetector()
+
+    detector._record_3d_rotation_sample(
+        angle=165.4,
+        timestamp=10.25,
+    )
+
+    assert detector._foot_3d_angle_history == [165.4]
+    assert detector._foot_3d_angle_timestamps == [10.25]
+
+def test_gear_shift_detector_limits_3d_rotation_history():
+    detector = GearShiftDetector()
+
+    for index in range(120):
+        detector._record_3d_rotation_sample(
+            angle=float(index),
+            timestamp=float(index) * 0.04,
+        )
+
+    assert len(detector._foot_3d_angle_history) == 100
+    assert len(detector._foot_3d_angle_timestamps) == 100
+
+    assert detector._foot_3d_angle_history[0] == 20.0
+    assert detector._foot_3d_angle_history[-1] == 119.0
+
+def test_gear_shift_detector_ignores_missing_3d_rotation_sample():
+    detector = GearShiftDetector()
+
+    detector._record_3d_rotation_sample(
+        angle=None,
+        timestamp=10.25,
+    )
+
+    assert detector._foot_3d_angle_history == []
+    assert detector._foot_3d_angle_timestamps == []
+
+def test_gear_shift_detector_records_3d_angle_from_landmarks():
+    detector = GearShiftDetector()
+
+    detector._record_3d_rotation_from_landmarks(
+        heel=(0.0, 0.0, 0.0),
+        ankle=(1.0, 0.0, 0.0),
+        toe=(1.0, 1.0, 0.0),
+        timestamp=10.25,
+    )
+
+    assert detector._foot_3d_angle_history == pytest.approx(
+        [90.0]
+    )
+    assert detector._foot_3d_angle_timestamps == [10.25]
+
+def test_gear_shift_detector_ignores_missing_3d_landmarks():
+    detector = GearShiftDetector()
+
+    detector._record_3d_rotation_from_landmarks(
+        heel=None,
+        ankle=(1.0, 0.0, 0.0),
+        toe=(1.0, 1.0, 0.0),
+        timestamp=10.25,
+    )
+
+    assert detector._foot_3d_angle_history == []
+    assert detector._foot_3d_angle_timestamps == []
+
+def test_gear_shift_detector_update_records_3d_rotation():
+    detector = GearShiftDetector()
+
+    detector.update(
+        left_foot_drop=0.120,
+        left_foot_angle=155.0,
+        left_foot_forward=0.030,
+        elapsed_seconds=10.25,
+        left_heel_3d=(0.0, 0.0, 0.0),
+        left_ankle_3d=(1.0, 0.0, 0.0),
+        left_toe_3d=(1.0, 1.0, 0.0),
+       
+    )
+
+    assert detector._foot_3d_angle_history == pytest.approx(
+        [90.0]
+    )
+    assert detector._foot_3d_angle_timestamps == [10.25]
+
 
