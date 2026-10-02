@@ -1474,3 +1474,53 @@ def test_analyze_does_not_check_rear_brake_ready_during_calibration(
 
     assert received == []
     assert result["rear_brake_ready"] is False
+
+def test_analyze_passes_left_foot_3d_landmarks_to_gear_shift_detector(
+    monkeypatch,
+):
+    from pose.analyzers.foot_analyzer import PoseLandmark
+    analyzer = FootAnalyzer()
+
+    landmarks = [
+        SimpleNamespace(
+            x=0.1 * (i % 3),
+            y=0.1 * (i // 3),
+            z=0.01 * i,
+            visibility=0.9,
+        )
+        for i in range(33)
+    ]
+
+    received = {}
+
+    def capture_update(*args, **kwargs):
+        received.update(kwargs)
+        return None
+
+    monkeypatch.setattr(
+        analyzer._gear_shift_detector,
+        "update",
+        capture_update,
+    )
+
+    analyzer.analyze(landmarks)
+
+    left_heel = landmarks[PoseLandmark.LEFT_HEEL]
+    left_ankle = landmarks[PoseLandmark.LEFT_ANKLE]
+    left_toe = landmarks[PoseLandmark.LEFT_FOOT_INDEX]
+
+    assert received["left_heel_3d"] == (
+        left_heel.x,
+        left_heel.y,
+        left_heel.z,
+    )
+    assert received["left_ankle_3d"] == (
+        left_ankle.x,
+        left_ankle.y,
+        left_ankle.z,
+    )
+    assert received["left_toe_3d"] == (
+        left_toe.x,
+        left_toe.y,
+        left_toe.z,
+    )

@@ -67,6 +67,21 @@ class FootAnalyzer:
                 elapsed_seconds=elapsed,
                 left_heel_y=left_heel.y,
                 left_heel_visibility=left_heel.visibility,
+                left_heel_3d=(
+                    left_heel.x,
+                    left_heel.y,
+                    left_heel.z,
+                ),
+                left_ankle_3d=(
+                    left_ankle.x,
+                    left_ankle.y,
+                    left_ankle.z,
+                ),
+                left_toe_3d=(
+                    left_foot.x,
+                    left_foot.y,
+                    left_foot.z,
+                ),
             )
 
             if gear_shift is not None:
