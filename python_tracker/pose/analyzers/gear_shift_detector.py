@@ -59,15 +59,25 @@ class GearShiftDetector:
     def _has_shift_up_3d_rotation(
         self,
     ) -> bool:
+        smoothed_angles = (
+            self._calibration.smooth_3d_angle_history(
+                self._foot_3d_angle_history
+            )
+        )
+
+        smoothed_timestamps = (
+            self._foot_3d_angle_timestamps[4:]
+        )
+
         return self._is_shift_up_3d_rotation(
-            self._foot_3d_angle_history,
-            self._foot_3d_angle_timestamps,
+            smoothed_angles,
+            smoothed_timestamps,
         )
 
     def _shift_up_3d_candidate(
         self,
     ) -> bool | None:
-        if not self._foot_3d_angle_history:
+        if len(self._foot_3d_angle_history) < 5:
             return None
 
         return self._has_shift_up_3d_rotation()

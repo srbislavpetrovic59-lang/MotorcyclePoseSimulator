@@ -4656,12 +4656,17 @@ def test_gear_shift_detector_detects_shift_up_from_recorded_3d_history():
 
     angles = [
         167.0,
-        166.9,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
         166.8,
         166.4,
-        165.8,
-        164.5,
+        165.6,
+        164.4,
         163.0,
+        161.5,
+        160.0,
     ]
 
     timestamps = [
@@ -4672,6 +4677,11 @@ def test_gear_shift_detector_detects_shift_up_from_recorded_3d_history():
         2.0,
         2.5,
         3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
     ]
 
     for angle, timestamp in zip(angles, timestamps):
@@ -4718,12 +4728,17 @@ def test_gear_shift_detector_3d_candidate_is_shift_up():
 
     angles = [
         167.0,
-        166.9,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
         166.8,
         166.4,
-        165.8,
-        164.5,
+        165.6,
+        164.4,
         163.0,
+        161.5,
+        160.0,
     ]
 
     timestamps = [
@@ -4734,6 +4749,11 @@ def test_gear_shift_detector_3d_candidate_is_shift_up():
         2.0,
         2.5,
         3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
     ]
 
     for angle, timestamp in zip(angles, timestamps):
@@ -4749,12 +4769,17 @@ def test_3d_shift_up_candidate_alone_does_not_emit_shift_up():
 
     angles = [
         167.0,
-        166.9,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
         166.8,
         166.4,
-        165.8,
-        164.5,
+        165.6,
+        164.4,
         163.0,
+        161.5,
+        160.0,
     ]
 
     timestamps = [
@@ -4765,6 +4790,11 @@ def test_3d_shift_up_candidate_alone_does_not_emit_shift_up():
         2.0,
         2.5,
         3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
     ]
 
     for angle, timestamp in zip(angles, timestamps):
@@ -4989,3 +5019,67 @@ def test_shift_up_event_passes_without_3d_data():
         shift="SHIFT_UP",
         candidate=None,
     ) == "SHIFT_UP"
+
+def test_shift_up_3d_candidate_uses_smoothed_angle_history(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.8,
+        166.6,
+        166.4,
+        166.2,
+        166.0,
+    ]
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+    ]
+
+    captured = {}
+
+    def analyze(angles, timestamps):
+        captured["angles"] = angles
+        captured["timestamps"] = timestamps
+        return False
+
+    monkeypatch.setattr(
+        detector._calibration,
+        "analyze_shift_up_rotation",
+        analyze,
+    )
+
+    detector._shift_up_3d_candidate()
+
+    assert captured["angles"] == [
+        166.6,
+        166.4,
+    ]
+    assert captured["timestamps"] == [
+        0.4,
+        0.5,
+    ]
+
+def test_shift_up_3d_candidate_is_none_with_insufficient_history():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.8,
+        166.6,
+        166.4,
+    ]
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+    ]
+
+    assert detector._shift_up_3d_candidate() is None
