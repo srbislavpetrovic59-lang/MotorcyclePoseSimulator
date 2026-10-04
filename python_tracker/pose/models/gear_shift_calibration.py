@@ -493,7 +493,7 @@ class GearShiftCalibration:
         if len(angles) < 4:
             return None
 
-        min_rotation = 0.3
+        min_rotation = 0.5
 
         for i in range(len(angles) - 3):
             if (
@@ -501,7 +501,9 @@ class GearShiftCalibration:
                 and angles[i + 2] < angles[i + 1]
                 and angles[i + 3] < angles[i + 2]
                 and angles[i] - angles[i + 3] >= min_rotation
+               
             ):
+                
                 return i + 1
 
         return None
@@ -614,3 +616,26 @@ class GearShiftCalibration:
         cos_angle = max(-1.0, min(1.0, cos_angle))
 
         return math.degrees(math.acos(cos_angle))
+
+    @staticmethod
+    def is_shift_up_motion(
+        angular_excursion,
+        rotation_duration,
+    ):
+        normal_shift = (
+            GearShiftCalibration.is_shift_up_angular_excursion(
+                angular_excursion
+            )
+            and GearShiftCalibration.is_shift_up_rotation_duration(
+                rotation_duration
+            )
+        )
+
+        fast_large_shift = (
+            angular_excursion is not None
+            and rotation_duration is not None
+            and angular_excursion >= 10.0
+            and rotation_duration >= 0.5
+        )
+
+        return normal_shift or fast_large_shift

@@ -3123,3 +3123,46 @@ def test_rejects_measured_non_shift_at_25_seconds():
         smoothed_angles,
         smoothed_timestamps,
     ) is False
+
+def test_rest_sample_ignores_missing_forward_value():
+    calibration = GearShiftCalibration()
+
+    for _ in range(5):
+        calibration.add_rest_sample(
+            forward=None,
+            drop=0.12,
+            angle=159.0,
+        )
+
+
+def test_real_shift_up_rotation_starts_rotation():
+    angles = [
+        76.5968,
+        72.8789,
+        71.2141,
+        70.8972,
+    ]
+
+    start = GearShiftCalibration.find_rotation_start(
+        angles
+    )
+
+    assert start is not None
+
+def test_fast_large_3d_rotation_is_shift_up():
+    assert GearShiftCalibration.is_shift_up_motion(
+        angular_excursion=14.0,
+        rotation_duration=0.83,
+    ) is True
+
+def test_fast_small_3d_rotation_is_not_shift_up():
+    assert GearShiftCalibration.is_shift_up_motion(
+        angular_excursion=3.0,
+        rotation_duration=0.83,
+    ) is False
+
+def test_very_short_large_3d_rotation_is_not_shift_up():
+    assert GearShiftCalibration.is_shift_up_motion(
+        angular_excursion=14.0,
+        rotation_duration=0.30,
+    ) is False

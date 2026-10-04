@@ -45,6 +45,9 @@ class GearShiftDetector:
         self._calibration = GearShiftCalibration()
         self._foot_3d_angle_history = []
         self._foot_3d_angle_timestamps = []
+        self._shift_3d_start_index = 0
+        self._shift_3d_attempt_active = False
+        self._shift_3d_attempt_started_at = None
       
     def _is_shift_up_3d_rotation(
         self,
@@ -73,23 +76,52 @@ class GearShiftDetector:
             smoothed_angles,
             smoothed_timestamps,
         )
+     
+    def _activate_back_movement(self) -> None:
+        self._back_movement_active = True
 
     def _shift_up_3d_candidate(
         self,
     ) -> bool | None:
-        if len(self._foot_3d_angle_history) < 5:
+        attempt_angles = self._foot_3d_angle_history[
+            self._shift_3d_start_index:
+        ]
+
+        attempt_timestamps = self._foot_3d_angle_timestamps[
+            self._shift_3d_start_index:
+        ]
+
+        if len(attempt_angles) < 5:
             return None
 
-        return self._has_shift_up_3d_rotation()
+        smoothed_angles = (
+            self._calibration.smooth_3d_angle_history(
+                attempt_angles
+            )
+        )
+
+        smoothed_timestamps = attempt_timestamps[4:]
+
+        return self._is_shift_up_3d_rotation(
+            smoothed_angles,
+            smoothed_timestamps,
+        )
+
+    def _activate_forward_movement(self) -> None:
+        if (
+            not self._forward_movement_active
+            and not self._shift_3d_attempt_active
+        ):
+            self._start_new_shift_3d_attempt()
+
+        self._forward_movement_active = True
+       
     
     def _can_shift_up_from_3d(
         self,
         candidate: bool,
     ) -> bool:
-        return (
-            candidate
-            and self._back_movement_active
-        )
+        return candidate is True
     
     def _can_emit_shift_up_from_3d(
         self,
@@ -103,18 +135,26 @@ class GearShiftDetector:
 
     def _record_3d_rotation_sample(
         self,
-        angle: float,
+        angle: float | None,
         timestamp: float,
     ) -> None:
         if angle is None:
             return
-
+        
         self._foot_3d_angle_history.append(angle)
         self._foot_3d_angle_timestamps.append(timestamp)
+        self._start_shift_attempt_from_3d_rotation()
+
+        self._expire_stale_3d_shift_attempt(
+            timestamp
+        )
 
         if len(self._foot_3d_angle_history) > 100:
             self._foot_3d_angle_history.pop(0)
             self._foot_3d_angle_timestamps.pop(0)
+
+            if self._shift_3d_start_index > 0:
+                self._shift_3d_start_index -= 1
 
     def _record_3d_rotation_from_landmarks(
         self,
@@ -136,6 +176,103 @@ class GearShiftDetector:
             angle=angle,
             timestamp=timestamp,
         )
+    
+    def _start_new_shift_3d_attempt(
+        self,
+    ) -> None:
+        self._shift_3d_start_index = len(
+            self._foot_3d_angle_history
+        )
+
+    def _start_shift_attempt_from_3d_rotation(
+        self,
+    ) -> None:
+        if self._shift_3d_attempt_active:
+            return
+
+        search_start_index = self._shift_3d_start_index
+
+        rotation_start = self._calibration.find_rotation_start(
+            self._foot_3d_angle_history[
+                search_start_index:
+            ]
+        )
+
+        if rotation_start is None:
+            return
+
+        rotation_start += search_start_index
+
+        smoothing_context = 4
+
+        self._shift_3d_start_index = max(
+            0,
+            rotation_start - smoothing_context,
+        )
+        self._shift_3d_attempt_active = True
+        if self._foot_3d_angle_timestamps:
+            self._shift_3d_attempt_started_at = (
+                self._foot_3d_angle_timestamps[-1]
+            )
+       
+
+    def _reset_3d_shift_attempt(
+        self,
+    ) -> None:
+       
+        self._shift_3d_attempt_active = False
+        self._shift_3d_attempt_started_at = None
+        self._shift_3d_start_index = len(
+            self._foot_3d_angle_history
+        )
+
+    def _should_reset_failed_3d_attempt(
+        self,
+        candidate: bool | None,
+    ) -> bool:
+        return (
+            self._shift_3d_attempt_active
+            and self._back_movement_active
+            and candidate is False
+        )
+    
+    def _expire_stale_3d_shift_attempt(
+        self,
+        timestamp: float,
+    ) -> None:
+        if not self._shift_3d_attempt_active:
+            return
+
+        if self._shift_3d_attempt_started_at is None:
+            return
+
+        if timestamp - self._shift_3d_attempt_started_at < 2.0:
+            return
+
+        if self._shift_up_3d_candidate() is True:
+            return
+
+        attempt_angles = self._foot_3d_angle_history[
+            self._shift_3d_start_index:
+        ]
+
+        if self._is_3d_shift_attempt_developing(
+            attempt_angles
+        ):
+            return
+
+        self._reset_3d_shift_attempt()
+
+    @staticmethod
+    def _is_3d_shift_attempt_developing(
+        angles: list[float],
+    ) -> bool:
+        if len(angles) < 2:
+            return False
+
+        development = angles[0] - angles[-1]
+
+        return development >= 1.0
 
     def update(
         self,
@@ -369,8 +506,16 @@ class GearShiftDetector:
             if self._can_emit_shift_up_from_3d():
                 self._shift_rearm_pending = True
                 self._back_movement_active = False
+                self._reset_3d_shift_attempt()
 
                 return "SHIFT_UP"
+
+            candidate = self._shift_up_3d_candidate()
+
+            if self._should_reset_failed_3d_attempt(
+                candidate
+            ):
+                self._reset_3d_shift_attempt()
             # ---------------------------------------------------------
             # Heel-based shift decision
             # ---------------------------------------------------------
@@ -432,6 +577,7 @@ class GearShiftDetector:
             ):
                 self._shift_rearm_pending = True
                 self._back_movement_active = False
+                self._reset_3d_shift_attempt()
                 
                 return "SHIFT_UP"
 
@@ -798,10 +944,11 @@ class GearShiftDetector:
     def _update_forward_movement(self, left_foot_forward):
         if self._is_foot_moved_forward(left_foot_forward):
             print("FORWARD BRANCH: recent positive")
-            self._forward_movement_active = True
+            self._activate_forward_movement()
 
     def _reset_forward_movement(self):
         self._forward_movement_active = False
+        
         
 
     def _set_forward_baseline(self, value):
@@ -874,7 +1021,7 @@ class GearShiftDetector:
                 and sudden_forward_jump
                 and stays_forward
             ):
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -906,7 +1053,7 @@ class GearShiftDetector:
                 and stays_forward
                 and overall_forward_progress
             ):
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
         #=================================================== korekcija pre smooth grana
@@ -930,7 +1077,7 @@ class GearShiftDetector:
                 and sudden_forward_jump
                 and stays_forward
             ):
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -959,7 +1106,7 @@ class GearShiftDetector:
                 and smooth_outward_movement
             ): 
                 print("FORWARD BRANCH: two negative")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -974,7 +1121,7 @@ class GearShiftDetector:
                 and abs(returned) <= 0.002
                 and max(outward) - returned >= 0.005
             ):
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
                 
@@ -1000,7 +1147,7 @@ class GearShiftDetector:
                 and moved_outward
                 and smooth_outward_movement
             ):
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -1015,7 +1162,7 @@ class GearShiftDetector:
                 and current >= 0.019
             ):
                 print("FORWARD BRANCH: 8 recent positive")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -1024,7 +1171,7 @@ class GearShiftDetector:
                 and current <= -0.019
             ):
                 print("FORWARD BRANCH: 3 positive")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -1040,7 +1187,7 @@ class GearShiftDetector:
                 ) >= 2
             ):
                 print("FORWARD BRANCH: recent 4 positive")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -1065,7 +1212,7 @@ class GearShiftDetector:
                             for offset in between
                         ):
                             print("FORWARD BRANCH: 9 recent positive")
-                            self._forward_movement_active = True
+                            self._activate_forward_movement()
                             self._back_movement_active = False
                             return
 
@@ -1089,7 +1236,7 @@ class GearShiftDetector:
                             for offset in between
                         ):
                             print("FORWARD BRANCH: recent  5 positive")
-                            self._forward_movement_active = True
+                            self._activate_forward_movement()
                             self._back_movement_active = False
                             return
 
@@ -1150,7 +1297,7 @@ class GearShiftDetector:
                 and progressive_negative_path
             ):
                 print("FORWARD BRANCH: 6 recent positive")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
         if len(self._forward_offset_history) >= 2:
@@ -1162,7 +1309,7 @@ class GearShiftDetector:
                 and current >= 0.018
             ):
                 print("FORWARD BRANCH: 7 recent positive")
-                self._forward_movement_active = True
+                self._activate_forward_movement()
                 self._back_movement_active = False
                 return
 
@@ -1193,6 +1340,7 @@ class GearShiftDetector:
         self._outside_footpeg_frames = 0
         self._pending_zones.clear()
         self._zone_history.clear()
+       
         
 
     def _add_shift_candidate(self, candidate):
@@ -1261,7 +1409,7 @@ class GearShiftDetector:
             return
 
         if abs(offset) < 0.002:
-            self._back_movement_active = True
+            self._activate_back_movement()
             return
 
         if len(self._forward_offset_history) < 3:
@@ -1288,7 +1436,7 @@ class GearShiftDetector:
                 f"current={current:.4f}",
                 f"offset={offset:.4f}",
             )
-            self._back_movement_active = True
+            self._activate_back_movement()
 
     def _update_direction_zone(
         self,

@@ -1435,6 +1435,7 @@ def test_forward_up_back_emits_shift_up():
 
     detector._state = "READY"
     detector._forward_baseline = 0.035
+    detector._shift_3d_attempt_active = True
 
     # Forward movement starts the attempt.
     detector.update(
@@ -1468,6 +1469,7 @@ def test_forward_up_back_emits_shift_up():
     )
 
     assert result == "SHIFT_UP"
+    assert detector._shift_3d_attempt_active is False
 
 def test_real_shift_up_is_not_classified_as_down_from_down_zones():
     detector = GearShiftDetector()
@@ -4806,14 +4808,6 @@ def test_3d_shift_up_candidate_alone_does_not_emit_shift_up():
     assert detector._shift_up_3d_candidate() is True
     assert detector._shift_rearm_pending is False
 
-def test_shift_up_3d_candidate_requires_back_movement():
-    detector = GearShiftDetector()
-
-    detector._back_movement_active = False
-
-    assert detector._can_shift_up_from_3d(
-        candidate=True
-    ) is False
 
 def test_shift_up_3d_candidate_with_back_movement_is_allowed():
     detector = GearShiftDetector()
@@ -4848,12 +4842,13 @@ def test_live_3d_candidate_can_confirm_shift_up(
     detector._state = "READY"
     detector._startup_ready = True
     detector._forward_baseline = -0.060
-
+    detector._shift_3d_attempt_active = True
     monkeypatch.setattr(
         detector,
         "_shift_up_3d_candidate",
         lambda: True,
     )
+    
 
     sequence = [
         (0.0404, 99.0, -0.060),
@@ -4883,6 +4878,53 @@ def test_live_3d_candidate_can_confirm_shift_up(
             events.append(event)
 
     assert "SHIFT_UP" in events
+    assert detector._shift_3d_attempt_active is False
+
+def test_live_failed_3d_candidate_resets_attempt_after_back(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._forward_baseline = -0.060
+    detector._shift_3d_attempt_active = True
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        lambda: False,
+    )
+
+    sequence = [
+        (0.0404, 99.0, -0.060),
+        (0.0373, 107.2, -0.058),
+
+        # forward movement
+        (0.0330, 109.5, -0.045),
+        (0.0342, 109.0, -0.030),
+        (0.0096, 127.0, -0.015),
+        (-0.0150, 154.9, -0.010),
+
+        # return
+        (0.0400, 105.0, -0.040),
+        (0.0480, 100.0, -0.058),
+    ]
+
+    events = []
+
+    for drop, angle, forward in sequence:
+        event = detector.update(
+            drop,
+            angle,
+            left_foot_forward=forward,
+        )
+
+        if event is not None:
+            events.append(event)
+
+    assert "SHIFT_UP" not in events
+    assert detector._shift_3d_attempt_active is False
 
 def test_live_3d_candidate_emits_shift_up_without_direction_fallback(
     monkeypatch,
@@ -5083,3 +5125,641 @@ def test_shift_up_3d_candidate_is_none_with_insufficient_history():
     ]
 
     assert detector._shift_up_3d_candidate() is None
+
+def test_old_3d_rotation_cannot_confirm_later_shift_up():
+    detector = GearShiftDetector()
+
+    # Validan stari SHIFT_UP 3D pokret.
+    old_angles = [
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+        164.4,
+        163.0,
+        161.5,
+        160.0,
+    ]
+
+    old_timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
+    ]
+
+    detector._foot_3d_angle_history = old_angles.copy()
+    detector._foot_3d_angle_timestamps = old_timestamps.copy()
+
+    # Stari pokret jeste validan kandidat.
+    assert detector._shift_up_3d_candidate() is True
+    # Počinje novi pokušaj šaltanja.
+    detector._start_new_shift_3d_attempt()
+
+    # Kasnije stopalo miruje.
+    for i in range(40):
+        detector._record_3d_rotation_sample(
+            angle=167.0,
+            timestamp=10.0 + i * 0.05,
+        )
+
+    # Stari 3D pokret više ne sme da potvrdi
+    # novi pokušaj šaltanja.
+    assert detector._shift_up_3d_candidate() is False
+
+def test_new_shift_attempt_starts_fresh_3d_history():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.0,
+        165.0,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    detector._start_new_shift_3d_attempt()
+
+    assert detector._shift_3d_start_index == 3
+
+def test_3d_candidate_ignores_rotation_before_current_attempt():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+        164.4,
+        163.0,
+        161.5,
+        160.0,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
+    ]
+
+    assert detector._shift_up_3d_candidate() is True
+
+    detector._start_new_shift_3d_attempt()
+
+    for i in range(10):
+        detector._record_3d_rotation_sample(
+            angle=167.0,
+            timestamp=10.0 + i * 0.1,
+        )
+
+    assert detector._shift_up_3d_candidate() is False
+
+def test_3d_candidate_is_none_at_start_of_new_attempt():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.0,
+        165.0,
+        164.0,
+        163.0,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+    ]
+
+    detector._start_new_shift_3d_attempt()
+
+    assert detector._shift_up_3d_candidate() is None
+
+def test_back_activation_keeps_current_3d_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.0,
+        165.0,
+    ]
+
+    detector._shift_3d_start_index = 1
+    detector._back_movement_active = False
+
+    detector._activate_back_movement()
+
+    assert detector._back_movement_active is True
+    assert detector._shift_3d_start_index == 1
+
+def test_3d_start_index_tracks_history_trim():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [167.0] * 100
+    detector._foot_3d_angle_timestamps = [
+        i * 0.05 for i in range(100)
+    ]
+
+    detector._shift_3d_start_index = 80
+
+    detector._record_3d_rotation_sample(
+        angle=167.0,
+        timestamp=5.0,
+    )
+
+    assert len(detector._foot_3d_angle_history) == 100
+    assert detector._shift_3d_start_index == 79
+
+def test_forward_activation_starts_new_3d_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.0,
+        165.0,
+    ]
+
+    detector._forward_movement_active = False
+    detector._shift_3d_start_index = 0
+
+    detector._activate_forward_movement()
+
+    assert detector._forward_movement_active is True
+    assert detector._shift_3d_start_index == 3
+
+def test_forward_reactivation_keeps_same_3d_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.0,
+        165.0,
+    ]
+
+    detector._forward_movement_active = False
+
+    detector._activate_forward_movement()
+
+    assert detector._shift_3d_start_index == 3
+
+    detector._foot_3d_angle_history.extend([
+        164.0,
+        163.0,
+    ])
+
+    detector._activate_forward_movement()
+
+    assert detector._shift_3d_start_index == 3
+
+def test_3d_rotation_can_start_shift_attempt_without_forward_movement():
+    detector = GearShiftDetector()
+
+    detector._forward_movement_active = False
+    detector._shift_3d_start_index = 0
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+        164.4,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+    ]
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_attempt_active is True
+
+def test_3d_rotation_start_keeps_smoothing_context():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_start_index == 0
+    assert detector._shift_3d_attempt_active is True
+
+def test_recording_3d_sample_can_start_shift_attempt_from_rotation():
+    detector = GearShiftDetector()
+
+    angles = [
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+    ]
+
+    for index, angle in enumerate(angles):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=index * 0.5,
+        )
+
+    assert detector._shift_3d_start_index == 0
+    assert detector._shift_3d_attempt_active is True
+
+def test_3d_rotation_does_not_move_existing_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_start_index = 3
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        166.4,
+        166.4,
+        166.2,
+        165.8,
+        165.0,
+    ]
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_start_index == 3
+
+def test_3d_shift_attempt_keeps_smoothing_context_before_rotation():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_start_index == 1
+
+def test_3d_shift_attempt_can_be_active_from_history_start():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+    ]
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_start_index == 0
+    assert detector._shift_3d_attempt_active is True
+
+def test_active_3d_attempt_at_zero_does_not_restart():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_start_index = 0
+    detector._shift_3d_attempt_active = True
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        167.0,
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+        165.6,
+        165.6,
+        165.4,
+        165.0,
+        164.2,
+    ]
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+    assert detector._shift_3d_start_index == 0
+
+def test_reset_3d_shift_attempt():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_start_index = 5
+
+    detector._reset_3d_shift_attempt()
+
+    assert detector._shift_3d_attempt_active is False
+
+
+
+def test_2d_stale_reset_does_not_cancel_independent_3d_attempt():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+
+    detector._reset_stale_shift_attempt()
+
+    assert detector._shift_3d_attempt_active is True
+def test_reset_3d_attempt_does_not_reactivate_from_old_rotation():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        167.0,
+        166.8,
+        166.4,
+        165.6,
+    ]
+    detector._foot_3d_angle_timestamps = [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+    ]
+
+    detector._shift_3d_attempt_active = True
+
+    detector._reset_3d_shift_attempt()
+
+    detector._record_3d_rotation_sample(
+        angle=165.6,
+        timestamp=2.0,
+    )
+
+    assert detector._shift_3d_attempt_active is False
+
+def test_active_3d_attempt_at_zero_does_not_restart(monkeypatch):
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_start_index = 0
+
+    def fail_if_called(_angles):
+        pytest.fail(
+            "Active 3D attempt must not search for a new rotation start"
+        )
+
+    monkeypatch.setattr(
+        detector._calibration,
+        "find_rotation_start",
+        fail_if_called,
+    )
+
+    detector._start_shift_attempt_from_3d_rotation()
+
+def test_failed_3d_attempt_should_reset_after_back():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._back_movement_active = True
+
+    assert detector._should_reset_failed_3d_attempt(
+        False
+    ) is True
+
+def test_failed_3d_attempt_does_not_reset_before_back():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._back_movement_active = False
+
+    assert detector._should_reset_failed_3d_attempt(
+        False
+    ) is False
+
+def test_forward_activation_does_not_move_active_3d_attempt():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_start_index = 22
+    detector._forward_movement_active = False
+
+    detector._activate_forward_movement()
+
+    assert detector._shift_3d_start_index == 22
+
+def test_stationary_3d_noise_does_not_start_shift_attempt():
+    detector = GearShiftDetector()
+
+    angles = [
+        77.8,
+        77.7,
+        77.5,
+        77.4,
+    ]
+
+    for index, angle in enumerate(angles):
+        detector._record_3d_rotation_sample(
+            angle=angle,
+            timestamp=index * 0.05,
+        )
+
+    assert detector._shift_3d_attempt_active is False
+
+def test_3d_shift_attempt_expires_when_rotation_does_not_develop():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 5.9
+
+    detector._expire_stale_3d_shift_attempt(
+        timestamp=8.0
+    )
+
+    assert detector._shift_3d_attempt_active is False
+
+def test_3d_rotation_start_records_attempt_start_time():
+    detector = GearShiftDetector()
+
+    detector._record_3d_rotation_sample(
+        angle=167.0,
+        timestamp=0.0,
+    )
+    detector._record_3d_rotation_sample(
+        angle=166.8,
+        timestamp=0.5,
+    )
+    detector._record_3d_rotation_sample(
+        angle=166.4,
+        timestamp=1.0,
+    )
+    detector._record_3d_rotation_sample(
+        angle=165.6,
+        timestamp=1.5,
+    )
+
+    assert detector._shift_3d_attempt_active is True
+    assert detector._shift_3d_attempt_started_at == 1.5
+
+def test_reset_3d_shift_attempt_clears_start_time():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 5.9
+
+    detector._reset_3d_shift_attempt()
+
+    assert detector._shift_3d_attempt_started_at is None
+
+def test_recording_3d_sample_expires_stale_attempt():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 5.9
+
+    detector._record_3d_rotation_sample(
+        angle=76.0,
+        timestamp=8.0,
+    )
+
+    assert detector._shift_3d_attempt_active is False
+    assert detector._shift_3d_attempt_started_at is None
+
+def test_3d_shift_attempt_does_not_expire_before_timeout():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 5.9
+
+    detector._expire_stale_3d_shift_attempt(
+        timestamp=7.8
+    )
+
+    assert detector._shift_3d_attempt_active is True
+    assert detector._shift_3d_attempt_started_at == 5.9
+
+def test_valid_3d_shift_attempt_does_not_expire():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 0.0
+
+    detector._shift_up_3d_candidate = lambda: True
+
+    detector._expire_stale_3d_shift_attempt(
+        timestamp=10.0
+    )
+
+    assert detector._shift_3d_attempt_active is True
+
+def test_developing_3d_shift_attempt_does_not_expire():
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_attempt_started_at = 10.0
+
+    detector._foot_3d_angle_history = [
+        77.0,
+        76.8,
+        76.4,
+        75.9,
+        75.4,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    detector._expire_stale_3d_shift_attempt(
+        timestamp=12.1
+    )
+
+    assert detector._shift_3d_attempt_active is True
+
+def test_3d_shift_attempt_is_developing_when_rotation_continues():
+    detector = GearShiftDetector()
+
+    angles = [
+        77.0,
+        76.8,
+        76.4,
+        75.9,
+        75.4,
+    ]
+
+    assert detector._is_3d_shift_attempt_developing(
+        angles
+    ) is True
+
+def test_3d_shift_attempt_is_not_developing_from_small_noise():
+    detector = GearShiftDetector()
+
+    angles = [
+        77.0,
+        77.1,
+        76.9,
+        77.0,
+        76.9,
+    ]
+
+    assert detector._is_3d_shift_attempt_developing(
+        angles
+    ) is False
+
+def test_3d_shift_attempt_is_not_developing_after_rotation_returns():
+    detector = GearShiftDetector()
+
+    angles = [
+        77.0,
+        76.4,
+        75.8,
+        76.3,
+        76.9,
+    ]
+
+    assert detector._is_3d_shift_attempt_developing(
+        angles
+    ) is False
+
+def test_valid_3d_shift_does_not_require_2d_back_movement():
+    detector = GearShiftDetector()
+
+    detector._back_movement_active = False
+
+    assert detector._can_shift_up_from_3d(
+        candidate=True
+    ) is True
