@@ -107,6 +107,26 @@ class GearShiftDetector:
             smoothed_timestamps,
         )
 
+    def _shift_down_3d_candidate(
+        self,
+    ) -> bool | None:
+        attempt_angles = self._foot_3d_angle_history[
+            self._shift_3d_start_index:
+        ]
+
+        attempt_timestamps = self._foot_3d_angle_timestamps[
+            self._shift_3d_start_index:
+        ]
+
+        if len(attempt_angles) < 5:
+            return None
+
+        
+        return self._calibration.analyze_shift_down_rotation(
+            attempt_angles,
+            attempt_timestamps,
+        )
+
     def _activate_forward_movement(self) -> None:
         if (
             not self._forward_movement_active
@@ -132,6 +152,22 @@ class GearShiftDetector:
                 self._shift_up_3d_candidate()
             )
         )
+     
+    def _can_emit_shift_down_from_3d(
+        self,
+    ) -> bool:
+        return (
+            not self._shift_rearm_pending
+            and self._can_shift_down_from_3d(
+                self._shift_down_3d_candidate()
+            )
+        )
+
+    def _can_shift_down_from_3d(
+        self,
+        candidate: bool,
+    ) -> bool:
+        return candidate is True
 
     def _record_3d_rotation_sample(
         self,
@@ -510,6 +546,13 @@ class GearShiftDetector:
 
                 return "SHIFT_UP"
 
+            if self._can_emit_shift_down_from_3d():
+                self._shift_rearm_pending = True
+                self._back_movement_active = False
+                self._reset_3d_shift_attempt()
+
+                return "SHIFT_DOWN"
+
             candidate = self._shift_up_3d_candidate()
 
             if self._should_reset_failed_3d_attempt(
@@ -869,6 +912,11 @@ class GearShiftDetector:
             or
             (
                 0.040 <= left_foot_drop <= 0.060
+                and 160.0 <= left_foot_angle <= 175.0
+            )
+            or
+            (
+                0.080 <= left_foot_drop <= 0.090
                 and 160.0 <= left_foot_angle <= 175.0
             )
             or

@@ -3166,3 +3166,78 @@ def test_very_short_large_3d_rotation_is_not_shift_up():
         angular_excursion=14.0,
         rotation_duration=0.30,
     ) is False
+
+def test_measured_shift_down_rotation_is_detected():
+    angles = [
+        70.0,
+        73.0,
+        79.0,
+        82.0,
+    ]
+
+    timestamps = [
+        10.55,
+        10.75,
+        10.95,
+        11.33,
+    ]
+
+    assert GearShiftCalibration.analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ) is True
+
+def test_small_downward_rotation_is_not_shift_down():
+    angles = [
+        70.0,
+        73.0,
+        76.0,
+    ]
+
+    timestamps = [
+        10.55,
+        10.75,
+        10.95,
+    ]
+
+    assert GearShiftCalibration.analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ) is False
+
+def test_large_but_too_short_rotation_is_not_shift_down():
+    angles = [
+        70.0,
+        82.0,
+    ]
+
+    timestamps = [
+        10.55,
+        10.70,
+    ]
+
+    assert GearShiftCalibration.analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ) is False
+
+def test_opposite_rotation_is_not_shift_down():
+    angles = [
+        82.0,
+        78.0,
+        73.0,
+        70.0,
+    ]
+
+    timestamps = [
+        10.55,
+        10.75,
+        10.95,
+        11.33,
+    ]
+
+    assert GearShiftCalibration.analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ) is False
+

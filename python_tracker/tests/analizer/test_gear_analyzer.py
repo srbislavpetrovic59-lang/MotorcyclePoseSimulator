@@ -3,6 +3,7 @@ import pytest
 from pose.analyzers.gear_shift_detector import GearShiftDetector
 from unittest.mock import Mock
 from pose.analyzers.foot_analyzer import FootAnalyzer
+from pose.models.gear_shift_calibration import GearShiftCalibration
 
 
 def test_detector_waits_for_footpeg_before_tracking_shift():
@@ -5763,3 +5764,370 @@ def test_valid_3d_shift_does_not_require_2d_back_movement():
     assert detector._can_shift_up_from_3d(
         candidate=True
     ) is True
+
+def test_shift_down_3d_candidate_is_none_without_3d_history():
+    detector = GearShiftDetector()
+
+    assert detector._shift_down_3d_candidate() is None
+
+def test_shift_down_3d_candidate_uses_calibration(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        70.0,
+        70.0,
+        70.0,
+        70.0,
+        70.0,
+        73.0,
+        79.0,
+        82.0,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        10.00,
+        10.10,
+        10.20,
+        10.30,
+        10.40,
+        10.55,
+        10.75,
+        11.33,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    monkeypatch.setattr(
+        detector._calibration,
+        "smooth_3d_angle_history",
+        lambda angles: angles[4:],
+    )
+
+    monkeypatch.setattr(
+        detector._calibration,
+        "analyze_shift_down_rotation",
+        lambda angles, timestamps: True,
+    )
+
+    assert detector._shift_down_3d_candidate() is True
+
+def test_shift_down_3d_candidate_detects_measured_rotation():
+    detector = GearShiftDetector()
+
+    detector._foot_3d_angle_history = [
+        70.0,
+        70.0,
+        70.0,
+        70.0,
+        70.0,
+        73.0,
+        79.0,
+        82.0,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        10.00,
+        10.10,
+        10.20,
+        10.30,
+        10.40,
+        10.55,
+        10.75,
+        11.33,
+    ]
+
+    detector._shift_3d_start_index = 0
+    smoothed = detector._calibration.smooth_3d_angle_history(
+        detector._foot_3d_angle_history
+    )
+
+    print("RAW:", detector._foot_3d_angle_history)
+    print("SMOOTHED:", smoothed)
+    print(
+        "EXCURSION:",
+        max(smoothed) - smoothed[0],
+    )
+    assert detector._shift_down_3d_candidate() is True
+
+def test_3d_candidate_can_emit_shift_down():
+    detector = GearShiftDetector()
+
+    detector._shift_rearm_pending = False
+
+    assert detector._can_shift_down_from_3d(
+        candidate=True,
+    ) is True
+
+def test_3d_shift_down_is_blocked_while_rearm_pending():
+    detector = GearShiftDetector()
+
+    detector._shift_rearm_pending = True
+
+    assert detector._can_emit_shift_down_from_3d() is False
+
+def test_3d_shift_down_can_emit_when_candidate_is_valid(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._shift_rearm_pending = False
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_down_3d_candidate",
+        lambda: True,
+    )
+
+    assert detector._can_emit_shift_down_from_3d() is True
+
+def test_update_emits_shift_down_from_3d_candidate(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = False
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_up_from_3d",
+        lambda: False,
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_down_from_3d",
+        lambda: True,
+    )
+
+    result = detector.update(
+        left_foot_drop=0.0,
+        elapsed_seconds=6.0,
+    )
+
+    assert result == "SHIFT_DOWN"
+
+def test_update_does_not_repeat_3d_shift_down_while_rearm_pending(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = True
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_up_from_3d",
+        lambda: False,
+    )
+
+    result = detector.update(
+        left_foot_drop=0.0,
+        elapsed_seconds=6.0,
+    )
+
+    assert result != "SHIFT_DOWN"
+
+def test_measured_live_shift_down_rotation_is_detected():
+    angles = [
+        81.7,
+        78.5,
+        77.5,
+        87.3,
+        88.5,
+        92.3,
+    ]
+
+    timestamps = [
+        10.015,
+        11.062,
+        11.187,
+        12.109,
+        12.156,
+        12.281,
+    ]
+
+    assert GearShiftCalibration.analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ) is True
+
+def test_developing_shift_down_is_not_reset_by_failed_shift_up(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._shift_3d_attempt_active = True
+    detector._shift_3d_start_index = 0
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_up_from_3d",
+        lambda: False,
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_down_from_3d",
+        lambda: False,
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_up_3d_candidate",
+        lambda: False,
+    )
+
+    monkeypatch.setattr(
+        detector,
+        "_shift_down_3d_candidate",
+        lambda: None,
+    )
+
+    detector.update(
+        left_foot_drop=0.0,
+        elapsed_seconds=6.0,
+    )
+
+    assert detector._shift_3d_attempt_active is True
+
+def test_live_shift_down_3d_sequence_emits_shift_down():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = False
+
+    angles = [
+        70.5,
+        74.4,
+        79.6,
+        81.0,
+        85.4,
+        86.7,
+        89.1,
+    ]
+
+    timestamps = [
+        10.719,
+        10.844,
+        10.937,
+        10.984,
+        11.015,
+        11.234,
+        11.265,
+    ]
+
+    detector._foot_3d_angle_history = angles
+    detector._foot_3d_angle_timestamps = timestamps
+    detector._shift_3d_start_index = 0
+
+    result = detector._shift_down_3d_candidate()
+
+    assert result is True
+
+def test_update_emits_measured_live_shift_down_3d_sequence(
+    monkeypatch,
+):
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = False
+
+    detector._foot_3d_angle_history = [
+        70.5,
+        74.4,
+        79.6,
+        81.0,
+        85.4,
+        86.7,
+        89.1,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        10.719,
+        10.844,
+        10.937,
+        10.984,
+        11.015,
+        11.234,
+        11.265,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    monkeypatch.setattr(
+        detector,
+        "_can_emit_shift_up_from_3d",
+        lambda: False,
+    )
+
+    result = detector.update(
+        left_foot_drop=0.0,
+        elapsed_seconds=11.265,
+    )
+
+    assert result == "SHIFT_DOWN"
+
+def test_valid_shift_down_stays_blocked_while_rearm_is_pending():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = True
+
+    detector._foot_3d_angle_history = [
+        70.5,
+        74.4,
+        79.6,
+        81.0,
+        85.4,
+        86.7,
+        89.1,
+    ]
+
+    detector._foot_3d_angle_timestamps = [
+        10.719,
+        10.844,
+        10.937,
+        10.984,
+        11.015,
+        11.234,
+        11.265,
+    ]
+
+    detector._shift_3d_start_index = 0
+
+    # The measured movement itself is a valid SHIFT_DOWN.
+    assert detector._shift_down_3d_candidate() is True
+
+    # But live rearm state prevents it from being emitted.
+    assert detector._can_emit_shift_down_from_3d() is False
+
+def test_live_rest_position_is_recognized_as_footpeg():
+    assert GearShiftDetector._is_footpeg_stay_position(
+        left_foot_drop=0.083182692527771,
+        left_foot_angle=171.44131861147332,
+    ) is True
+
+def test_three_live_footpeg_frames_clear_shift_rearm():
+    detector = GearShiftDetector()
+
+    detector._state = "READY"
+    detector._startup_ready = True
+    detector._shift_rearm_pending = True
+
+    for forward in (0.0103, 0.0104, 0.0103):
+        detector.update(
+            left_foot_drop=0.083,
+            left_foot_angle=171.0,
+            left_foot_forward=forward,
+            elapsed_seconds=10.0,
+        )
+
+    assert detector._shift_rearm_pending is False

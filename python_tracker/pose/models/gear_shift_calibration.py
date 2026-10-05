@@ -639,3 +639,20 @@ class GearShiftCalibration:
         )
 
         return normal_shift or fast_large_shift
+    @staticmethod
+    def analyze_shift_down_rotation(
+        angles,
+        timestamps,
+    ):
+        if not angles or not timestamps:
+            return False
+
+        angular_excursion = max(angles) - angles[0]
+        duration = timestamps[-1] - timestamps[0]
+
+        return (
+            angular_excursion >= 10.0
+            and duration >= 0.5
+        )
+
+   
