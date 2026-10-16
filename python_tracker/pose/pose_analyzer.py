@@ -1,4 +1,5 @@
-# pose_analyzer.py
+﻿# pose_analyzer.py
+import time
 
 import mediapipe as mp
 
@@ -10,6 +11,7 @@ from pose.analyzers.hand_control_analyzer import HandControlAnalyzer
 from pose.models.frame_analysis import FrameAnalysis
 from pose.analyzers.hand_analyzer import HandAnalyzer
 from pose.analyzers.riding_phase_detector import RidingPhaseDetector
+from pose.analyzers.lean_detector import LeanDetector
 
 
 
@@ -18,6 +20,9 @@ class PoseAnalyzer:
     def __init__(self):
         self.arm_analyzer = ArmAnalyzer()
         self.body_analyzer = BodyAnalyzer()
+        self.lean_detector = LeanDetector()
+        self._lean_calibration_requested = False
+        self._lean_calibration_requested_at = None
         self.foot_analyzer = FootAnalyzer()
         self._head_analyzer = HeadAnalyzer()
         self._hand_control_analyzer = HandControlAnalyzer()
@@ -56,7 +61,17 @@ class PoseAnalyzer:
         result.update(arm_result)
 
         body_result = self.body_analyzer.analyze(landmark_list)
+
+        body_result = self._add_lean_to_result(body_result)
+
         result.update(body_result)
+
+        print(
+            f"Shoulder tilt: {body_result['shoulder_tilt']:+7.2f} deg | "
+            f"Lean: {body_result['lean_normalized']:+.3f} ",
+            end="\r",
+            flush=True,
+        )        
 
         foot_result = self.foot_analyzer.analyze(landmark_list)
         result.update(foot_result)
@@ -109,6 +124,54 @@ class PoseAnalyzer:
        
         
         return result
+
+    def _calculate_lean(self, shoulder_tilt: float) -> float:
+        return self.lean_detector.update_normalized(
+            shoulder_tilt
+        )
+
+    def calibrate_lean(self, shoulder_tilt: float) -> None:
+        self.lean_detector.calibrate(shoulder_tilt)
+    
+    def request_lean_calibration(self, now=None) -> None:
+        if now is None:
+            now = time.monotonic()
+
+        self._lean_calibration_requested = True
+        self._lean_calibration_requested_at = now
+
+    def _add_lean_to_result(
+        self,
+        body_result: dict,
+        now=None,
+    ) -> dict:
+        if now is None:
+            now = time.monotonic()
+
+        result = body_result.copy()
+        shoulder_tilt = body_result["shoulder_tilt"]
+
+        # Podrazumevano nema događaja završetka.
+        result["lean_calibration_completed"] = False
+
+        if self._lean_calibration_requested:
+            elapsed = now - self._lean_calibration_requested_at
+
+            if elapsed >= 3.0:
+                self.calibrate_lean(shoulder_tilt)
+
+                self._lean_calibration_requested = False
+                self._lean_calibration_requested_at = None
+
+                # Događaj se pojavljuje samo u ovom frejmu.
+                result["lean_calibration_completed"] = True
+
+        result["lean_normalized"] = self._calculate_lean(
+            shoulder_tilt
+        )
+
+        return result
+
 
     @staticmethod
     def _calculate_pose_confidence(landmarks) -> float:

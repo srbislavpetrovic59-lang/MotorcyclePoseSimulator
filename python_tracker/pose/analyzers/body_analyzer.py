@@ -49,7 +49,9 @@ class BodyAnalyzer:
         )
 
     def _shoulder_tilt(self, landmarks):
-        return Geometry.line_angle(
+        angle = Geometry.line_angle(
             landmarks[PoseLandmark.LEFT_SHOULDER],
             landmarks[PoseLandmark.RIGHT_SHOULDER],
         )
+
+        return (angle + 90.0) % 180.0 - 90.0

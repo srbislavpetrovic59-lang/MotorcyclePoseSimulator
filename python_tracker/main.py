@@ -17,13 +17,16 @@ from pose.session.session_narrator import SessionNarrator
 from pose.output.output_dispatcher import OutputDispatcher
 from pose.output.console_output import ConsoleOutput
 from pose.hand_detector import HandDetector
+from pose.feedback.voice_output import VoiceOutput
 
 
 def main() -> None:
+    voice_output = VoiceOutput(enabled=True)
+
     pipeline = PosePipeline(
         camera=Camera(config.CAMERA_URL),
         detector=PoseDetector(),
-        hand_detector = HandDetector(),
+        hand_detector=HandDetector(),
         renderer=PoseRenderer(),
         analyzer=PoseAnalyzer(),
         evaluator=PoseEvaluator(),
@@ -33,9 +36,10 @@ def main() -> None:
         overlay=OverlayRenderer(),
         session_summary=SessionSummary(),
         narrator=SessionNarrator(),
-        output_dispatcher = OutputDispatcher([ConsoleOutput(),]),
+        output_dispatcher=OutputDispatcher([ConsoleOutput()]),
         rider_state_mapper=RiderStateMapper(),
         websocket_server=WebSocketServer(),
+        voice_output=voice_output,
     )
 
     pipeline.run()

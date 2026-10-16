@@ -3,7 +3,7 @@ from pose.mapping.rider_state_mapper import RiderStateMapper
 from pose.transport.websocket_server import WebSocketServer
 import time
 import cv2
-
+import win32com.client
 import config
 
 from camera import Camera
@@ -20,6 +20,7 @@ from pose.session.session_narrator import SessionNarrator
 from pose.session.session_recorder import SessionRecorder
 from pose.session.session_summary import SessionSummary
 from pose.models.frame_analysis import FrameAnalysis
+from pose.feedback.voice_output import VoiceOutput
 
 class PosePipeline:
     """Coordinates the real-time motorcycle pose coaching workflow."""
@@ -41,6 +42,7 @@ class PosePipeline:
         output_dispatcher: OutputDispatcher,
         rider_state_mapper: RiderStateMapper,
         websocket_server: WebSocketServer,
+        voice_output: VoiceOutput = None,
     ) -> None:
         self._camera = camera
         self._detector = detector
@@ -59,21 +61,45 @@ class PosePipeline:
         self._websocket_server = websocket_server
         self._last_analysis_result = None
         self._last_frame_id = None
+        self._voice_output = voice_output
     
-    
+    def _announce_lean_calibration(
+        self,
+        metrics: dict,
+    ) -> None:
+        if (
+            metrics.get("lean_calibration_completed", False)
+            and self._voice_output is not None
+        ):
+            self._voice_output.speak(
+                "Lean calibration complete."
+            )
 
     def run(self) -> None:
         self._websocket_server.start()
 
         try:
-            self._run_loop()
-        except KeyboardInterrupt:
-            print("\nKeyboard interrupt received. Exiting...")
+            if self._voice_output is not None:
+                self._voice_output.start(
+                    engine_factory=lambda: win32com.client.Dispatch(
+                        "SAPI.SpVoice"
+                    )
+                )
+
+            try:
+                self._run_loop()
+            except KeyboardInterrupt:
+                print("\nKeyboard interrupt received. Exiting...")
+
         finally:
             try:
                 self._complete_session()
             finally:
-                self._release_resources()
+                try:
+                    if self._voice_output is not None:
+                        self._voice_output.stop()
+                finally:
+                    self._release_resources()
 
     def _run_loop(self) -> None:
         while True:
@@ -132,6 +158,11 @@ class PosePipeline:
             if key == 27:
                 break
 
+            if key == ord("C"):
+                self._request_lean_calibration()
+                print("Lean calibration requested")
+
+            
             if self._last_analysis_result is not None:
                 right_index_finger_bend = (
                     self._last_analysis_result.get(
@@ -207,6 +238,7 @@ class PosePipeline:
         metrics = self._analyzer.analyze(
             frame_analysis
         )
+        self._announce_lean_calibration(metrics)
         print(
             "POSE CONFIDENCE:",
             metrics.get("pose_confidence")
@@ -281,5 +313,13 @@ class PosePipeline:
         self._hand_detector.close()
         self._camera.release()
         cv2.destroyAllWindows()
+
+    def _request_lean_calibration(self) -> None:
+        self._analyzer.request_lean_calibration()
+
+        if self._voice_output is not None:
+            self._voice_output.speak(
+                "Lean calibration in three seconds."
+            )
 
     

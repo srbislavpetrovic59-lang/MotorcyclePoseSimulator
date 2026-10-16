@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 from pipeline.pose_pipeline import PosePipeline
 from pose.session.session_report import SessionReport
+from unittest.mock import Mock
+
 
 
 def test_complete_session_generates_and_dispatches_narration() -> None:
@@ -196,3 +198,75 @@ def test_run_loop_does_not_process_same_frame_twice() -> None:
         pipeline._run_loop()
 
     pipeline._process_pose.assert_called_once()
+
+
+
+
+def test_pipeline_announces_lean_calibration_completion():
+    pipeline = PosePipeline.__new__(PosePipeline)
+
+    pipeline._voice_output = Mock()
+
+    pipeline._announce_lean_calibration(
+        {"lean_calibration_completed": False}
+    )
+
+    pipeline._voice_output.speak.assert_not_called()
+
+    pipeline._announce_lean_calibration(
+        {"lean_calibration_completed": True}
+    )
+
+    pipeline._voice_output.speak.assert_called_once_with(
+        "Lean calibration complete."
+    )
+
+def test_pipeline_announces_lean_calibration_request():
+    from unittest.mock import Mock
+
+    pipeline = PosePipeline.__new__(PosePipeline)
+
+    pipeline._analyzer = Mock()
+    pipeline._voice_output = Mock()
+
+    pipeline._request_lean_calibration()
+
+    pipeline._analyzer.request_lean_calibration.assert_called_once_with()
+
+    pipeline._voice_output.speak.assert_called_once_with(
+        "Lean calibration in three seconds."
+    )
+
+def test_pipeline_starts_voice_before_run_loop():
+    from unittest.mock import Mock
+
+    pipeline = PosePipeline.__new__(PosePipeline)
+
+    pipeline._websocket_server = Mock()
+    pipeline._voice_output = Mock()
+
+    pipeline._run_loop = Mock()
+    pipeline._complete_session = Mock()
+    pipeline._release_resources = Mock()
+
+    pipeline.run()
+
+    pipeline._voice_output.start.assert_called_once()
+
+    pipeline._run_loop.assert_called_once()
+
+def test_pipeline_stops_voice_when_session_ends():
+    from unittest.mock import Mock
+
+    pipeline = PosePipeline.__new__(PosePipeline)
+
+    pipeline._websocket_server = Mock()
+    pipeline._voice_output = Mock()
+
+    pipeline._run_loop = Mock()
+    pipeline._complete_session = Mock()
+    pipeline._release_resources = Mock()
+
+    pipeline.run()
+
+    pipeline._voice_output.stop.assert_called_once()
