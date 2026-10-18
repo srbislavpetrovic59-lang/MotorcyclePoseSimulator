@@ -33,6 +33,7 @@ class HandControlAnalyzer:
 
         self._throttle_last_measurement_time = None
         self._throttle_tracking_timeout = 0.4
+        self._filtered_throttle_progress: float | None = None
         
 
     def analyze(
@@ -71,6 +72,11 @@ class HandControlAnalyzer:
         throttle_progress = self._current_throttle_progress(
             current_rotation=right_hand_rotation,
         )
+
+        throttle_progress = self._filter_throttle_progress(
+            throttle_progress
+        )
+ 
         throttle_progress = self._apply_throttle_tracking_timeout(
             throttle_progress,
             now=time.monotonic(),
@@ -517,6 +523,7 @@ class HandControlAnalyzer:
         self._throttle_calibration.save(
         THROTTLE_CALIBRATION_PATH
         )
+        self._filtered_throttle_progress = None
 
     def calibrate_throttle_open(
         self,
@@ -528,6 +535,7 @@ class HandControlAnalyzer:
         self._throttle_calibration.save(
         THROTTLE_CALIBRATION_PATH
         )
+        self._filtered_throttle_progress = None
 
     def capture_throttle_closed(
         self,
@@ -606,3 +614,27 @@ class HandControlAnalyzer:
         ):
             return 0.0
         return None
+
+    def _filter_throttle_progress(
+    self,
+    progress: float | None,
+) -> float | None:
+
+        if progress is None:
+            self._filtered_throttle_progress = None
+            return None
+
+        if self._filtered_throttle_progress is None:
+            self._filtered_throttle_progress = progress
+            return progress
+
+        if progress <= self._filtered_throttle_progress:
+            self._filtered_throttle_progress = progress
+        else:
+            alpha = 0.25
+
+            self._filtered_throttle_progress += alpha * (
+                progress - self._filtered_throttle_progress
+            )
+
+        return self._filtered_throttle_progress

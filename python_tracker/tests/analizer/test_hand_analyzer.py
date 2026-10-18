@@ -607,4 +607,42 @@ def test_throttle_becomes_inactive_below_close_threshold():
     )
 
     assert active is False
+def test_throttle_filter_smooths_opening():
+    analyzer = HandControlAnalyzer()
+
+    # Početni položaj: zatvoren gas.
+    assert analyzer._filter_throttle_progress(0.0) == 0.0
+
+    # Nagli skok sa 0% na 100%.
+    filtered = analyzer._filter_throttle_progress(1.0)
+
+    # Gas treba da raste, ali ne odmah na 100%.
+    assert 0.0 < filtered < 1.0
+
+def test_throttle_filter_closes_immediately():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._filter_throttle_progress(0.0)
+
+    # Postepeno otvaramo gas.
+    for _ in range(10):
+        analyzer._filter_throttle_progress(1.0)
+
+    # Zatvaranje mora biti trenutno.
+    assert analyzer._filter_throttle_progress(0.0) == 0.0
+
+def test_throttle_filter_resets_when_tracking_lost():
+    analyzer = HandControlAnalyzer()
+
+    analyzer._filter_throttle_progress(0.0)
+
+    # Otvaramo gas.
+    analyzer._filter_throttle_progress(1.0)
+
+    # MediaPipe gubi šaku.
+    assert analyzer._filter_throttle_progress(None) is None
+
+    # Nakon ponovnog prepoznavanja,
+    # filter ne sme koristiti staru vrednost.
+    assert analyzer._filter_throttle_progress(0.0) == 0.0
 
