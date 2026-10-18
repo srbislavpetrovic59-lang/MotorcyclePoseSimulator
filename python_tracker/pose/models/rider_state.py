@@ -46,6 +46,7 @@ class RiderState:
     rear_brake_active: bool = False
     
     torso_angle: float = 0.0
+    lean_angle: float = 0.0
     pose_confidence: float = 0.0
 
     head_forward: bool = False

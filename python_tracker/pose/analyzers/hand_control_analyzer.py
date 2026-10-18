@@ -597,6 +597,7 @@ class HandControlAnalyzer:
 
         return None
 
+
     def _apply_throttle_tracking_timeout(
         self,
         throttle_progress: float | None,
@@ -615,26 +616,27 @@ class HandControlAnalyzer:
             return 0.0
         return None
 
+
     def _filter_throttle_progress(
-    self,
-    progress: float | None,
-) -> float | None:
+        self,
+        progress: float | None,
+    ) -> float | None:
 
-        if progress is None:
-            self._filtered_throttle_progress = None
-            return None
+            if progress is None:
+                self._filtered_throttle_progress = None
+                return None
 
-        if self._filtered_throttle_progress is None:
-            self._filtered_throttle_progress = progress
-            return progress
+            if self._filtered_throttle_progress is None:
+                self._filtered_throttle_progress = progress
+                return progress
 
-        if progress <= self._filtered_throttle_progress:
-            self._filtered_throttle_progress = progress
-        else:
-            alpha = 0.25
+            if progress <= self._filtered_throttle_progress:
+                self._filtered_throttle_progress = progress
+            else:
+                alpha = 0.25
 
-            self._filtered_throttle_progress += alpha * (
-                progress - self._filtered_throttle_progress
-            )
+                self._filtered_throttle_progress += alpha * (
+                    progress - self._filtered_throttle_progress
+                )
 
-        return self._filtered_throttle_progress
+            return self._filtered_throttle_progress

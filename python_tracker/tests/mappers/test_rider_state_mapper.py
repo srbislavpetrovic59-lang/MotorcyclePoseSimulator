@@ -65,3 +65,21 @@ def test_from_analysis():
     assert state.torso_angle == 45.0
     assert state.clutch_progress == 0.61
     assert state.riding_phase == "BRAKING"
+
+def test_mapper_transfers_lean_normalized():
+    from pose.models.rider_state import RiderState
+    from pose.mapping.rider_state_mapper import RiderStateMapper
+
+    class AnalysisResult(dict):
+        def __missing__(self, key):
+            return 0.0
+
+    analysis = AnalysisResult(
+        lean_normalized=0.35
+    )
+
+    state = RiderStateMapper.from_analysis(analysis)
+
+    assert isinstance(state, RiderState)
+    assert state.lean_angle == 0.35
+    assert state.to_dict()["lean_angle"] == 0.35

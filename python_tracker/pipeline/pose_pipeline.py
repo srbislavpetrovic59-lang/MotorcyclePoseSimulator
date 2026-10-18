@@ -43,6 +43,7 @@ class PosePipeline:
         rider_state_mapper: RiderStateMapper,
         websocket_server: WebSocketServer,
         voice_output: VoiceOutput = None,
+       
     ) -> None:
         self._camera = camera
         self._detector = detector
@@ -62,6 +63,7 @@ class PosePipeline:
         self._last_analysis_result = None
         self._last_frame_id = None
         self._voice_output = voice_output
+        self._throttle_voice_calibration_step = 0
     
     def _announce_lean_calibration(
         self,
@@ -206,27 +208,21 @@ class PosePipeline:
                     key == ord("c")
                     and right_hand_rotation is not None
                 ):
-                    self._analyzer.capture_throttle_closed(
+                    self._calibrate_throttle_closed(
                         right_hand_rotation
-                    )
-
-                    print(
-                        f"Throttle CLOSED calibrated: "
-                        f"{right_hand_rotation:.1f}"
                     )
 
                 if (
                     key == ord("o")
                     and right_hand_rotation is not None
                 ):
-                    self._analyzer.capture_throttle_open(
+                    self._calibrate_throttle_open(
                         right_hand_rotation
                     )
 
-                    print(
-                        f"Throttle OPEN calibrated: "
-                        f"{right_hand_rotation:.1f}"
-                    )
+                if key == ord("T"):
+                    self._request_throttle_calibration()
+                    print("Throttle calibration requested")
                
 
 
@@ -320,6 +316,67 @@ class PosePipeline:
         if self._voice_output is not None:
             self._voice_output.speak(
                 "Lean calibration in three seconds."
+            )
+
+    def _calibrate_throttle_closed(
+        self,
+        right_hand_rotation: float,
+    ) -> None:
+        self._analyzer.capture_throttle_closed(
+            right_hand_rotation
+        )
+        if self._throttle_voice_calibration_step == 1:
+            self._throttle_voice_calibration_step = 2
+
+        print(
+            f"Throttle CLOSED calibrated: "
+            f"{right_hand_rotation:.1f}"
+        )
+
+        if self._voice_output is not None:
+            self._voice_output.speak(
+                "Throttle closed position calibrated."
+            )
+
+
+        if self._voice_output is not None:
+            self._voice_output.speak(
+                "Now fully open the throttle and press O."
+            )
+           
+
+        
+
+    def _calibrate_throttle_open(
+        self,
+        right_hand_rotation: float,
+    ) -> None:
+        self._analyzer.capture_throttle_open(
+            right_hand_rotation
+        )
+        if self._throttle_voice_calibration_step == 2:
+            self._throttle_voice_calibration_step = 0
+
+        print(
+            f"Throttle OPEN calibrated: "
+            f"{right_hand_rotation:.1f}"
+        )
+
+        if self._throttle_voice_calibration_step == 2:
+            self._throttle_voice_calibration_step = 0
+
+            if self._voice_output is not None:
+                self._voice_output.speak(
+                    "Throttle calibration complete. "
+                    "You are ready to ride."
+                )
+
+
+    def _request_throttle_calibration(self) -> None:
+        self._throttle_voice_calibration_step = 1
+        if self._voice_output is not None:
+            self._voice_output.speak(
+                "Close the throttle and press C."
             )
 
     

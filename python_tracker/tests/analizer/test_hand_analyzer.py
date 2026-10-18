@@ -607,6 +607,8 @@ def test_throttle_becomes_inactive_below_close_threshold():
     )
 
     assert active is False
+
+
 def test_throttle_filter_smooths_opening():
     analyzer = HandControlAnalyzer()
 
@@ -619,6 +621,7 @@ def test_throttle_filter_smooths_opening():
     # Gas treba da raste, ali ne odmah na 100%.
     assert 0.0 < filtered < 1.0
 
+
 def test_throttle_filter_closes_immediately():
     analyzer = HandControlAnalyzer()
 
@@ -630,6 +633,7 @@ def test_throttle_filter_closes_immediately():
 
     # Zatvaranje mora biti trenutno.
     assert analyzer._filter_throttle_progress(0.0) == 0.0
+
 
 def test_throttle_filter_resets_when_tracking_lost():
     analyzer = HandControlAnalyzer()

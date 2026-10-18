@@ -6,7 +6,7 @@ from queue import Queue, Empty
 class VoiceOutput:
     def __init__(self, enabled: bool = True):
         self.enabled = enabled
-        self._queue = Queue(maxsize=1)
+        self._queue = Queue(maxsize=3)
         self._worker = None
         self._stop_event = threading.Event()
 
