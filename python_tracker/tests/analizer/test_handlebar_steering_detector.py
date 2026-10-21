@@ -336,3 +336,76 @@ def test_horizontal_steering_deadzone():
     )
 
     assert steering == 0.0
+
+
+def test_horizontal_calibration_uses_average_of_samples():
+    detector = HandlebarSteeringDetector()
+
+    detector.calibrate_x_samples([
+        (0.20, -0.10),
+        (0.21, -0.10),
+        (0.19, -0.10),
+    ])
+
+    assert detector._neutral_x_difference == pytest.approx(0.30)
+
+def test_calibration_uses_average_depth_difference():
+    detector = HandlebarSteeringDetector()
+
+    detector.calibrate_x_samples([
+        (0.12, -0.05, -0.30, -0.55),
+        (0.13, -0.04, -0.32, -0.54),
+        (0.11, -0.06, -0.31, -0.56),
+    ])
+
+    assert detector._neutral_depth_difference == pytest.approx(0.24)
+
+
+def test_steering_returns_to_neutral_after_both_turns():
+    detector = HandlebarSteeringDetector()
+
+    # Početni neutralni položaj
+    detector.calibrate_x(
+        left_wrist_x=0.141,
+        right_wrist_x=-0.062,
+    )
+
+    # Skretanje desno
+    right = detector.update_x(
+        left_wrist_x=0.126,
+        right_wrist_x=0.210,
+    )
+    assert right > 0.0
+
+    # Povratak na pravo
+    neutral = detector.update_x(
+        left_wrist_x=0.140,
+        right_wrist_x=-0.061,
+    )
+    assert neutral == 0.0
+
+    # Skretanje levo
+    left = detector.update_x(
+        left_wrist_x=-0.184,
+        right_wrist_x=-0.059,
+    )
+    assert left < 0.0
+
+    # Ponovni povratak na pravo
+    neutral = detector.update_x(
+        left_wrist_x=0.130,
+        right_wrist_x=-0.032,
+    )
+    assert neutral == 0.0
+
+def test_body_lean_has_small_relative_hand_motion():
+    # Primer iz testa sa naginjanjem tela.
+    # Šake su fizički nepokretne.
+    left_delta = -0.046
+    right_delta = -0.027
+
+    common_motion = (left_delta + right_delta) / 2
+    relative_motion = left_delta - right_delta
+
+    assert abs(relative_motion) < 0.02
+    assert abs(common_motion) > abs(relative_motion)

@@ -27,6 +27,8 @@ def test_from_analysis():
         "gear_shift": "SHIFT_UP",
         "right_foot_angle": 94.0,
         "torso_angle": 45.0,
+        "lean_normalized": 0.35,
+        "handlebar_steering": -0.25,
         "clutch_progress": 0.61,
         "rear_brake_progress": 0.65,
         "rear_brake_active": True,
@@ -63,6 +65,8 @@ def test_from_analysis():
     assert state.gear_shift == "SHIFT_UP"
     assert state.right_foot_angle == 94.0
     assert state.torso_angle == 45.0
+    assert state.lean_angle == 0.35
+    assert state.handlebar_steering == -0.25
     assert state.clutch_progress == 0.61
     assert state.riding_phase == "BRAKING"
 

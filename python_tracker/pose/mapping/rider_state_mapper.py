@@ -55,6 +55,7 @@ class RiderStateMapper:
             
             torso_angle=result["torso_angle"],
             lean_angle=result["lean_normalized"],
+            handlebar_steering=result["handlebar_steering"],
             pose_confidence=result["pose_confidence"],
 
            

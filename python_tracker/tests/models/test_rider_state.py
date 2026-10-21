@@ -64,3 +64,15 @@ def test_rider_state_serializes_riding_phase():
     data = json.loads(state.to_json())
 
     assert data["riding_phase"] == "CORNERING"
+
+import json
+
+from pose.models.rider_state import RiderState
+
+
+def test_handlebar_steering_is_serialized_to_json():
+    state = RiderState(handlebar_steering=-0.25)
+
+    payload = json.loads(state.to_json())
+
+    assert payload["handlebar_steering"] == -0.25

@@ -1,5 +1,6 @@
 ﻿# pose_analyzer.py
 import time
+import math
 
 import mediapipe as mp
 
@@ -23,6 +24,7 @@ class PoseAnalyzer:
         self.body_analyzer = BodyAnalyzer()
         self.lean_detector = LeanDetector()
         self._handlebar_steering_detector = HandlebarSteeringDetector()
+        self._handlebar_calibration_samples = []
         self._lean_calibration_requested = False
         self._lean_calibration_requested_at = None
         self.foot_analyzer = FootAnalyzer()
@@ -56,9 +58,7 @@ class PoseAnalyzer:
 
         result = {}
         
-        throttle_open = False
-        throttle_close = False
-        
+             
         arm_result = self.arm_analyzer.analyze(landmark_list)
         result.update(arm_result)
 
@@ -101,12 +101,6 @@ class PoseAnalyzer:
         )
         result.update(hand_control_result)
 
-        throttle_open = hand_control_result["throttle_open"]
-        result.update(hand_control_result)
-
-        throttle_close = hand_control_result["throttle_close"]
-        result.update(hand_control_result)
-       
         
         result["pose_confidence"] = self._calculate_pose_confidence(
             landmark_list
@@ -120,22 +114,6 @@ class PoseAnalyzer:
             mp.solutions.pose.PoseLandmark.RIGHT_WRIST
         ]
 
-        print(
-            f"Left Z: {left_wrist.z:+.3f} | "
-            f"Right Z: {right_wrist.z:+.3f} | "
-            f"Difference: {left_wrist.z - right_wrist.z:+.3f}",
-            end="\r",
-            flush=True,
-        )
-        print(
-            f"LZ: {left_wrist.z:+.3f} | "
-            f"RZ: {right_wrist.z:+.3f} | "
-            f"Diff: {left_wrist.z - right_wrist.z:+.3f} | "
-            f"LV: {left_wrist.visibility:.2f} | "
-            f"RV: {right_wrist.visibility:.2f}",
-            end="\r",
-            flush=True,
-        )
 
         left_shoulder = landmark_list[
             mp.solutions.pose.PoseLandmark.LEFT_SHOULDER
@@ -147,16 +125,27 @@ class PoseAnalyzer:
         left_x = left_wrist.x - left_shoulder.x
         right_x = right_wrist.x - right_shoulder.x
 
+        left_z = left_wrist.z - left_shoulder.z
+        right_z = right_wrist.z - right_shoulder.z
+
         if self._handlebar_steering_detector._neutral_x_difference is None:
-            self._handlebar_steering_detector.calibrate_x(
-                left_wrist_x=left_x,
-                right_wrist_x=right_x,
+           self._handlebar_calibration_samples.append(
+                (left_x, right_x, left_z, right_z)
             )
+
+           if len(self._handlebar_calibration_samples) >= 30:
+               self._handlebar_steering_detector.calibrate_x_samples(
+                   self._handlebar_calibration_samples
+               )
 
         handlebar_steering = self._handlebar_steering_detector.update_x(
             left_wrist_x=left_x,
             right_wrist_x=right_x,
         )
+
+        result["handlebar_steering"] = handlebar_steering
+           
+       
         print(
             f"Handlebar steering: {handlebar_steering:+.3f}",
             end="\r",
@@ -171,7 +160,14 @@ class PoseAnalyzer:
             end="\r",
             flush=True,
         )
-        
+
+        print(
+            f"Steering hands: "
+            f"LX={left_x:+.3f} | "
+            f"RX={right_x:+.3f}"
+        )
+
+
         riding_phase = self._riding_phase_detector.update(
             throttle_progress=result["throttle_progress"],
             front_brake_progress=result["front_brake_progress"],
