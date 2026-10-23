@@ -46,7 +46,9 @@ class HandlebarSteeringDetector:
     ) -> None:
         self._neutral_x_difference = left_wrist_x - right_wrist_x
 
-
+    # Steering logic validated in Unreal Engine.
+    # Uses individual hand movement thresholds.
+    # Do not replace with the old symmetric difference formula.
     def update_x(
         self,
         left_wrist_x: float | None,

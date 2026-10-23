@@ -222,19 +222,19 @@ def test_horizontal_steering_returns_to_neutral():
 
 
 def test_horizontal_steering_left_turn():
-        detector = HandlebarSteeringDetector()
+    detector = HandlebarSteeringDetector()
 
-        detector.calibrate_x(
-            left_wrist_x=0.194,
-            right_wrist_x=-0.104,
-        )
+    detector.calibrate_x(
+        left_wrist_x=0.194,
+        right_wrist_x=-0.104,
+    )
 
-        steering = detector.update_x(
-            left_wrist_x=0.250,
-            right_wrist_x=-0.150,
-        )
+    steering = detector.update_x(
+        left_wrist_x=0.150,
+        right_wrist_x=-0.104,
+    )
 
-        assert steering < 0.0
+    assert steering == pytest.approx(-0.044)
 
 
 @pytest.mark.parametrize(
@@ -287,7 +287,7 @@ def test_horizontal_steering_sensitivity():
         right_wrist_x=-0.020,
     )
 
-    assert steering == pytest.approx(0.356)
+    assert steering == pytest.approx(0.168)
 
 
 def test_horizontal_steering_is_clamped():
@@ -300,7 +300,7 @@ def test_horizontal_steering_is_clamped():
 
     steering = detector.update_x(
         left_wrist_x=0.100,
-        right_wrist_x=-0.020,
+        right_wrist_x=0.020,
     )
 
     assert steering == 1.0
@@ -315,7 +315,7 @@ def test_horizontal_steering_negative_clamp():
     )
 
     steering = detector.update_x(
-        left_wrist_x=0.350,
+        left_wrist_x=0.050,
         right_wrist_x=-0.150,
     )
 
@@ -331,7 +331,7 @@ def test_horizontal_steering_deadzone():
     )
 
     steering = detector.update_x(
-        left_wrist_x=0.164,
+        left_wrist_x=0.184,
         right_wrist_x=-0.104,
     )
 
