@@ -650,3 +650,119 @@ def test_throttle_filter_resets_when_tracking_lost():
     # filter ne sme koristiti staru vrednost.
     assert analyzer._filter_throttle_progress(0.0) == 0.0
 
+
+def test_index_tip_relative_depth():
+    analyzer = HandAnalyzer()
+
+    hand = SimpleNamespace(
+        landmark=[
+            SimpleNamespace(x=0.0, y=0.0, z=0.0)
+            for _ in range(21)
+        ]
+    )
+
+    hand.landmark[HandLandmark.INDEX_FINGER_MCP].z = -0.10
+    hand.landmark[HandLandmark.INDEX_FINGER_TIP].z = 0.05
+
+    depth = analyzer._index_tip_relative_depth(hand)
+
+    assert depth == pytest.approx(0.15)
+
+from pose.analyzers.index_angle_filter import IndexAngleFilter
+
+
+def test_hand_analyzer_has_index_angle_filter():
+    analyzer = HandAnalyzer()
+
+    assert isinstance(
+        analyzer._left_index_angle_filter,
+        IndexAngleFilter,
+    )
+
+def test_hand_analyzer_resets_index_filter_when_hand_missing():
+    analyzer = HandAnalyzer()
+
+    analyzer._left_index_angle_filter.update(175.0)
+    analyzer._left_index_angle_filter.update(170.0)
+
+    result = analyzer.analyze({})
+
+    assert result["left_index_finger_bend"] is None
+
+    assert (
+        analyzer._left_index_angle_filter.update(145.0)
+        == 145.0
+    )
+
+
+from unittest.mock import patch
+
+
+from unittest.mock import patch
+
+
+from unittest.mock import patch
+
+
+from unittest.mock import patch
+
+
+def test_hand_analyzer_filters_index_angle_spike():
+    analyzer = HandAnalyzer()
+
+    angles = [172.0, 171.0, 65.0, 170.0, 169.0]
+    readings = iter(angles)
+
+    left_hand = object()
+
+    def fake_index_bend(hand):
+        if hand is left_hand:
+            return next(readings)
+        return None
+
+    filter_update = analyzer._left_index_angle_filter.update
+
+    with (
+        patch.object(
+            analyzer,
+            "_index_finger_bend",
+            side_effect=fake_index_bend,
+        ),
+        patch.object(
+            analyzer,
+            "_index_finger_bend_3d",
+            return_value=None,
+        ),
+        patch.object(
+            analyzer,
+            "_index_tip_to_mcp_ratio",
+            return_value=None,
+        ),
+        patch.object(
+            analyzer,
+            "_index_tip_to_mcp_ratio_3d",
+            return_value=None,
+        ),
+        patch.object(
+            analyzer,
+            "_index_tip_relative_depth",
+            return_value=None,
+        ),
+        patch.object(
+            analyzer._left_index_angle_filter,
+            "update",
+            wraps=filter_update,
+        ) as mock_filter_update,
+    ):
+        results = [
+            analyzer.analyze({"Left": left_hand})[
+                "left_index_finger_bend"
+            ]
+            for _ in angles
+        ]
+
+    assert results[-1] == 170.0
+    assert len(results) == 5
+    assert next(readings, None) is None
+    assert mock_filter_update.call_count == 5
+
