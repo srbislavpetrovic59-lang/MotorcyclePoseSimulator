@@ -14,15 +14,13 @@ def test_voice_output_accepts_message_when_enabled():
 def test_voice_output_rejects_message_when_queue_is_full():
     voice = VoiceOutput(enabled=True)
 
-    assert voice.speak(
-        "Lean calibration in three seconds"
-    ) is True
+    assert voice.speak("Message 1") is True
+    assert voice.speak("Message 2") is True
+    assert voice.speak("Message 3") is True
 
-    assert voice.speak(
-        "Lean calibration complete"
-    ) is False
+    assert voice.speak("Message 4") is False
 
-    assert voice._queue.qsize() == 1
+    assert voice._queue.qsize() == 3
 
 def test_voice_output_takes_next_message():
     voice = VoiceOutput(enabled=True)
