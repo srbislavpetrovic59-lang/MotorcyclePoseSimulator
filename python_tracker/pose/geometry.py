@@ -120,3 +120,11 @@ class Geometry:
         return math.degrees(
             math.acos(cos_angle)
         )
+
+    @staticmethod
+    def distance_3d(p1, p2):
+        return math.sqrt(
+            (p2.x - p1.x) ** 2
+            + (p2.y - p1.y) ** 2
+            + (p2.z - p1.z) ** 2
+        )

@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 
+import pytest
+from types import SimpleNamespace
+
 from pose.geometry import Geometry
 from pose.analyzers.hand_analyzer import HandAnalyzer
 
@@ -28,3 +31,10 @@ def test_index_finger_bend_3d_returns_none_without_hand():
 
     assert analyzer._index_finger_bend_3d(None) is None
     
+
+
+def test_distance_3d_uses_all_three_coordinates():
+    p1 = SimpleNamespace(x=0.0, y=0.0, z=0.0)
+    p2 = SimpleNamespace(x=1.0, y=2.0, z=2.0)
+
+    assert Geometry.distance_3d(p1, p2) == pytest.approx(3.0)
