@@ -157,6 +157,14 @@ class PosePipeline:
 
             key = cv2.waitKey(1) & 0xFF
 
+            if key == ord("K"):
+                if self._voice_output is not None:
+                    self._voice_output.speak(
+                        "Clutch calibration started. "
+                        "Release the clutch fully and press K."
+                    )
+            
+            
             if key == 27:
                 break
 
@@ -185,6 +193,12 @@ class PosePipeline:
                         f"{right_index_finger_bend:.1f}"
                     )
 
+                    if self._voice_output is not None:
+                        self._voice_output.speak(
+                            "Front brake released position calibrated. "
+                            "Now fully pull the front brake and press P."
+                        )
+
                 if (
                     key == ord("p")
                     and right_index_finger_bend is not None
@@ -197,6 +211,12 @@ class PosePipeline:
                         f"Front brake PULLED calibrated: "
                         f"{right_index_finger_bend:.1f}"
                     )
+
+                    if self._voice_output is not None:
+                        self._voice_output.speak(
+                            "Front brake calibration complete."
+                        )
+
                  # Throttle
                 right_hand_rotation = (
                     self._last_analysis_result.get(
@@ -223,7 +243,53 @@ class PosePipeline:
                 if key == ord("T"):
                     self._request_throttle_calibration()
                     print("Throttle calibration requested")
-               
+            
+
+            if self._last_analysis_result is not None:
+                left_index_finger_bend = (
+                    self._last_analysis_result.get(
+                        "left_index_finger_bend"
+                    )
+                )
+
+                if (
+                    key == ord("k")
+                    and left_index_finger_bend is not None
+                ):
+                    self._analyzer.calibrate_clutch_released(
+                        left_index_finger_bend
+                    )
+
+                    print(
+                        f"Clutch RELEASED calibrated: "
+                        f"{left_index_finger_bend:.1f}"
+                    )
+
+                    if self._voice_output is not None:
+                        self._voice_output.speak(
+                            "Clutch released position calibrated. "
+                            "Now fully pull the clutch and press L."
+                        )
+
+                if (
+                    key == ord("l")
+                    and left_index_finger_bend is not None
+                ):
+                    self._analyzer.calibrate_clutch_pulled(
+                        left_index_finger_bend
+                    )
+
+                    print(
+                        f"Clutch PULLED calibrated: "
+                        f"{left_index_finger_bend:.1f}"
+                    )
+
+                    if self._voice_output is not None:
+                        self._voice_output.speak(
+                            "Clutch calibration complete."
+                        )
+                    
+
 
 
     def _process_pose(
@@ -233,6 +299,11 @@ class PosePipeline:
     ) -> None:
         metrics = self._analyzer.analyze(
             frame_analysis
+        )
+        print(
+            "CLUTCH:",
+            "angle=", metrics.get("left_index_finger_bend"),
+            "progress=", metrics.get("clutch_progress"),
         )
         self._announce_lean_calibration(metrics)
         print(
@@ -346,7 +417,6 @@ class PosePipeline:
            
 
         
-
     def _calibrate_throttle_open(
         self,
         right_hand_rotation: float,
@@ -354,8 +424,6 @@ class PosePipeline:
         self._analyzer.capture_throttle_open(
             right_hand_rotation
         )
-        if self._throttle_voice_calibration_step == 2:
-            self._throttle_voice_calibration_step = 0
 
         print(
             f"Throttle OPEN calibrated: "
@@ -370,7 +438,6 @@ class PosePipeline:
                     "Throttle calibration complete. "
                     "You are ready to ride."
                 )
-
 
     def _request_throttle_calibration(self) -> None:
         self._throttle_voice_calibration_step = 1

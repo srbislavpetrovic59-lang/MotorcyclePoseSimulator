@@ -46,6 +46,38 @@ class PoseAnalyzer:
         )
         self._riding_phase_detector = RidingPhaseDetector()
 
+    
+    def calibrate_front_brake_released(
+        self,
+        current_angle: float,
+    ) -> None:
+        self._hand_control_analyzer.calibrate_front_brake_released(
+            current_angle
+        )
+
+    def calibrate_front_brake_pulled(
+        self,
+        current_angle: float,
+    ) -> None:
+        self._hand_control_analyzer.calibrate_front_brake_pulled(
+            current_angle
+        )
+
+    def calibrate_clutch_released(
+        self,
+        current_angle: float,
+    ) -> None:
+        self._hand_control_analyzer.calibrate_clutch_released(
+            current_angle
+        )
+
+    def calibrate_clutch_pulled(
+        self,
+        current_angle: float,
+    ) -> None:
+        self._hand_control_analyzer.calibrate_clutch_pulled(
+            current_angle
+        )
 
     def analyze(self, frame_analysis: FrameAnalysis):
         landmarks = frame_analysis.pose_landmarks
