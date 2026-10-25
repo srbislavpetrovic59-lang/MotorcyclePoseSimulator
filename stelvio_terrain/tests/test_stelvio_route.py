@@ -5,6 +5,18 @@ from stelvio_terrain.route_geometry import lonlat_to_local_m
 from pyproj import Transformer
 from stelvio_terrain.route_geometry import lonlat_to_local_utm_m
 from pyproj import Geod
+from stelvio_terrain.route_geometry import (
+        cumulative_route_distances,
+    )
+from stelvio_terrain.route_geometry import (
+        build_elevation_profile,
+    )
+from stelvio_terrain.route_geometry import (
+        interpolate_elevation,
+    )
+from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
 
 
 def test_stelvio_route_geojson_exists():
@@ -833,6 +845,609 @@ def test_rasterio_available():
     import rasterio
 
     assert rasterio.__version__
+
+
+
+def test_stelvio_dem_sample():
+    import rasterio
+    import math
+
+    dem_file = (
+        Path(__file__).resolve().parents[1]
+        / "data"
+        / "dem"
+        / "output_hh.tif"
+    )
+
+    lon = 10.5241
+    lat = 46.5727
+
+    with rasterio.open(dem_file) as dem:
+        assert dem.crs.to_epsg() == 4326
+
+        assert (
+            dem.bounds.left <= lon <= dem.bounds.right
+            and dem.bounds.bottom <= lat <= dem.bounds.top
+        )
+
+        elevation = next(dem.sample([(lon, lat)]))[0]
+
+    print(f"\nDEM elevation: {elevation:.2f} m")
+
+    assert math.isfinite(float(elevation))
+    assert 500 < elevation < 4000
+
+
+def test_stelvio_route_elevation_profile():
+    import rasterio
+    import math
+
+    base = Path(__file__).resolve().parents[1]
+
+    route_file = base / "data" / "stelvio_east_route.geojson"
+    dem_file = base / "data" / "dem" / "output_hh.tif"
+
+    with route_file.open(encoding="utf-8-sig") as f:
+        data = json.load(f)
+
+    features = (
+        data["features"]
+        if data["type"] == "FeatureCollection"
+        else [data]
+    )
+
+    coordinates = []
+
+    for feature in features:
+        geometry = feature["geometry"]
+
+        if geometry["type"] == "LineString":
+            lines = [geometry["coordinates"]]
+        elif geometry["type"] == "MultiLineString":
+            lines = geometry["coordinates"]
+        else:
+            continue
+
+        for line in lines:
+            coordinates.extend(
+                remove_consecutive_duplicates(line)
+            )
+
+    with rasterio.open(dem_file) as dem:
+        assert dem.crs.to_epsg() == 4326
+
+        samples = list(dem.sample(
+            [(p[0], p[1]) for p in coordinates],
+            masked=True,
+        ))
+
+    elevations = [float(s[0]) for s in samples]
+
+    assert len(elevations) == 2923
+    assert all(math.isfinite(z) for z in elevations)
+    assert all(not bool(s.mask.any()) for s in samples)
+
+    print(f"\nRoute points: {len(elevations)}")
+    print(f"Start elevation: {elevations[0]:.2f} m")
+    print(f"End elevation:   {elevations[-1]:.2f} m")
+    print(f"Minimum:         {min(elevations):.2f} m")
+    print(f"Maximum:         {max(elevations):.2f} m")
+    min_index = elevations.index(min(elevations))
+
+    print(f"Minimum index: {min_index}")
+    print(f"Minimum coordinates: {coordinates[min_index]}")
+    print(f"Minimum route position: {min_index / (len(elevations) - 1) * 100:.1f}% of points")
+    height_differences = [
+        abs(elevations[i + 1] - elevations[i])
+        for i in range(len(elevations) - 1)
+    ]
+
+    max_jump = max(height_differences)
+    max_jump_index = height_differences.index(max_jump)
+
+    print(f"Maximum height jump: {max_jump:.2f} m")
+    print(f"Jump between points: {max_jump_index} and {max_jump_index + 1}")
+    print(f"Elevation before: {elevations[max_jump_index]:.2f} m")
+    print(f"Elevation after:  {elevations[max_jump_index + 1]:.2f} m")
+    
+
+    geod = Geod(ellps="WGS84")
+
+    p1 = coordinates[max_jump_index]
+    p2 = coordinates[max_jump_index + 1]
+
+    _, _, distance = geod.inv(
+        p1[0], p1[1],
+        p2[0], p2[1],
+    )
+
+    height_change = (
+        elevations[max_jump_index + 1]
+        - elevations[max_jump_index]
+    )
+
+    grade_percent = (
+        100.0 * height_change / distance
+        if distance > 0
+        else float("nan")
+    )
+
+    print(f"Horizontal distance: {distance:.2f} m")
+    print(f"Height change:       {height_change:+.2f} m")
+    print(f"Calculated grade:    {grade_percent:+.1f}%")
+    print(f"Point 1: {p1}")
+    print(f"Point 2: {p2}")
+    print("\nElevation around maximum jump:")
+
+    for i in range(max_jump_index - 5, max_jump_index + 7):
+        print(
+            f"{i:4d} | "
+            f"{elevations[i]:8.2f} m | "
+            f"{coordinates[i]}"
+        )
+
+    grades = []
+
+    for i in range(len(coordinates) - 1):
+        p1 = coordinates[i]
+        p2 = coordinates[i + 1]
+
+        _, _, distance = geod.inv(
+            p1[0], p1[1],
+            p2[0], p2[1],
+        )
+
+        if distance > 0:
+            grade = (
+                100.0
+                * (elevations[i + 1] - elevations[i])
+                / distance
+            )
+            grades.append(abs(grade))
+
+    print("\nDEM grade statistics:")
+    print(f"Segments:      {len(grades)}")
+    print(f"Above 15%:     {sum(g > 15 for g in grades)}")
+    print(f"Above 30%:     {sum(g > 30 for g in grades)}")
+    print(f"Above 100%:    {sum(g > 100 for g in grades)}")
+    print(f"Maximum grade: {max(grades):.1f}%")
+
+    print("\nRoute endpoints:")
+    print(f"Start: {coordinates[0]}")
+    print(f"Minimum: {coordinates[min_index]}")
+    print(f"End: {coordinates[-1]}")
+
+    segment_distances = []
+
+    for i in range(len(coordinates) - 1):
+        p1 = coordinates[i]
+        p2 = coordinates[i + 1]
+
+        _, _, distance = geod.inv(
+            p1[0], p1[1],
+            p2[0], p2[1],
+        )
+
+        segment_distances.append(distance)
+
+    distance_to_minimum = sum(segment_distances[:min_index])
+    distance_after_minimum = sum(segment_distances[min_index:])
+
+    print("\nRoute distances:")
+    print(f"Before minimum: {distance_to_minimum / 1000:.3f} km")
+    print(f"After minimum:  {distance_after_minimum / 1000:.3f} km")
+    print(f"Total:          {sum(segment_distances) / 1000:.3f} km")
+    from stelvio_terrain.route_geometry import (
+        cumulative_route_distances,
+        build_elevation_profile,
+    )
+    from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
+
+    distances = cumulative_route_distances(coordinates)
+
+    profile = build_elevation_profile(
+        distances,
+        elevations,
+    )
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    print("\nStelvio elevation anomalies:")
+    print(f"Route points:       {len(profile)}")
+    print(f"Suspected points:   {len(spikes)}")
+    print(f"Percentage:         {100 * len(spikes) / len(profile):.2f}%")
+
+    print("\nFirst 10 suspected points:")
+
+    for i in spikes[:10]:
+        print(
+            f"Index {i:4d} | "
+            f"km {distances[i] / 1000:6.3f} | "
+            f"Z = {elevations[i]:8.2f} m"
+        )
+    print("\nMaximum jump detection:")
+    print(f"Point 1694 detected: {1694 in spikes}")
+    print(f"Point 1695 detected: {1695 in spikes}")
+    print("\nSuspected points around maximum jump:")
+    from stelvio_terrain.road_elevation import (
+        group_consecutive_spikes,
+    )
+
+    groups = group_consecutive_spikes(spikes)
+    from stelvio_terrain.road_elevation import (
+        expand_spike_interval,
+    )
+
+    zones = []
+
+    for start, end in groups:
+        zone_start, zone_end = expand_spike_interval(
+            start,
+            end,
+            len(profile),
+        )
+
+        length_m = (
+            distances[zone_end] - distances[zone_start]
+        )
+
+        zones.append(
+            (zone_start, zone_end, length_m)
+        )
+
+    zones.sort(key=lambda zone: zone[2], reverse=True)
+
+    print("\nStelvio expanded anomaly zones:")
+    print(f"Number of zones: {len(zones)}")
+
+    print("\n10 longest zones:")
+
+    for start, end, length_m in zones[:10]:
+        print(
+            f"{start:4d} - {end:4d} | "
+            f"km {distances[start] / 1000:6.3f} | "
+            f"length {length_m:6.1f} m"
+        )
+    print("\nStelvio suspected intervals:")
+    print(f"Number of intervals: {len(groups)}")
+
+    print("\nFirst 10 intervals:")
+
+    for start, end in groups[:10]:
+        length_m = distances[end] - distances[start]
+
+        print(
+            f"{start:4d} - {end:4d} | "
+            f"km {distances[start] / 1000:6.3f} | "
+            f"length {length_m:6.1f} m | "
+            f"points {end - start + 1}"
+        )
+    for i in range(1689, 1701):
+        print(
+            f"{i:4d} | "
+            f"Z = {elevations[i]:8.2f} m | "
+            f"Suspected = {i in spikes}"
+        )
+
+def test_cumulative_route_distances():
+    
+
+    coordinates = [
+        [10.0, 46.0],
+        [10.001, 46.0],
+        [10.002, 46.0],
+    ]
+
+    distances = cumulative_route_distances(coordinates)
+
+    assert len(distances) == 3
+    assert distances[0] == 0.0
+    assert distances[1] > 0.0
+    assert distances[2] > distances[1]
+    assert 150.0 < distances[-1] < 160.0
+
+def test_stelvio_cumulative_distances():
+    
+
+    base = Path(__file__).resolve().parents[1]
+    route_file = base / "data" / "stelvio_east_route.geojson"
+
+    with route_file.open(encoding="utf-8-sig") as f:
+        data = json.load(f)
+
+    geometry = (
+        data["geometry"]
+        if data["type"] == "Feature"
+        else data
+    )
+
+    coordinates = geometry["coordinates"]
+    coordinates = remove_consecutive_duplicates(coordinates)
+
+    distances = cumulative_route_distances(coordinates)
+
+    assert len(distances) == 2923
+    assert distances[0] == 0.0
+    assert all(
+        b > a
+        for a, b in zip(distances, distances[1:])
+    )
+    assert abs(distances[-1] - 29283.648) < 1.0
+
+    print(f"\nTotal route: {distances[-1]:.3f} m")
+    print(f"Minimum point: {distances[367]:.3f} m")
+
+
+def test_build_elevation_profile():
+   
+
+    distances = [0.0, 10.0, 25.0]
+    elevations = [1000.0, 1001.0, 1003.0]
+
+    profile = build_elevation_profile(
+        distances,
+        elevations,
+    )
+
+    assert profile == [
+        (0.0, 1000.0),
+        (10.0, 1001.0),
+        (25.0, 1003.0),
+    ]
+
+
+def test_build_elevation_profile_rejects_invalid_heights():
+    import pytest
+    
+
+    with pytest.raises(ValueError):
+        build_elevation_profile(
+            [0.0, 10.0],
+            [1000.0, float("nan")],
+        )
+
+    with pytest.raises(ValueError):
+        build_elevation_profile(
+            [0.0, 10.0],
+            [1000.0, float("inf")],
+        )
+
+def test_build_elevation_profile_rejects_non_increasing_distances():
+    import pytest
+    from stelvio_terrain.route_geometry import (
+        build_elevation_profile,
+    )
+
+    with pytest.raises(ValueError):
+        build_elevation_profile(
+            [0.0, 10.0, 10.0],
+            [1000.0, 1001.0, 1002.0],
+        )
+
+    with pytest.raises(ValueError):
+        build_elevation_profile(
+            [0.0, 20.0, 15.0],
+            [1000.0, 1002.0, 1001.0],
+        )
+
+
+def test_interpolate_elevation():
+    from stelvio_terrain.route_geometry import (
+        interpolate_elevation,
+    )
+
+    profile = [
+        (0.0, 1000.0),
+        (10.0, 1002.0),
+        (30.0, 1006.0),
+    ]
+
+    assert interpolate_elevation(profile, 0.0) == 1000.0
+    assert interpolate_elevation(profile, 5.0) == 1001.0
+    assert interpolate_elevation(profile, 10.0) == 1002.0
+    assert interpolate_elevation(profile, 20.0) == 1004.0
+    assert interpolate_elevation(profile, 30.0) == 1006.0
+
+def test_interpolate_elevation_preserves_known_points():
+    
+
+    profile = [
+        (0.0, 1000.0),
+        (7.5, 1002.5),
+        (23.0, 1005.0),
+        (40.0, 1004.0),
+    ]
+
+    for distance, elevation in profile:
+        assert interpolate_elevation(profile, distance) == elevation
+
+
+def test_detect_elevation_spike():
+    from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
+
+    profile = [
+        (0.0, 1000.0),
+        (10.0, 1001.0),
+        (20.0, 1035.0),
+        (30.0, 1003.0),
+        (40.0, 1004.0),
+    ]
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    assert spikes == [2]
+
+    # Originalni podaci ostaju nepromenjeni.
+    assert profile[2] == (20.0, 1035.0)
+
+
+def test_detect_elevation_spikes_preserves_normal_climb():
+    
+
+    # Ravnomeran uspon od 10%.
+    profile = [
+        (0.0, 1000.0),
+        (10.0, 1001.0),
+        (20.0, 1002.0),
+        (30.0, 1003.0),
+        (40.0, 1004.0),
+    ]
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    assert spikes == []
+
+def test_detect_elevation_spikes_preserves_grade_transition():
+    from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
+
+    # Prvih 20 m: uspon 5%.
+    # Sledećih 20 m: uspon 15%.
+    profile = [
+        (0.0, 1000.0),
+        (10.0, 1000.5),
+        (20.0, 1001.0),
+        (30.0, 1002.5),
+        (40.0, 1004.0),
+    ]
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    assert spikes == []
+
+
+def test_detect_elevation_spikes_two_consecutive_anomalies():
+    from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
+
+    profile = [
+        (0.0, 1000.0),
+        (10.0, 1001.0),
+        (20.0, 1035.0),
+        (30.0, 1036.0),
+        (40.0, 1004.0),
+        (50.0, 1005.0),
+    ]
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    assert spikes == [2, 3]
+    height_changes = [
+        profile[i + 1][1] - profile[i][1]
+        for i in range(len(profile) - 1)
+    ]
+
+    print(f"\nHeight changes: {height_changes}")
+    print(f"Detected spikes: {spikes}")
+
+
+def test_detect_elevation_spikes_preserves_long_climb():
+    from stelvio_terrain.road_elevation import (
+        detect_elevation_spikes,
+    )
+
+    # Visinski uspon i silazak na velikoj udaljenosti.
+    # Nagibi su samo 5%, iako je promena visine 20 m.
+    profile = [
+        (0.0, 1000.0),
+        (400.0, 1020.0),
+        (800.0, 1000.0),
+    ]
+
+    spikes = detect_elevation_spikes(
+        profile,
+        threshold_m=10.0,
+    )
+
+    assert spikes == []
+   
+
+def test_group_consecutive_spikes():
+    from stelvio_terrain.road_elevation import (
+        group_consecutive_spikes,
+    )
+
+    spikes = [
+        59, 110, 183, 184, 185, 186, 1695, 1696
+    ]
+
+    groups = group_consecutive_spikes(spikes)
+
+    assert groups == [
+        (59, 59),
+        (110, 110),
+        (183, 186),
+        (1695, 1696),
+    ]
+
+
+def test_expand_spike_interval_to_neighbors():
+    from stelvio_terrain.road_elevation import (
+        expand_spike_interval,
+    )
+
+    assert expand_spike_interval(
+        start=1695,
+        end=1696,
+        point_count=2923,
+    ) == (1694, 1697)
+
+    # Interval na početku trase.
+    assert expand_spike_interval(
+        start=0,
+        end=1,
+        point_count=100,
+    ) == (0, 2)
+
+    # Interval na kraju trase.
+    assert expand_spike_interval(
+        start=98,
+        end=99,
+        point_count=100,
+    ) == (97, 99)
+
+
+def test_merge_overlapping_spike_zones():
+    from stelvio_terrain.road_elevation import (
+        merge_spike_zones,
+    )
+
+    zones = [
+        (10, 15),
+        (14, 20),
+        (30, 35),
+        (36, 40),
+        (50, 55),
+    ]
+
+    merged = merge_spike_zones(zones)
+
+    assert merged == [
+        (10, 20),
+        (30, 40),
+        (50, 55),
+    ]
 
 
 
