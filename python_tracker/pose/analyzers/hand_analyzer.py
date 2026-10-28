@@ -41,6 +41,11 @@ class HandAnalyzer:
         filtered_bend_2d = self._left_index_angle_filter.update(
             bend_2d
         )
+        print(
+            f"INDEX FILTER: "
+            f"raw={bend_2d} | "
+            f"filtered={filtered_bend_2d}"
+        )
 
         return {
             "left_index_finger_bend": filtered_bend_2d,
